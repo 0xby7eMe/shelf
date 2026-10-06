@@ -17,6 +17,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { WindowToggleMaximise } from "../wailsjs/runtime/runtime"
+import { Shelf } from "@/components/shelf"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
@@ -121,12 +122,27 @@ function App() {
         )[0]
     }, [games])
 
+    const shelves = useMemo(() => {
+        const rest = (games ?? []).filter((g) => g.installed && g.id !== featured?.id)
+
+        const recent = rest
+        .filter((g) => g.lastPlayed > 0)
+        .sort((a, b) => b.lastPlayed - a.lastPlayed)
+        .slice(0, 10)
+
+        const unplayedAll = rest.filter((g) => g.lastPlayed === 0 && g.playtimeMinutes === 0)
+        const unplayed = [...unplayedAll].sort(sorters.name).slice(0, 15)
+
+        return { recent, unplayed, unplayedTotal: unplayedAll.length }
+    }, [games, featured])
+
     const totalMinutes = useMemo(
         () => (games ?? []).reduce((n, g) => n + g.playtimeMinutes, 0),
         [games]
     )
 
     const showHero = !!featured && !query.trim()
+    const showShelves = showHero && filter === "all"
 
     function play(game: library.Game) {
         Launch(game.externalId).catch((e: any) => setError(String(e)))
@@ -214,9 +230,33 @@ function App() {
             )}
 
             <main className={cn("relative px-8 pb-16", showHero ? "pt-8" : "pt-6")}>
+                {showShelves && games && (
+                    <>
+                        {shelves.recent.length > 0 && (
+                        <Shelf
+                            title="Continue playing"
+                            games={shelves.recent}
+                            favorites={favorites}
+                            onSelect={setSelected}
+                            onToggleFavorite={toggleFavorite}
+                        />
+                        )}
+                        {shelves.unplayed.length > 0 && (
+                        <Shelf
+                            title="Never played"
+                            count={shelves.unplayedTotal}
+                            games={shelves.unplayed}
+                            favorites={favorites}
+                            onSelect={setSelected}
+                            onToggleFavorite={toggleFavorite}
+                        />
+                        )}
+                    </>
+                )}
+
                 <div className="mb-5 flex items-baseline justify-between">
                     <h2 className="text-[11px] font-medium tracking-[0.25em] text-muted-foreground uppercase">
-                        Library
+                        {showShelves ? "All games" : "Library"}
                     </h2>
                     {games && (
                         <span className="text-xs tabular-nums text-muted-foreground/70">

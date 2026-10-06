@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useEffect, useState } from "react"
 import { ExternalLink, FolderOpen, Heart, Play } from "lucide-react"
 
 import { OpenInstallFolder, OpenStorePage } from "../../wailsjs/go/main/App"
@@ -20,7 +20,15 @@ interface Props {
     onClose: () => void
     onPlay: (game: library.Game) => void
 }
-export function GameSheet({ game, totalMinutes, onClose, onPlay, favorite, onToggleFavorite }: Props) {
+
+export function GameSheet({
+    game,
+    totalMinutes,
+    favorite,
+    onToggleFavorite,
+    onClose,
+    onPlay,
+}: Props) {
     return (
         <Sheet open={game !== null} onOpenChange={(open) => !open && onClose()}>
             <SheetContent
@@ -46,21 +54,52 @@ export function GameSheet({ game, totalMinutes, onClose, onPlay, favorite, onTog
     )
 }
 
+// Fades and lifts its content into place. `i` sets the order; the base
+// delay lets the panel's own slide-in finish first.
+function Reveal({
+    i,
+    className,
+    children,
+}: {
+    i: number
+    className?: string
+    children: React.ReactNode
+}) {
+    return (
+        <div
+            style={{ animationDelay: `${120 + i * 70}ms` }}
+            className={cn(
+                "animate-in duration-500 [animation-fill-mode:backwards] fade-in slide-in-from-bottom-3 motion-reduce:animate-none",
+                className
+            )}
+        >
+            {children}
+        </div>
+    )
+}
+
 function Body({
     game,
     totalMinutes,
-    onPlay,
     favorite,
-    onToggleFavorite
+    onToggleFavorite,
+    onPlay,
 }: {
     game: library.Game
     totalMinutes: number
-    onPlay: (game: library.Game) => void
     favorite: boolean
     onToggleFavorite: (game: library.Game) => void
+    onPlay: (game: library.Game) => void
 }) {
     const [heroFailed, setHeroFailed] = useState(false)
+    const [armed, setArmed] = useState(false)
     const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
+
+    // The share bar fills once the content above it has appeared.
+    useEffect(() => {
+        const t = setTimeout(() => setArmed(true), 600)
+        return () => clearTimeout(t)
+    }, [])
 
     return (
         <>
@@ -71,21 +110,21 @@ function Body({
                         src={`${game.cover}?kind=hero`}
                         alt=""
                         onError={() => setHeroFailed(true)}
-                        className="size-full animate-in object-cover duration-700 fade-in"
+                        className="size-full animate-in object-cover duration-1000 ease-out fade-in zoom-in-110 motion-reduce:animate-none"
                     />
                 ) : (
                     <img
                         src={game.cover}
                         alt=""
                         aria-hidden
-                        className="size-full scale-125 object-cover opacity-60 blur-3xl saturate-150"
+                        className="size-full scale-125 animate-in object-cover opacity-60 blur-3xl saturate-150 duration-700 fade-in"
                     />
                 )}
                 <div className="absolute inset-0 bg-gradient-to-t from-[rgba(10,10,10,0.95)] via-[rgba(10,10,10,0.3)] to-transparent" />
             </div>
 
             {/* Poster overlapping the banner, title beside it */}
-            <div className="relative -mt-20 flex items-end gap-4 px-6">
+            <Reveal i={1} className="relative -mt-20 flex items-end gap-4 px-6">
                 <img
                     src={game.cover}
                     alt=""
@@ -98,65 +137,65 @@ function Body({
                     <SheetTitle className="text-xl leading-tight font-semibold tracking-tight text-balance">
                         {game.name}
                     </SheetTitle>
-                    <SheetDescription className="sr-only">
-                        Details for {game.name}
-                    </SheetDescription>
+                    <SheetDescription className="sr-only">Details for {game.name}</SheetDescription>
                 </div>
-            </div>
+            </Reveal>
 
             <div className="space-y-6 px-6 pt-6 pb-8">
-                <button
-                    onClick={() => onPlay(game)}
-                    className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-medium text-black transition duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-                >
-                    <Play className="size-3.5 fill-current" />
-                    {game.installed ? "Play" : "Install in Steam"}
-                </button>
+                <Reveal i={2}>
+                    <button
+                        onClick={() => onPlay(game)}
+                        className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white text-sm font-medium text-black transition duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+                    >
+                        <Play className="size-3.5 fill-current" />
+                        {game.installed ? "Play" : "Install in Steam"}
+                    </button>
+                </Reveal>
 
-                <div className="grid grid-cols-2 gap-3">
+                <Reveal i={3} className="grid grid-cols-2 gap-3">
                     <Stat label="Playtime" value={formatPlaytime(game.playtimeMinutes)} />
                     <Stat
                         label="Last played"
                         value={relativeTime(game.lastPlayed)}
                         hint={game.lastPlayed > 0 ? formatLastPlayed(game.lastPlayed) : undefined}
                     />
-                </div>
+                </Reveal>
 
                 {game.playtimeMinutes > 0 && (
-                    <div>
+                    <Reveal i={4}>
                         <div className="mb-2 flex justify-between text-[11px] tracking-wide text-white/45 uppercase">
                             <span>Share of library</span>
-                            <span className="tabular-nums">
-                                {share < 1 ? "<1" : Math.round(share)}%
-                            </span>
+                            <span className="tabular-nums">{share < 1 ? "<1" : Math.round(share)}%</span>
                         </div>
                         <div className="h-1 overflow-hidden rounded-full bg-white/10">
                             <div
-                                className="h-full rounded-full bg-white/70 transition-[width] duration-700 ease-out"
-                                style={{ width: `${Math.max(share, 1)}%` }}
+                                className="h-full rounded-full bg-white/70 transition-[width] duration-1000 ease-out"
+                                style={{ width: armed ? `${Math.max(share, 1)}%` : "0%" }}
                             />
                         </div>
-                    </div>
+                    </Reveal>
                 )}
 
-                <div className="flex gap-2">
-                        <Action icon={Heart} active={favorite} onClick={() => onToggleFavorite(game)}>
-                            {favorite ? "Favorited" : "Favorite"}
-                        </Action>
-                        <Action icon={ExternalLink} onClick={() => OpenStorePage(game.externalId)}>
-                            Store
-                        </Action>
-                        <Action
-                            icon={FolderOpen}
-                            disabled={!game.installed}
-                            onClick={() => OpenInstallFolder(game.externalId)}
-                        >
-                            Folder
-                        </Action>
-                </div>
+                <Reveal i={5} className="flex gap-2">
+                    <Action icon={Heart} active={favorite} onClick={() => onToggleFavorite(game)}>
+                        {favorite ? "Favorited" : "Favorite"}
+                    </Action>
+                    <Action icon={ExternalLink} onClick={() => OpenStorePage(game.externalId)}>
+                        Store
+                    </Action>
+                    <Action
+                        icon={FolderOpen}
+                        disabled={!game.installed}
+                        onClick={() => OpenInstallFolder(game.externalId)}
+                    >
+                        Folder
+                    </Action>
+                </Reveal>
 
                 {game.installPath && (
-                    <p className="text-[11px] break-all text-white/30">{game.installPath}</p>
+                    <Reveal i={6}>
+                        <p className="text-[11px] break-all text-white/30">{game.installPath}</p>
+                    </Reveal>
                 )}
             </div>
         </>

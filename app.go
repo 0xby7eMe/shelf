@@ -13,7 +13,7 @@ type App struct {
 }
 
 func NewApp() *App {
-	return &App{lib: library.New()}
+	return &App{lib: library.New(library.NewSteam())}
 }
 
 func (a *App) startup(ctx context.Context) {

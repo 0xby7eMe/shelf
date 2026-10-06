@@ -9,11 +9,25 @@ import (
 )
 
 type App struct {
-	ctx context.Context
-	lib *library.Library
+	ctx  context.Context
+	lib  *library.Library
+	favs *library.Favorites
 
 	mu    sync.RWMutex
 	paths map[string]string
+}
+
+func NewApp() *App {
+	return &App{
+		lib:  library.New(library.NewSteam()),
+		favs: library.NewFavorites(),
+	}
+}
+
+func (a *App) GetFavorites() []string { return a.favs.List() }
+
+func (a *App) ToggleFavorite(appID string) ([]string, error) {
+	return a.favs.Toggle(appID)
 }
 
 func (a *App) GetGames() []library.Game {
@@ -44,10 +58,6 @@ func (a *App) OpenInstallFolder(appID string) error {
 
 func (a *App) OpenStorePage(appID string) error {
 	return library.OpenStore(appID)
-}
-
-func NewApp() *App {
-	return &App{lib: library.New(library.NewSteam())}
 }
 
 func (a *App) Launch(appID string) error {

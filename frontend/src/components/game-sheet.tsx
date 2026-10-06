@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { ExternalLink, FolderOpen, Play } from "lucide-react"
+import { ExternalLink, FolderOpen, Heart, Play } from "lucide-react"
 
 import { OpenInstallFolder, OpenStorePage } from "../../wailsjs/go/main/App"
 import { library } from "../../wailsjs/go/models"
@@ -15,11 +15,12 @@ import { cn } from "@/lib/utils"
 interface Props {
   game: library.Game | null
   totalMinutes: number
+  favorite: boolean
+  onToggleFavorite: (game: library.Game) => void
   onClose: () => void
   onPlay: (game: library.Game) => void
 }
-
-export function GameSheet({ game, totalMinutes, onClose, onPlay }: Props) {
+export function GameSheet({ game, totalMinutes, onClose, onPlay, favorite, onToggleFavorite }: Props) {
   return (
     <Sheet open={game !== null} onOpenChange={(open) => !open && onClose()}>
       <SheetContent
@@ -31,7 +32,14 @@ export function GameSheet({ game, totalMinutes, onClose, onPlay }: Props) {
         className="gap-0 overflow-y-auto border-white/10 p-0 sm:max-w-md"
       >
         {game && (
-          <Body key={game.id} game={game} totalMinutes={totalMinutes} onPlay={onPlay} />
+          <Body
+            key={game.id}
+            game={game}
+            totalMinutes={totalMinutes}
+            favorite={favorite}
+            onToggleFavorite={onToggleFavorite}
+            onPlay={onPlay}
+          />
         )}
       </SheetContent>
     </Sheet>
@@ -42,10 +50,14 @@ function Body({
   game,
   totalMinutes,
   onPlay,
+  favorite,
+  onToggleFavorite
 }: {
   game: library.Game
   totalMinutes: number
   onPlay: (game: library.Game) => void
+  favorite: boolean
+  onToggleFavorite: (game: library.Game) => void
 }) {
   const [heroFailed, setHeroFailed] = useState(false)
   const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
@@ -128,16 +140,19 @@ function Body({
         )}
 
         <div className="flex gap-2">
-          <Action icon={ExternalLink} onClick={() => OpenStorePage(game.externalId)}>
-            Store page
-          </Action>
-          <Action
-            icon={FolderOpen}
-            disabled={!game.installed}
-            onClick={() => OpenInstallFolder(game.externalId)}
-          >
-            Open folder
-          </Action>
+            <Action icon={Heart} active={favorite} onClick={() => onToggleFavorite(game)}>
+              {favorite ? "Favorited" : "Favorite"}
+            </Action>
+            <Action icon={ExternalLink} onClick={() => OpenStorePage(game.externalId)}>
+              Store
+            </Action>
+            <Action
+              icon={FolderOpen}
+              disabled={!game.installed}
+              onClick={() => OpenInstallFolder(game.externalId)}
+            >
+              Folder
+            </Action>
         </div>
 
         {game.installPath && (
@@ -162,11 +177,13 @@ function Action({
   icon: Icon,
   children,
   disabled,
+  active,
   onClick,
 }: {
   icon: React.ComponentType<{ className?: string }>
   children: React.ReactNode
   disabled?: boolean
+  active?: boolean
   onClick: () => void
 }) {
   return (
@@ -174,11 +191,14 @@ function Action({
       onClick={onClick}
       disabled={disabled}
       className={cn(
-        "flex h-10 flex-1 items-center justify-center gap-2 rounded-full bg-white/5 text-xs text-white/80 ring-1 ring-white/10 transition",
-        "hover:bg-white/10 hover:text-white disabled:pointer-events-none disabled:opacity-30"
+        "flex h-10 flex-1 items-center justify-center gap-2 rounded-full text-xs ring-1 ring-white/10 transition",
+        "disabled:pointer-events-none disabled:opacity-30",
+        active
+          ? "bg-white/15 text-white"
+          : "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white"
       )}
     >
-      <Icon className="size-3.5" />
+      <Icon className={cn("size-3.5", active && "fill-current")} />
       {children}
     </button>
   )

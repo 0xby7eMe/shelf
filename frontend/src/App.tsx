@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
-import { Search } from "lucide-react"
+import { Search, Shuffle } from "lucide-react"
+import { GetFavorites, GetGames, Launch, ToggleFavorite } from "../wailsjs/go/main/App"
 
-import { GetGames, Launch } from "../wailsjs/go/main/App"
 import { library } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
 import { GameSheet } from "@/components/game-sheet"
@@ -18,7 +18,7 @@ import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 
 type SortKey = "name" | "playtime" | "recent"
-type Filter = "all" | "installed"
+type Filter = "all" | "installed" | "favorites"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
   name: (a, b) => a.name.localeCompare(b.name),
@@ -34,11 +34,19 @@ function App() {
   const [sort, setSort] = useState<SortKey>("name")
   const [selected, setSelected] = useState<library.Game | null>(null)
   const [scrolled, setScrolled] = useState(false)
+  const [favorites, setFavorites] = useState<Set<string>>(new Set())
+  const randomRef = useRef<() => void>(() => {})
   const searchRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
     GetGames()
       .then(setGames)
+      .catch((e) => setError(String(e)))
+  }, [])
+
+  useEffect(() => {
+    GetFavorites()
+      .then((ids) => setFavorites(new Set(ids)))
       .catch((e) => setError(String(e)))
   }, [])
 
@@ -51,6 +59,9 @@ function App() {
       } else if (e.key === "Escape" && typing) {
         setQuery("")
         searchRef.current?.blur()
+      } else if (e.key === "r" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+        e.preventDefault()
+        randomRef.current()
       }
     }
     window.addEventListener("keydown", onKey)
@@ -61,10 +72,44 @@ function App() {
     if (!games) return []
     const q = query.trim().toLowerCase()
     return games
-      .filter((g) => (filter === "installed" ? g.installed : true))
+      .filter((g) =>
+        filter === "installed"
+          ? g.installed
+          : filter === "favorites"
+            ? favorites.has(g.externalId)
+            : true
+      )
       .filter((g) => !q || g.name.toLowerCase().includes(q))
       .sort(sorters[sort])
-  }, [games, query, filter, sort])
+  }, [games, query, filter, sort, favorites])
+
+  function toggleFavorite(game: library.Game) {
+    const id = game.externalId
+    setFavorites((prev) => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+    ToggleFavorite(id)
+      .then((ids) => setFavorites(new Set(ids)))
+      .catch((e) => {
+        setError(String(e))
+        GetFavorites().then((ids) => setFavorites(new Set(ids)))
+      })
+  }
+
+  function pickRandom() {
+    const installed = visible.filter((g) => g.installed)
+    const pool = installed.length ? installed : visible
+    const options = pool.length > 1 ? pool.filter((g) => g.id !== selected?.id) : pool
+    if (options.length === 0) return
+    setSelected(options[Math.floor(Math.random() * options.length)])
+  }
+
+  useEffect(() => {
+    randomRef.current = pickRandom
+  })
 
   const featured = useMemo(() => {
     if (!games || games.length === 0) return null
@@ -121,7 +166,7 @@ function App() {
         </div>
 
         <div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5 backdrop-blur-md">
-          {(["all", "installed"] as const).map((f) => (
+          {(["all", "installed", "favorites"] as const).map((f) => (
             <button
               key={f}
               onClick={() => setFilter(f)}
@@ -147,6 +192,15 @@ function App() {
             <SelectItem value="recent">Recently played</SelectItem>
           </SelectContent>
         </Select>
+
+        <button
+          onClick={pickRandom}
+          title="Random game (R)"
+          aria-label="Random game"
+          className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+        >
+          <Shuffle className="size-3.5" />
+        </button>
       </header>
 
       {showHero && featured && (
@@ -175,7 +229,12 @@ function App() {
           </Grid>
         ) : visible.length === 0 ? (
           <p className="pt-24 text-center text-sm text-muted-foreground">
-            {games.length === 0 ? "No Steam games found." : "Nothing matches."}
+            {games.length === 0
+              ? "No Steam games found."
+              : filter === "favorites" && !query
+                ? "No favorites yet. Click the heart on a poster."
+                : "Nothing matches."
+            }
           </p>
         ) : (
           <Grid>
@@ -184,7 +243,9 @@ function App() {
                 key={g.id}
                 game={g}
                 index={i}
+                favorite={favorites.has(g.externalId)}
                 onSelect={setSelected}
+                onToggleFavorite={toggleFavorite}
               />
             ))}
           </Grid>
@@ -194,6 +255,8 @@ function App() {
       <GameSheet
         game={selected}
         totalMinutes={totalMinutes}
+        favorite={selected ? favorites.has(selected.externalId) : false}
+        onToggleFavorite={toggleFavorite}
         onClose={() => setSelected(null)}
         onPlay={play}
       />

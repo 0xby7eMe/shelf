@@ -1,8 +1,8 @@
 [Desktop Entry]
-Type=Application
 Name=Shelf
+Exec=/usr/bin/shelf
+Type=Application
 Comment=A minimal Steam library
-Exec=shelf
 Icon=shelf
 Categories=Game;
 Terminal=false

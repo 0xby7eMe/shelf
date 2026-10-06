@@ -28,8 +28,8 @@ func main() {
 
 	err = wails.Run(&options.App{
 		Title:     "Shelf",
-		Width:     1024,
-		Height:    700,
+		Width:     1424,
+		Height:    820,
 		MinWidth:  720,
 		MinHeight: 480,
 		AssetServer: &assetserver.Options{

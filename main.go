@@ -14,6 +14,9 @@ import (
 //go:embed all:frontend/dist
 var assets embed.FS
 
+//go:embed build/appicon.png
+var icon []byte
+
 func main() {
 	app := NewApp()
 
@@ -34,6 +37,7 @@ func main() {
 			Middleware: covers.Middleware,
 		},
 		Linux: &linux.Options{
+			Icon:             icon,
 			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
 		},
 		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 10, A: 1},

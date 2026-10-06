@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=Shelf
+Exec=/usr/bin/shelf
+Type=Application
+Comment=A minimal Steam library
+Icon=shelf
+Categories=Game;
+Terminal=false
+StartupWMClass=shelf

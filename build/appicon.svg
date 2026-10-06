@@ -1,0 +1,88 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#202024"/>
+      <stop offset="1" stop-color="#08080a"/>
+    </linearGradient>
+
+    <radialGradient id="glow" cx="512" cy="560" r="400" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#fff" stop-opacity=".20"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </radialGradient>
+
+    <linearGradient id="sheen" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".12"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+
+    <linearGradient id="front" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#a9a9ae"/>
+    </linearGradient>
+
+    <linearGradient id="side" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#fff" stop-opacity=".34"/>
+      <stop offset="1" stop-color="#fff" stop-opacity=".10"/>
+    </linearGradient>
+
+    <linearGradient id="art" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#000" stop-opacity="0"/>
+      <stop offset="1" stop-color="#000" stop-opacity=".28"/>
+    </linearGradient>
+
+    <linearGradient id="shelf" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#fff" stop-opacity="0"/>
+      <stop offset=".5" stop-color="#fff" stop-opacity=".45"/>
+      <stop offset="1" stop-color="#fff" stop-opacity="0"/>
+    </linearGradient>
+
+    <filter id="shadow" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="22"/>
+    </filter>
+    <filter id="soft" x="-50%" y="-50%" width="200%" height="200%">
+      <feGaussianBlur stdDeviation="10"/>
+    </filter>
+
+    <clipPath id="tile"><rect width="1024" height="1024" rx="224"/></clipPath>
+  </defs>
+
+  <!-- Tile -->
+  <rect width="1024" height="1024" rx="224" fill="url(#bg)"/>
+  <g clip-path="url(#tile)">
+    <circle cx="512" cy="560" r="400" fill="url(#glow)"/>
+    <rect width="1024" height="520" fill="url(#sheen)"/>
+  </g>
+  <rect x="2" y="2" width="1020" height="1020" rx="222" fill="none" stroke="#fff" stroke-opacity=".10" stroke-width="4"/>
+
+  <!-- Left poster -->
+  <g transform="rotate(-9 285 760)">
+    <rect x="170" y="430" width="230" height="345" rx="24" fill="#000" opacity=".55" filter="url(#shadow)"/>
+    <rect x="170" y="415" width="230" height="345" rx="24" fill="url(#side)"/>
+    <rect x="170.5" y="415.5" width="229" height="344" rx="23.5" fill="none" stroke="#fff" stroke-opacity=".22"/>
+  </g>
+
+  <!-- Right poster -->
+  <g transform="rotate(9 739 760)">
+    <rect x="624" y="430" width="230" height="345" rx="24" fill="#000" opacity=".55" filter="url(#shadow)"/>
+    <rect x="624" y="415" width="230" height="345" rx="24" fill="url(#side)"/>
+    <rect x="624.5" y="415.5" width="229" height="344" rx="23.5" fill="none" stroke="#fff" stroke-opacity=".22"/>
+  </g>
+
+  <!-- Front poster -->
+  <rect x="372" y="372" width="280" height="420" rx="28" fill="#000" opacity=".6" filter="url(#shadow)"/>
+  <rect x="372" y="340" width="280" height="420" rx="28" fill="url(#front)"/>
+  <rect x="372" y="340" width="280" height="420" rx="28" fill="url(#art)"/>
+  <rect x="373" y="341" width="278" height="418" rx="27" fill="none" stroke="#fff" stroke-opacity=".6"/>
+
+  <!-- Play mark -->
+  <path d="M488 500 L488 580 Q488 590 497 585 L563 545 Q571 540 563 535 L497 495 Q488 490 488 500 Z"
+        fill="#0a0a0a" fill-opacity=".85" transform="translate(0 4)"/>
+
+  <!-- Title lines -->
+  <rect x="410" y="676" width="204" height="12" rx="6" fill="#0a0a0a" fill-opacity=".55"/>
+  <rect x="410" y="702" width="132" height="12" rx="6" fill="#0a0a0a" fill-opacity=".28"/>
+
+  <!-- Shelf -->
+  <rect x="150" y="776" width="724" height="14" rx="7" fill="url(#shelf)" filter="url(#soft)" opacity=".7"/>
+  <rect x="150" y="778" width="724" height="8" rx="4" fill="url(#shelf)"/>
+</svg>

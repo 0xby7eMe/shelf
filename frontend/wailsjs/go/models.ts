@@ -1,0 +1,121 @@
+export namespace library {
+	
+	export class DayStat {
+	    date: string;
+	    minutes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DayStat(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.date = source["date"];
+	        this.minutes = source["minutes"];
+	    }
+	}
+	export class Game {
+	    id: string;
+	    source: string;
+	    externalId: string;
+	    name: string;
+	    installed: boolean;
+	    playtimeMinutes: number;
+	    lastPlayed: number;
+	    installPath?: string;
+	    cover?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Game(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.source = source["source"];
+	        this.externalId = source["externalId"];
+	        this.name = source["name"];
+	        this.installed = source["installed"];
+	        this.playtimeMinutes = source["playtimeMinutes"];
+	        this.lastPlayed = source["lastPlayed"];
+	        this.installPath = source["installPath"];
+	        this.cover = source["cover"];
+	    }
+	}
+	export class GameStat {
+	    appId: string;
+	    weekMinutes: number;
+	    trackedMinutes: number;
+	    sessions: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameStat(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appId = source["appId"];
+	        this.weekMinutes = source["weekMinutes"];
+	        this.trackedMinutes = source["trackedMinutes"];
+	        this.sessions = source["sessions"];
+	    }
+	}
+	export class Session {
+	    appId: string;
+	    since: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Session(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appId = source["appId"];
+	        this.since = source["since"];
+	    }
+	}
+	export class Stats {
+	    days: DayStat[];
+	    weekMinutes: number;
+	    prevWeekMinutes: number;
+	    trackedMinutes: number;
+	    sessions: number;
+	    since: number;
+	    games: GameStat[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Stats(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.days = this.convertValues(source["days"], DayStat);
+	        this.weekMinutes = source["weekMinutes"];
+	        this.prevWeekMinutes = source["prevWeekMinutes"];
+	        this.trackedMinutes = source["trackedMinutes"];
+	        this.sessions = source["sessions"];
+	        this.since = source["since"];
+	        this.games = this.convertValues(source["games"], GameStat);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+

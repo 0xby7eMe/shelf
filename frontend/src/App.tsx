@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react"
 import { Search, Shuffle } from "lucide-react"
 import { GetFavorites, GetGames, Launch, ToggleFavorite } from "../wailsjs/go/main/App"
-
+import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
 import { GameSheet } from "@/components/game-sheet"
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
+import { WindowToggleMaximise } from "wailsjs/runtime/runtime"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
@@ -137,13 +138,16 @@ function App() {
       className="relative h-screen overflow-y-auto bg-background text-foreground"
     >
       <header
+        onDoubleClick={(e) => {
+          if (e.target === e.currentTarget) WindowToggleMaximise()
+        }}
         style={{
           backdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
           WebkitBackdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
           backgroundColor: scrolled ? "rgba(10, 10, 10, 0.55)" : "transparent",
         }}
         className={cn(
-          "sticky top-0 z-30 flex h-16 items-center gap-3 border-b px-8 transition-colors duration-300",
+          "titlebar sticky top-0 z-30 flex h-16 items-center gap-3 border-b px-8 transition-colors duration-300",
           scrolled ? "border-white/5" : "border-transparent"
         )}
       >
@@ -201,6 +205,8 @@ function App() {
         >
           <Shuffle className="size-3.5" />
         </button>
+
+        <WindowControls />
       </header>
 
       {showHero && featured && (

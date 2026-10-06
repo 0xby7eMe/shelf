@@ -41,6 +41,7 @@ func main() {
 		Bind: []interface{}{
 			app,
 		},
+		Frameless: true,
 	})
 	if err != nil {
 		println("Error:", err.Error())

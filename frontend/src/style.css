@@ -128,3 +128,12 @@
     @apply font-sans;
     }
 }
+
+.titlebar {
+  --wails-draggable: drag;
+  user-select: none;
+}
+
+.titlebar :is(button, input, [role="combobox"]) {
+  --wails-draggable: no-drag;
+}

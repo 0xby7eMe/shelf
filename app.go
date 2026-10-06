@@ -16,6 +16,7 @@ type App struct {
 	lib     *library.Library
 	favs    *library.Favorites
 	monitor *library.Monitor
+	hist    *library.History
 
 	mu    sync.RWMutex
 	paths map[string]string
@@ -26,6 +27,7 @@ func NewApp() *App {
 		lib:     library.New(library.NewSteam()),
 		favs:    library.NewFavorites(),
 		monitor: library.NewMonitor(),
+		hist:    library.NewHistory(),
 	}
 }
 
@@ -43,11 +45,26 @@ func (a *App) startup(ctx context.Context) {
 
 	go a.monitor.Run(ctx, 2*time.Second, func(now, stopped []library.Session) {
 		runtime.EventsEmit(ctx, "nowplaying:changed", now)
-		if len(stopped) > 0 {
-			time.AfterFunc(5*time.Second, func() {
-				runtime.EventsEmit(ctx, "library:changed")
-			})
+		if len(stopped) == 0 {
+			return
 		}
+
+		end := time.Now().UnixMilli()
+		recorded := false
+		for _, s := range stopped {
+			ok, err := a.hist.Add(s.AppID, s.Since, end)
+			if err != nil {
+				log.Printf("history: %v", err)
+			}
+			recorded = recorded || ok
+		}
+		if recorded {
+			runtime.EventsEmit(ctx, "history:changed")
+		}
+
+		time.AfterFunc(5*time.Second, func() {
+			runtime.EventsEmit(ctx, "library:changed")
+		})
 	})
 }
 
@@ -89,6 +106,19 @@ func (a *App) OpenInstallFolder(appID string) error {
 
 func (a *App) OpenStorePage(appID string) error {
 	return library.OpenStore(appID)
+}
+
+func (a *App) shutdown(ctx context.Context) {
+	end := time.Now().UnixMilli()
+	for _, s := range a.monitor.Snapshot() {
+		if _, err := a.hist.Add(s.AppID, s.Since, end); err != nil {
+			log.Printf("history: %v", err)
+		}
+	}
+}
+
+func (a *App) GetStats(weeks int) library.Stats {
+	return a.hist.Stats(weeks)
 }
 
 func (a *App) Launch(appID string) error {

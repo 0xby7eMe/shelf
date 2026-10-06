@@ -14,6 +14,10 @@ export function GetNowPlaying() {
   return window['go']['main']['App']['GetNowPlaying']();
 }
 
+export function GetStats(arg1) {
+  return window['go']['main']['App']['GetStats'](arg1);
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }

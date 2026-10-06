@@ -4,14 +4,18 @@ import (
 	"context"
 	"fmt"
 	"sync"
+	"log"
+	"time"
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"shelf/internal/library"
 )
 
 type App struct {
-	ctx  context.Context
-	lib  *library.Library
-	favs *library.Favorites
+	ctx     context.Context
+	lib     *library.Library
+	favs    *library.Favorites
+	monitor *library.Monitor
 
 	mu    sync.RWMutex
 	paths map[string]string
@@ -19,9 +23,36 @@ type App struct {
 
 func NewApp() *App {
 	return &App{
-		lib:  library.New(library.NewSteam()),
-		favs: library.NewFavorites(),
+		lib:     library.New(library.NewSteam()),
+		favs:    library.NewFavorites(),
+		monitor: library.NewMonitor(),
 	}
+}
+
+func (a *App) startup(ctx context.Context) {
+	a.ctx = ctx
+
+	go func() {
+		err := library.Watch(ctx, func() {
+			runtime.EventsEmit(ctx, "library:changed")
+		})
+		if err != nil {
+			log.Printf("watch: %v", err)
+		}
+	}()
+
+	go a.monitor.Run(ctx, 2*time.Second, func(now, stopped []library.Session) {
+		runtime.EventsEmit(ctx, "nowplaying:changed", now)
+		if len(stopped) > 0 {
+			time.AfterFunc(5*time.Second, func() {
+				runtime.EventsEmit(ctx, "library:changed")
+			})
+		}
+	})
+}
+
+func (a *App) GetNowPlaying() []library.Session {
+	return a.monitor.Snapshot()
 }
 
 func (a *App) GetFavorites() []string { return a.favs.List() }
@@ -62,10 +93,6 @@ func (a *App) OpenStorePage(appID string) error {
 
 func (a *App) Launch(appID string) error {
 	return library.Launch(appID)
-}
-
-func (a *App) startup(ctx context.Context) {
-	a.ctx = ctx
 }
 
 func (a *App) Greet(name string) string {

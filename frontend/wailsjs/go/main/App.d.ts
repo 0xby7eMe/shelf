@@ -6,6 +6,8 @@ export function GetFavorites():Promise<Array<string>>;
 
 export function GetGames():Promise<Array<library.Game>>;
 
+export function GetNowPlaying():Promise<Array<library.Session>>;
+
 export function Greet(arg1:string):Promise<string>;
 
 export function Launch(arg1:string):Promise<void>;

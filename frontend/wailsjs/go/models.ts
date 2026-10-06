@@ -28,6 +28,20 @@ export namespace library {
 	        this.cover = source["cover"];
 	    }
 	}
+	export class Session {
+	    appId: string;
+	    since: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Session(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appId = source["appId"];
+	        this.since = source["since"];
+	    }
+	}
 
 }
 

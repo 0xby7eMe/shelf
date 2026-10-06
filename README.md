@@ -27,6 +27,7 @@ A minimal, good-looking desktop library for your Steam games.
 - Random game picker
 - Launch games through Steam
 - Frameless glass UI, dark only
+- Session history with a play-time heatmap and weekly stats (recorded while Shelf is running)
 
 ## Keyboard
 

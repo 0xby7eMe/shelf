@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { RefreshCw, Search, Shuffle } from "lucide-react"
 import { GetFavorites, GetGames, GetNowPlaying, Launch, ToggleFavorite } from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
@@ -19,6 +18,9 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
+import { Activity, RefreshCw, Search, Shuffle } from "lucide-react"
+import { ActivityDialog } from "@/components/activity-dialog"
+import { useStats } from "@/lib/use-stats"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
@@ -28,6 +30,8 @@ const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	playtime: (a, b) => b.playtimeMinutes - a.playtimeMinutes,
 	recent: (a, b) => b.lastPlayed - a.lastPlayed,
 }
+
+const NO_GAMES: library.Game[] = []
 
 function App() {
 	const [games, setGames] = useState<library.Game[] | null>(null)
@@ -40,6 +44,8 @@ function App() {
 	const [favorites, setFavorites] = useState<Set<string>>(new Set())
 	const [refreshing, setRefreshing] = useState(false)
 	const [playing, setPlaying] = useState<library.Session[]>([])
+	const [activityOpen, setActivityOpen] = useState(false)
+  	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
 	const searchRef = useRef<HTMLInputElement>(null)
@@ -275,6 +281,15 @@ function App() {
 					<RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
 				</button>
 
+				<button
+					onClick={() => setActivityOpen(true)}
+					title="Activity"
+					aria-label="Activity"
+					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+				>
+					<Activity className="size-3.5" />
+				</button>
+
 				{nowPlaying && (
 					<NowPlaying game={nowPlaying.game} since={nowPlaying.since} onSelect={setSelected} />
 				)}
@@ -365,6 +380,15 @@ function App() {
 				onClose={() => setSelected(null)}
 				running={selected ? playingIds.has(selected.externalId) : false}
 				onPlay={play}
+				activity={selected ? stats?.games.find((g) => g.appId === selected.externalId) : undefined}
+			/>
+
+			<ActivityDialog
+				open={activityOpen}
+				onOpenChange={setActivityOpen}
+				stats={stats}
+				games={games ?? NO_GAMES}
+				onSelect={setSelected}
 			/>
 		</div>
 	)

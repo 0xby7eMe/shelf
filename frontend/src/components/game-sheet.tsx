@@ -9,7 +9,7 @@ import {
 	SheetDescription,
 	SheetTitle,
 } from "@/components/ui/sheet"
-import { formatLastPlayed, formatPlaytime, relativeTime } from "@/lib/format"
+import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "@/lib/format"
 import { cn } from "@/lib/utils"
 import { LiveDot } from "@/components/live-dot"
 
@@ -21,6 +21,7 @@ interface Props {
 	onClose: () => void
 	onPlay: (game: library.Game) => void
 	running: boolean
+	activity?: library.GameStat
 }
 
 export function GameSheet({
@@ -30,7 +31,8 @@ export function GameSheet({
 	onToggleFavorite,
 	onClose,
 	onPlay,
-	running
+	running,
+	activity
 }: Props) {
 	return (
 		<Sheet open={game !== null} onOpenChange={(open) => !open && onClose()}>
@@ -51,6 +53,7 @@ export function GameSheet({
 						onToggleFavorite={onToggleFavorite}
 						onPlay={onPlay}
 						running={running}
+						activity={activity}
 					/>
 				)}
 			</SheetContent>
@@ -58,8 +61,6 @@ export function GameSheet({
 	)
 }
 
-// Fades and lifts its content into place. `i` sets the order; the base
-// delay lets the panel's own slide-in finish first.
 function Reveal({
 	i,
 	className,
@@ -88,7 +89,8 @@ function Body({
 	favorite,
 	onToggleFavorite,
 	onPlay,
-	running
+	running,
+	activity
 }: {
 	game: library.Game
 	totalMinutes: number
@@ -96,6 +98,7 @@ function Body({
 	onToggleFavorite: (game: library.Game) => void
 	onPlay: (game: library.Game) => void
 	running: boolean
+	activity?: library.GameStat
 }) {
 	const [heroFailed, setHeroFailed] = useState(false)
 	const [armed, setArmed] = useState(false)
@@ -211,6 +214,25 @@ function Body({
 					>
 						Folder
 					</Action>
+				</Reveal>
+
+				<Reveal i={3} className="grid grid-cols-2 gap-3">
+					<Stat label="Playtime" value={formatPlaytime(game.playtimeMinutes)} />
+					<Stat
+						label="Last played"
+						value={relativeTime(game.lastPlayed)}
+						hint={game.lastPlayed > 0 ? formatLastPlayed(game.lastPlayed) : undefined}
+					/>
+					{activity && activity.sessions > 0 && (
+						<>
+						<Stat label="This week" value={formatDuration(activity.weekMinutes)} />
+						<Stat
+							label="Sessions"
+							value={String(activity.sessions)}
+							hint={`avg ${formatDuration(Math.round(activity.trackedMinutes / activity.sessions))}`}
+						/>
+						</>
+					)}
 				</Reveal>
 
 				{game.installPath && (

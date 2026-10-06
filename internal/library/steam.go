@@ -135,6 +135,7 @@ func parseManifest(path, lib string) (Game, bool) {
 		Source:      SourceSteam,
 		ExternalID:  appid,
 		Name:        name,
+		Cover:       "/cover/" + appid,
 		Installed:   flags&4 != 0,
 		LastPlayed:  last,
 		InstallPath: filepath.Join(lib, "steamapps", "common", app.str("installdir")),

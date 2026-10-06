@@ -1,119 +1,212 @@
-import { useEffect, useState } from "react"
-import { Moon, Palette, Server, Sun, Zap } from "lucide-react"
+import { useEffect, useMemo, useRef, useState } from "react"
+import { Search } from "lucide-react"
 
-import { Greet } from "../wailsjs/go/main/App"
-import { Badge } from "@/components/ui/badge"
-import { Button } from "@/components/ui/button"
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card"
+import { GetGames, Launch } from "../wailsjs/go/main/App"
+import { library } from "../wailsjs/go/models"
+import { GameCard } from "@/components/game-card"
+import { GameSheet } from "@/components/game-sheet"
+import { Hero } from "@/components/hero"
 import { Input } from "@/components/ui/input"
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select"
+import { Skeleton } from "@/components/ui/skeleton"
+import { cn } from "@/lib/utils"
 
-const features = [
-    {
-        icon: Server,
-        title: "Go backend",
-        description: "Call Go functions straight from the frontend via generated bindings.",
-    },
-    {
-        icon: Zap,
-        title: "React + Vite",
-        description: "Instant hot reload with TypeScript and Tailwind CSS v4.",
-    },
-    {
-        icon: Palette,
-        title: "shadcn/ui",
-        description: "Accessible, themeable components you own and can edit.",
-    },
-]
+type SortKey = "name" | "playtime" | "recent"
+type Filter = "all" | "installed"
+
+const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
+  name: (a, b) => a.name.localeCompare(b.name),
+  playtime: (a, b) => b.playtimeMinutes - a.playtimeMinutes,
+  recent: (a, b) => b.lastPlayed - a.lastPlayed,
+}
 
 function App() {
-    const [dark, setDark] = useState(
-        () => window.matchMedia("(prefers-color-scheme: dark)").matches
-    )
-    const [name, setName] = useState("")
-    const [result, setResult] = useState("")
+  const [games, setGames] = useState<library.Game[] | null>(null)
+  const [error, setError] = useState("")
+  const [query, setQuery] = useState("")
+  const [filter, setFilter] = useState<Filter>("all")
+  const [sort, setSort] = useState<SortKey>("name")
+  const [selected, setSelected] = useState<library.Game | null>(null)
+  const [scrolled, setScrolled] = useState(false)
+  const searchRef = useRef<HTMLInputElement>(null)
 
-    useEffect(() => {
-        document.documentElement.classList.toggle("dark", dark)
-    }, [dark])
+  useEffect(() => {
+    GetGames()
+      .then(setGames)
+      .catch((e) => setError(String(e)))
+  }, [])
 
-    async function greet() {
-        setResult(await Greet(name || "stranger"))
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      const typing = document.activeElement === searchRef.current
+      if (e.key === "/" && !typing) {
+        e.preventDefault()
+        searchRef.current?.focus()
+      } else if (e.key === "Escape" && typing) {
+        setQuery("")
+        searchRef.current?.blur()
+      }
     }
+    window.addEventListener("keydown", onKey)
+    return () => window.removeEventListener("keydown", onKey)
+  }, [])
 
-    return (
-        <div className="min-h-screen bg-background text-foreground">
-            <div className="mx-auto flex min-h-screen max-w-3xl flex-col px-6 py-8">
-                <header className="flex items-center justify-between">
-                    <Badge variant="secondary">Wails + shadcn</Badge>
-                    <Button
-                        variant="ghost"
-                        size="icon"
-                        onClick={() => setDark((d) => !d)}
-                        aria-label="Toggle theme"
-                    >
-                        {dark ? <Sun className="size-4" /> : <Moon className="size-4" />}
-                    </Button>
-                </header>
+  const visible = useMemo(() => {
+    if (!games) return []
+    const q = query.trim().toLowerCase()
+    return games
+      .filter((g) => (filter === "installed" ? g.installed : true))
+      .filter((g) => !q || g.name.toLowerCase().includes(q))
+      .sort(sorters[sort])
+  }, [games, query, filter, sort])
 
-                <main className="flex flex-1 flex-col justify-center gap-10 py-10">
-                    <div className="space-y-3 text-center">
-                        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-                            Build desktop apps faster
-                        </h1>
-                        <p className="mx-auto max-w-md text-muted-foreground">
-                            A clean starting point for Go desktop apps with a modern React
-                            frontend. Edit{" "}
-                            <code className="rounded bg-muted px-1.5 py-0.5 text-sm">
-                                frontend/src/App.tsx
-                            </code>{" "}
-                            to get going.
-                        </p>
-                    </div>
+  const featured = useMemo(() => {
+    if (!games || games.length === 0) return null
+    const installed = games.filter((g) => g.installed)
+    const pool = installed.length ? installed : games
+    return [...pool].sort(
+      (a, b) => b.lastPlayed - a.lastPlayed || b.playtimeMinutes - a.playtimeMinutes
+    )[0]
+  }, [games])
 
-                    <div className="grid gap-4 sm:grid-cols-3">
-                        {features.map(({ icon: Icon, title, description }) => (
-                        <Card key={title}>
-                            <CardHeader>
-                                <Icon className="mb-2 size-5 text-muted-foreground" />
-                                <CardTitle className="text-base">{title}</CardTitle>
-                                <CardDescription>{description}</CardDescription>
-                            </CardHeader>
-                        </Card>
-                        ))}
-                    </div>
+  const totalMinutes = useMemo(
+    () => (games ?? []).reduce((n, g) => n + g.playtimeMinutes, 0),
+    [games]
+  )
 
-                    <Card>
-                        <CardHeader>
-                            <CardTitle className="text-base">Try a Go binding</CardTitle>
-                            <CardDescription>
-                                This calls <code>Greet()</code> in <code>app.go</code>.
-                            </CardDescription>
-                        </CardHeader>
-                        <CardContent className="space-y-3">
-                            <div className="flex gap-2">
-                                <Input
-                                placeholder="Your name"
-                                value={name}
-                                onChange={(e) => setName(e.target.value)}
-                                onKeyDown={(e) => e.key === "Enter" && greet()}
-                                />
-                                <Button onClick={greet}>Greet</Button>
-                            </div>
-                            {result && (
-                                <p className="rounded-md bg-muted px-3 py-2 text-sm">{result}</p>
-                            )}
-                        </CardContent>
-                    </Card>
-                </main>
-            </div>
+  const showHero = !!featured && !query.trim()
+
+  function play(game: library.Game) {
+    Launch(game.externalId).catch((e: any) => setError(String(e)))
+  }
+
+  return (
+    <div
+      onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 24)}
+      className="relative h-screen overflow-y-auto bg-background text-foreground"
+    >
+      <header
+        style={{
+          backdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+          WebkitBackdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+          backgroundColor: scrolled ? "rgba(10, 10, 10, 0.55)" : "transparent",
+        }}
+        className={cn(
+          "sticky top-0 z-30 flex h-16 items-center gap-3 border-b px-8 transition-colors duration-300",
+          scrolled ? "border-white/5" : "border-transparent"
+        )}
+      >
+        <h1 className="mr-2 text-sm font-medium tracking-[0.25em] uppercase">Shelf</h1>
+
+        <div className="relative max-w-md flex-1">
+          <Search className="absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
+          <Input
+            ref={searchRef}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Search"
+            className="h-9 rounded-full border-0 bg-white/5 pl-9 text-sm shadow-none ring-1 ring-white/5 backdrop-blur-md focus-visible:bg-white/10 focus-visible:ring-white/20"
+          />
+          {!query && (
+            <kbd className="absolute top-1/2 right-3 -translate-y-1/2 rounded border border-white/10 px-1.5 text-[10px] text-muted-foreground">
+              /
+            </kbd>
+          )}
         </div>
-    )
+
+        <div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5 backdrop-blur-md">
+          {(["all", "installed"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={cn(
+                "rounded-full px-3 py-1 text-xs capitalize transition",
+                filter === f
+                  ? "bg-white/10 text-foreground"
+                  : "text-muted-foreground hover:text-foreground"
+              )}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+
+        <Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
+          <SelectTrigger className="h-9 w-36 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
+            <SelectItem value="name">Name</SelectItem>
+            <SelectItem value="playtime">Most played</SelectItem>
+            <SelectItem value="recent">Recently played</SelectItem>
+          </SelectContent>
+        </Select>
+      </header>
+
+      {showHero && featured && (
+        <Hero key={featured.id} game={featured} onPlay={play} onDetails={setSelected} />
+      )}
+
+      <main className={cn("relative px-8 pb-16", showHero ? "pt-8" : "pt-6")}>
+        <div className="mb-5 flex items-baseline justify-between">
+          <h2 className="text-[11px] font-medium tracking-[0.25em] text-muted-foreground uppercase">
+            Library
+          </h2>
+          {games && (
+            <span className="text-xs tabular-nums text-muted-foreground/70">
+              {visible.length} games
+            </span>
+          )}
+        </div>
+
+        {error ? (
+          <p className="text-sm text-destructive">{error}</p>
+        ) : games === null ? (
+          <Grid>
+            {Array.from({ length: 18 }, (_, i) => (
+              <Skeleton key={i} className="aspect-[2/3] rounded-xl bg-white/5" />
+            ))}
+          </Grid>
+        ) : visible.length === 0 ? (
+          <p className="pt-24 text-center text-sm text-muted-foreground">
+            {games.length === 0 ? "No Steam games found." : "Nothing matches."}
+          </p>
+        ) : (
+          <Grid>
+            {visible.map((g, i) => (
+              <GameCard
+                key={g.id}
+                game={g}
+                index={i}
+                onSelect={setSelected}
+              />
+            ))}
+          </Grid>
+        )}
+      </main>
+
+      <GameSheet
+        game={selected}
+        totalMinutes={totalMinutes}
+        onClose={() => setSelected(null)}
+        onPlay={play}
+      />
+    </div>
+  )
+}
+
+function Grid({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6">
+      {children}
+    </div>
+  )
 }
 
 export default App

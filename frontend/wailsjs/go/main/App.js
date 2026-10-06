@@ -9,3 +9,15 @@ export function GetGames() {
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
+
+export function Launch(arg1) {
+  return window['go']['main']['App']['Launch'](arg1);
+}
+
+export function OpenInstallFolder(arg1) {
+  return window['go']['main']['App']['OpenInstallFolder'](arg1);
+}
+
+export function OpenStorePage(arg1) {
+  return window['go']['main']['App']['OpenStorePage'](arg1);
+}

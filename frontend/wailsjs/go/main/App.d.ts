@@ -5,3 +5,9 @@ import {library} from '../models';
 export function GetGames():Promise<Array<library.Game>>;
 
 export function Greet(arg1:string):Promise<string>;
+
+export function Launch(arg1:string):Promise<void>;
+
+export function OpenInstallFolder(arg1:string):Promise<void>;
+
+export function OpenStorePage(arg1:string):Promise<void>;

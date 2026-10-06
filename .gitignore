@@ -1,0 +1,16 @@
+# Build output
+build/bin/
+frontend/dist/*
+!frontend/dist/.gitkeep
+
+# Dependencies
+node_modules/
+
+# Editor / OS
+.idea/
+.vscode/
+.DS_Store
+
+# Env
+.env
+.env.*

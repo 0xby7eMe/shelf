@@ -6,10 +6,13 @@
 
 A minimal, good-looking desktop library for your Steam games.
 
+[![Build](https://github.com/0xby7eMe/shelf/actions/workflows/build.yml/badge.svg)](https://github.com/0xby7eMe/shelf/actions/workflows/build.yml)
+[![Release](https://img.shields.io/github/v/release/0xby7eMe/shelf)](https://github.com/0xby7eMe/shelf/releases)
+
 </div>
 
 <p align="center">
-  <img src="assets/library.png" alt="Library with hero banner and poster grid">
+  <img src="assets/library.png" alt="Library with hero banner, shelves and poster grid">
 </p>
 
 <p align="center">
@@ -19,15 +22,16 @@ A minimal, good-looking desktop library for your Steam games.
 
 ## Features
 
-- Reads your Steam library straight from its local files. No login, no API key.
+- Reads your Steam library from its local files. No login, no API key.
 - Poster grid with instant search, installed and favorites filters, and sorting
-- Hero banner for the game you played last
+- Hero banner for the game you played last, plus "Continue playing" and "Never played" shelves
 - Detail sheet with playtime, last played, share of your library, store page and install folder
-- Favorites, saved locally
-- Random game picker
+- Favorites and a random game picker
 - Launch games through Steam
+- **Live library:** installs, uninstalls and playtime update automatically
+- **Now playing:** a header indicator with a session timer
+- **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - Frameless glass UI, dark only
-- Session history with a play-time heatmap and weekly stats (recorded while Shelf is running)
 
 ## Keyboard
 
@@ -39,7 +43,29 @@ A minimal, good-looking desktop library for your Steam games.
 
 ## Install
 
-Requires Linux, Steam, Go 1.21+, Node 18+, the [Wails CLI](https://wails.io) and, on Linux, GTK and WebKit:
+### From a release
+
+Download `shelf-linux-amd64.tar.gz` from the [releases page](https://github.com/0xby7eMe/shelf/releases), then:
+
+```bash
+tar -xzf shelf-linux-amd64.tar.gz
+install -Dm755 shelf ~/.local/bin/shelf
+install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/shelf.png
+install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
+```
+
+The binary needs GTK 3 and WebKitGTK 4.1 at runtime:
+
+```bash
+# Arch
+sudo pacman -S gtk3 webkit2gtk-4.1
+# Debian/Ubuntu
+sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
+```
+
+### From source
+
+Requires Go 1.21+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
 
 ```bash
 # Arch
@@ -47,8 +73,6 @@ sudo pacman -S gtk3 webkit2gtk-4.1
 # Debian/Ubuntu
 sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
 ```
-
-Then:
 
 ```bash
 git clone https://github.com/0xby7eMe/shelf
@@ -68,12 +92,21 @@ make build    # production binary in build/bin/
 
 ## How it works
 
-Shelf parses Steam's own files: `libraryfolders.vdf` for your library locations, the `appmanifest_*.acf` files for installed games, and `localconfig.vdf` for playtime. Cover and hero art come from Steam's local library cache, with the Steam CDN as a fallback. Downloads are cached in `~/.cache/shelf/covers`. Favorites live in `~/.config/shelf/favorites.json`.
+Shelf parses Steam's own files: `libraryfolders.vdf` for your library locations, the `appmanifest_*.acf` files for installed games and `localconfig.vdf` for playtime. A file watcher reloads the library when they change. Cover and hero art come from Steam's local library cache, with the Steam CDN as a fallback.
+
+"Now playing" looks for Steam's `SteamLaunch` wrapper process in `/proc`. Finished sessions feed the activity heatmap.
+
+| Data | Location |
+| --- | --- |
+| Favorites | `~/.config/shelf/favorites.json` |
+| Play sessions | `~/.config/shelf/sessions.json` |
+| Downloaded art | `~/.cache/shelf/covers` |
 
 Built with Go, [Wails v2](https://wails.io), React, Tailwind CSS v4 and shadcn/ui.
 
 ## Limitations
 
 - Linux only for now. The Steam provider only knows Linux paths, including the Flatpak one.
-- Only installed games are listed. Steam doesn't store names of uninstalled games locally.
-- Playtime is read from Steam's files and can lag until Steam writes them.
+- Only installed games are listed, because Steam doesn't store names of uninstalled games locally.
+- "Now playing" and session history work with native Steam, not the Flatpak version.
+- Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files.

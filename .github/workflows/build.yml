@@ -47,8 +47,9 @@ jobs:
 
       - name: Package
         run: |
-          mkdir -p dist
-          tar -czf dist/shelf-linux-amd64.tar.gz -C build/bin shelf
+          mkdir -p dist stage
+          cp build/bin/shelf build/appicon.png build/linux/shelf.desktop stage/
+          tar -czf dist/shelf-linux-amd64.tar.gz -C stage .
           sha256sum dist/shelf-linux-amd64.tar.gz > dist/shelf-linux-amd64.tar.gz.sha256
 
       - uses: actions/upload-artifact@v4

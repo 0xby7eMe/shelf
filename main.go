@@ -15,7 +15,7 @@ func main() {
 	app := NewApp()
 
 	err := wails.Run(&options.App{
-		Title:     "My App",
+		Title:     "Shelf",
 		Width:     1024,
 		Height:    700,
 		MinWidth:  720,

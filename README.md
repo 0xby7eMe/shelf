@@ -1,4 +1,4 @@
-# Wails + shadcn/ui Template
+# Shelf
 
 A minimal starter for desktop apps built with **Go**, **Wails v2**, **React**, **TypeScript**, **Tailwind CSS v4** and **shadcn/ui**.
 

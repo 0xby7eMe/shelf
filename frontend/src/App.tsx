@@ -20,13 +20,6 @@ import { GameCard } from "@/components/game-card"
 import { GameSheet, type EpicActions } from "@/components/game-sheet"
 import { Hero } from "@/components/hero"
 import { Input } from "@/components/ui/input"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
@@ -44,6 +37,7 @@ import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
 import { LogPanel } from "@/components/log-panel"
 import { PadHints } from "@/components/pad-hints"
+import { FilterMenu, MoreMenu, headerButton, type MoreItem, type SortKey, type SourceFilter } from "@/components/header-menus"
 import { MonitorPage } from "@/components/monitor/monitor-page"
 import { UbisoftHint } from "@/components/ubisoft-hint"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
@@ -52,9 +46,7 @@ import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/setti
 import { useGamepad } from "@/lib/gamepad"
 import { useStableHover } from "@/lib/hover"
 
-type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
-type SourceFilter = "all" | "steam" | "epic" | "ubisoft"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -342,6 +334,32 @@ function App() {
 		},
 	}
 
+	// What used to be a row of icons: used now and then, so kept out of the bar.
+	const moreItems: MoreItem[] = [
+		{ id: "random", label: "Random game", icon: <Shuffle className="size-3.5" />, hint: "R", onSelect: pickRandom },
+		{
+			id: "rescan",
+			label: "Rescan library",
+			icon: <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />,
+			onSelect: () => refresh(),
+		},
+		{ id: "activity", label: "Activity", icon: <Activity className="size-3.5" />, onSelect: () => setActivityOpen(true) },
+		...(prefs.hardwareMonitor
+			? [{ id: "performance", label: "Performance", icon: <Gauge className="size-3.5" />, hint: "P", onSelect: () => setMonitorOpen(true) }]
+			: []),
+		...(prefs.logWindow
+			? [
+					{
+						id: "log",
+						label: logOpen ? "Hide log window" : "Show log window",
+						icon: <Terminal className="size-3.5" />,
+						checked: logOpen,
+						onSelect: () => setLogOpen(!logOpen),
+					},
+				]
+			: []),
+	]
+
 	return (
 		<>
 		{monitorOpen && prefs.hardwareMonitor && !settings && <MonitorPage onBack={() => setMonitorOpen(false)} />}
@@ -387,7 +405,7 @@ function App() {
 			>
 				<h1 className="mr-2 text-sm font-medium tracking-[0.25em] uppercase">Shelf</h1>
 
-				<div className="relative max-w-md flex-1">
+				<div className="relative min-w-24 max-w-md flex-1">
 					<Search className="absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						ref={searchRef}
@@ -420,109 +438,40 @@ function App() {
 					))}
 				</div>
 
-				<Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-					<SelectTrigger className="h-9 w-36 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
-						<SelectItem value="name">Name</SelectItem>
-						<SelectItem value="playtime">Most played</SelectItem>
-						<SelectItem value="recent">Recently played</SelectItem>
-					</SelectContent>
-				</Select>
-
-				<button
-					onClick={pickRandom}
-					title="Random game (R)"
-					aria-label="Random game"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<Shuffle className="size-3.5" />
-				</button>
-
-				<button
-					onClick={() => refresh()}
-					title="Rescan library"
-					aria-label="Rescan library"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
-				</button>
-
-				<Select value={source} onValueChange={(v) => setSource(v as SourceFilter)}>
-					<SelectTrigger className="h-9 w-28 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
-						<SelectItem value="all">All stores</SelectItem>
-						<SelectItem value="steam">Steam</SelectItem>
-						<SelectItem value="epic">Epic</SelectItem>
-						<SelectItem value="ubisoft">Ubisoft</SelectItem>
-					</SelectContent>
-				</Select>
-
-				{queue.jobs.length > 0 && (
-					<button
-						onClick={() => setSettings("downloads")}
-						title="Downloads"
-						aria-label="Downloads"
-						className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
-					>
-						<Download className="size-3.5" />
-						{queue.jobs.length}
-						{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
-							<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
-						)}
-					</button>
-				)}
-
-				{prefs.logWindow && (
-					<button
-						onClick={() => setLogOpen(!logOpen)}
-						title="Log window"
-						aria-label="Log window"
-						aria-pressed={logOpen}
-						className={cn(
-							"grid size-9 place-items-center rounded-full ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white",
-							logOpen ? "bg-white/15 text-white" : "bg-white/5 text-white/70"
-						)}
-					>
-						<Terminal className="size-3.5" />
-					</button>
-				)}
+				<FilterMenu source={source} onSource={setSource} sort={sort} onSort={setSort} />
 
 				<button
 					onClick={() => setSettings("integrations")}
 					title="Settings"
 					aria-label="Settings"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+					className={headerButton}
 				>
 					<Settings className="size-3.5" />
 				</button>
 
-				{prefs.hardwareMonitor && (
-					<button
-						onClick={() => setMonitorOpen(true)}
-						title="Performance (P)"
-						aria-label="Performance"
-						className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-					>
-						<Gauge className="size-3.5" />
-					</button>
-				)}
+				<MoreMenu items={moreItems} />
 
-				<button
-					onClick={() => setActivityOpen(true)}
-					title="Activity"
-					aria-label="Activity"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<Activity className="size-3.5" />
-				</button>
+				{/* What is going on right now sits at the far side. */}
+				<div className="ml-auto flex items-center gap-3">
+					{nowPlaying && (
+						<NowPlaying game={nowPlaying.game} since={nowPlaying.since} onSelect={setSelected} />
+					)}
 
-				{nowPlaying && (
-					<NowPlaying game={nowPlaying.game} since={nowPlaying.since} onSelect={setSelected} />
-				)}
+					{queue.jobs.length > 0 && (
+						<button
+							onClick={() => setSettings("downloads")}
+							title="Downloads"
+							aria-label="Downloads"
+							className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
+						>
+							<Download className="size-3.5" />
+							{queue.jobs.length}
+							{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
+								<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
+							)}
+						</button>
+					)}
+				</div>
 
 				<WindowControls />
 			</header>

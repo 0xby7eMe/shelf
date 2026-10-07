@@ -13,16 +13,23 @@ import (
 // HKLM\Software\Wow6432Node\Ubisoft\Launcher\Installs\<GameID>\InstallDir.
 // Wine keeps that registry in a text file, which is all Shelf needs to read to
 // know which games are installed and where.
+//
+// That key appears when a download starts, not when it ends. Connect adds
+// HKLM\Software\[Wow6432Node\]Microsoft\Windows\CurrentVersion\Uninstall\Uplay Install <GameID>
+// once the game is complete, so that second key is what marks a game as installed.
 
 var (
-	installsKeyRe = regexp.MustCompile(`(?i)^software\\\\wow6432node\\\\ubisoft\\\\launcher\\\\installs\\\\(\d+)$`)
-	installDirRe  = regexp.MustCompile(`^"InstallDir"="(.*)"\s*$`)
-	regUnescape   = strings.NewReplacer(`\\`, `\`, `\"`, `"`)
+	installsKeyRe  = regexp.MustCompile(`(?i)^software\\\\wow6432node\\\\ubisoft\\\\launcher\\\\installs\\\\(\d+)$`)
+	uninstallKeyRe = regexp.MustCompile(`(?i)^software\\\\(?:wow6432node\\\\)?microsoft\\\\windows\\\\currentversion\\\\uninstall\\\\uplay install (\d+)$`)
+	installDirRe   = regexp.MustCompile(`^"InstallDir"="(.*)"\s*$`)
+	regUnescape    = strings.NewReplacer(`\\`, `\`, `\"`, `"`)
 )
 
-// parseUbisoftInstalls returns game id -> Windows install path from a Wine registry file.
-func parseUbisoftInstalls(r io.Reader) map[string]string {
-	out := map[string]string{}
+// parseUbisoftInstalls reads a Wine registry file. It returns game id ->
+// Windows install path for every game Connect has started installing, and the
+// ids whose installation has finished.
+func parseUbisoftInstalls(r io.Reader) (installs map[string]string, done map[string]bool) {
+	installs, done = map[string]string{}, map[string]bool{}
 	sc := bufio.NewScanner(r)
 	sc.Buffer(make([]byte, 64*1024), 4*1024*1024)
 
@@ -33,19 +40,22 @@ func parseUbisoftInstalls(r io.Reader) map[string]string {
 		case strings.HasPrefix(line, "["):
 			current = ""
 			if end := strings.LastIndex(line, "]"); end > 0 {
-				if m := installsKeyRe.FindStringSubmatch(line[1:end]); m != nil {
+				key := line[1:end]
+				if m := installsKeyRe.FindStringSubmatch(key); m != nil {
 					current = m[1]
+				} else if m := uninstallKeyRe.FindStringSubmatch(key); m != nil {
+					done[m[1]] = true
 				}
 			}
 		case current != "":
 			if m := installDirRe.FindStringSubmatch(line); m != nil {
 				if dir := strings.TrimSpace(regUnescape.Replace(m[1])); dir != "" {
-					out[current] = dir
+					installs[current] = dir
 				}
 			}
 		}
 	}
-	return out
+	return installs, done
 }
 
 // winToUnix turns a Windows path inside a Wine prefix into a path on disk.
@@ -108,42 +118,57 @@ func resolveCaseInsensitive(root, rest string) string {
 type regCache struct {
 	size     int64
 	modified int64
-	installs map[string]string
+	complete map[string]string // finished installs
+	partial  map[string]string // downloads that have started but not finished
 }
 
-// ubisoftInstalls returns game id -> install folder for everything Ubisoft
-// Connect has installed in its prefix. The registry file is only read again
+// ubisoftRegistry returns game id -> install folder, split into finished
+// installs and downloads still going. The registry file is only read again
 // when it has changed.
-func (m *Manager) ubisoftInstalls() map[string]string {
+func (m *Manager) ubisoftRegistry() (complete, partial map[string]string) {
 	pfx := filepath.Join(ubisoftPrefix(), "pfx")
 	path := filepath.Join(pfx, "system.reg")
 	st, err := os.Stat(path)
 	if err != nil {
-		return map[string]string{}
+		return map[string]string{}, map[string]string{}
 	}
 
 	m.mu.Lock()
 	c := m.reg
 	m.mu.Unlock()
 	if c != nil && c.size == st.Size() && c.modified == st.ModTime().UnixNano() {
-		return c.installs
+		return c.complete, c.partial
 	}
 
 	f, err := os.Open(path)
 	if err != nil {
-		return map[string]string{}
+		return map[string]string{}, map[string]string{}
 	}
 	defer f.Close()
 
-	installs := map[string]string{}
-	for id, winPath := range parseUbisoftInstalls(f) {
-		if unix := winToUnix(pfx, winPath); unix != "" {
-			installs[id] = unix
+	started, done := parseUbisoftInstalls(f)
+	complete, partial = map[string]string{}, map[string]string{}
+	for id, winPath := range started {
+		unix := winToUnix(pfx, winPath)
+		if unix == "" {
+			continue
+		}
+		if done[id] {
+			complete[id] = unix
+		} else {
+			partial[id] = unix
 		}
 	}
 
 	m.mu.Lock()
-	m.reg = &regCache{size: st.Size(), modified: st.ModTime().UnixNano(), installs: installs}
+	m.reg = &regCache{size: st.Size(), modified: st.ModTime().UnixNano(), complete: complete, partial: partial}
 	m.mu.Unlock()
-	return installs
+	return complete, partial
+}
+
+// ubisoftInstalls returns game id -> install folder for the games Connect has
+// finished installing.
+func (m *Manager) ubisoftInstalls() map[string]string {
+	complete, _ := m.ubisoftRegistry()
+	return complete
 }

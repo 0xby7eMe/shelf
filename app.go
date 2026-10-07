@@ -196,6 +196,10 @@ func (a *App) UbisoftReset() error { return a.epic.UbisoftReset() }
 
 func (a *App) UbisoftInstall(id string) error { return a.epic.UbisoftInstall(id) }
 
+func (a *App) UbisoftUninstall(id string) error { return a.epic.UbisoftUninstall(id) }
+
+func (a *App) UbisoftInstalling() []epic.UbisoftInstalling { return a.epic.UbisoftInstallStates() }
+
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 
 func (a *App) EpicLoginURL() string { return epic.LoginURL }

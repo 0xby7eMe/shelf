@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"shelf/internal/applog"
 	"shelf/internal/library"
@@ -50,6 +51,7 @@ type Manager struct {
 	protonInstall ProtonInstallState
 	connect       *exec.Cmd
 	watching      bool
+	ubiPending    map[string]time.Time // game key -> when Install was pressed
 	reg           *regCache
 
 	announcedUpdates map[string]string // app -> version already shown to the user

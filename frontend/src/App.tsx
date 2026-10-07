@@ -7,6 +7,7 @@ import {
 	EpicUpdate,
 	EpicVerify,
 	UbisoftInstall,
+	UbisoftUninstall,
 	GetFavorites,
 	GetGames,
 	GetNowPlaying,
@@ -42,6 +43,7 @@ import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
 import { LogPanel } from "@/components/log-panel"
 import { PadHints } from "@/components/pad-hints"
+import { UbisoftHint } from "@/components/ubisoft-hint"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
 import { usePrefs } from "@/lib/prefs"
 import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
@@ -287,15 +289,25 @@ function App() {
 			}),
 		openSettings: setSettingsGame,
 		uninstall: async (g) => {
+			const ubisoft = g.source === "ubisoft"
 			const ok = await confirm({
 				title: "Uninstall this game?",
-				description:
-					"The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+				description: ubisoft
+					? "Ubisoft Connect removes the game files and asks you to confirm in its own window. Your saves and your Ubisoft library are kept."
+					: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
 				confirmLabel: "Uninstall",
 				destructive: true,
 				game: { name: g.name, cover: g.cover },
 			})
 			if (!ok) return
+			if (ubisoft) {
+				UbisoftUninstall(g.externalId)
+					.then(() =>
+						toast.info(`Uninstalling ${g.name}`, { description: "Confirm in Ubisoft Connect. Shelf updates when it's done." })
+					)
+					.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
+				return
+			}
 			EpicUninstall(g.externalId)
 				.then(() => toast.success(`${g.name} uninstalled`))
 				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
@@ -524,6 +536,8 @@ function App() {
 							<Skeleton key={i} className="aspect-[2/3] rounded-xl bg-white/5" />
 						))}
 					</Grid>
+				) : visible.length === 0 && source === "ubisoft" && !games.some((g) => g.source === "ubisoft") ? (
+					<UbisoftHint onSettings={() => setSettings("ubisoft")} />
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0

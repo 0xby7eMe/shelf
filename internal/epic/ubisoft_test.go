@@ -8,6 +8,7 @@ import (
 	"path/filepath"
 	"reflect"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -39,8 +40,18 @@ const sampleReg = `WINE REGISTRY Version 2
 @="\"C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\UbisoftConnect.exe\" \"%1\""
 `
 
+// Connect writes this key when a game has finished installing.
+const uninstallKey5487 = `
+[Software\\Wow6432Node\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\Uplay Install 5487] 1791380500
+"DisplayName"="Riders Republic"
+"UninstallString"="\"C:\\Program Files (x86)\\Ubisoft\\Ubisoft Game Launcher\\upc.exe\" uplay://uninstall/5487"
+`
+
 func TestParseUbisoftInstalls(t *testing.T) {
-	got := parseUbisoftInstalls(strings.NewReader(sampleReg))
+	got, done := parseUbisoftInstalls(strings.NewReader(sampleReg + uninstallKey5487))
+	if !reflect.DeepEqual(done, map[string]bool{"5487": true}) {
+		t.Errorf("only game 5487 has finished: %v", done)
+	}
 	want := map[string]string{
 		"5487": "C:/Program Files (x86)/Ubisoft/Ubisoft Game Launcher/games/Riders Republic/",
 		"720":  `Z:\home\max\Games\Some "Game"\`,
@@ -48,7 +59,7 @@ func TestParseUbisoftInstalls(t *testing.T) {
 	if !reflect.DeepEqual(got, want) {
 		t.Errorf("got %#v\nwant %#v", got, want)
 	}
-	if len(parseUbisoftInstalls(strings.NewReader(""))) != 0 {
+	if i, d := parseUbisoftInstalls(strings.NewReader("")); len(i) != 0 || len(d) != 0 {
 		t.Error("empty registry should give no games")
 	}
 }
@@ -245,6 +256,11 @@ func TestParseUbiOwnership(t *testing.T) {
 
 const fakeProton = `#!/bin/sh
 echo "proton $* [prefix=$STEAM_COMPAT_DATA_PATH] d3d11=$PROTON_NO_D3D11 xalia=$PROTON_USE_XALIA" >> "$GAMES/proton.log"
+case "$*" in
+*uplay://launch*)
+  if [ -n "$FAIL_LAUNCH" ]; then echo "wine: boom, no such file"; exit 3; fi
+  ;;
+esac
 case "$2" in
 *Installer*)
   d="$STEAM_COMPAT_DATA_PATH/pfx/drive_c/Program Files (x86)/Ubisoft/Ubisoft Game Launcher"
@@ -432,7 +448,7 @@ func TestUbisoftLaunchAndInstall(t *testing.T) {
 	pfx := filepath.Join(ubisoftPrefix(), "pfx")
 	gameDir := filepath.Join(pfx, "drive_c", "Program Files (x86)", "Ubisoft", "Ubisoft Game Launcher", "games", "Riders Republic")
 	os.MkdirAll(gameDir, 0o755)
-	os.WriteFile(filepath.Join(pfx, "system.reg"), []byte(sampleReg), 0o644)
+	os.WriteFile(filepath.Join(pfx, "system.reg"), []byte(sampleReg+uninstallKey5487), 0o644)
 
 	g, _ := m.UbisoftProvider().Scan()
 	var found bool
@@ -507,5 +523,193 @@ func TestUbisoftSteamGame(t *testing.T) {
 	}
 	if err := m.UbisoftLaunch("uplay-11"); err == nil || !strings.Contains(err.Error(), "Steam") {
 		t.Errorf("launch: %v", err)
+	}
+}
+
+// --- events, downloads, uninstall and launch failures ---
+
+type eventLog struct {
+	mu  sync.Mutex
+	got []struct {
+		name string
+		data any
+	}
+}
+
+func (e *eventLog) emit(name string, data any) {
+	e.mu.Lock()
+	defer e.mu.Unlock()
+	e.got = append(e.got, struct {
+		name string
+		data any
+	}{name, data})
+}
+
+func (e *eventLog) wait(t *testing.T, name string) any {
+	t.Helper()
+	for i := 0; i < 300; i++ {
+		e.mu.Lock()
+		for _, g := range e.got {
+			if g.name == name {
+				e.mu.Unlock()
+				return g.data
+			}
+		}
+		e.mu.Unlock()
+		time.Sleep(20 * time.Millisecond)
+	}
+	t.Fatalf("no %q event", name)
+	return nil
+}
+
+// fakeConnect starts a process that looks like part of Connect's prefix.
+func fakeConnect(t *testing.T) {
+	t.Helper()
+	cmd := exec.Command("sleep", "60")
+	cmd.Env = append(os.Environ(), "STEAM_COMPAT_DATA_PATH="+ubisoftPrefix())
+	if err := cmd.Start(); err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { cmd.Process.Kill(); cmd.Wait() })
+}
+
+func installedEnv(t *testing.T, complete bool) (*Manager, *eventLog, string, string) {
+	t.Helper()
+	m, games := ubisoftEnv(t)
+	ev := &eventLog{}
+	m.SetEmitter(ev.emit)
+	os.MkdirAll(connectDir(), 0o755)
+	os.WriteFile(connectExe(), nil, 0o644)
+	writeConnect(t, 5487, 4000)
+
+	pfx := filepath.Join(ubisoftPrefix(), "pfx")
+	gameDir := filepath.Join(pfx, "drive_c", "Program Files (x86)", "Ubisoft", "Ubisoft Game Launcher", "games", "Riders Republic")
+	os.MkdirAll(gameDir, 0o755)
+	reg := sampleReg
+	if complete {
+		reg += uninstallKey5487
+	}
+	os.WriteFile(filepath.Join(pfx, "system.reg"), []byte(reg), 0o644)
+	return m, ev, games, gameDir
+}
+
+func installing(m *Manager) map[string]int64 {
+	out := map[string]int64{}
+	for _, i := range m.ubisoftInstalling() {
+		out[i.Key] = i.Bytes
+	}
+	return out
+}
+
+func TestUbisoftInstallingState(t *testing.T) {
+	m, _, _, gameDir := installedEnv(t, false)
+	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 1<<20), 0o644)
+
+	// Connect recorded the install when the download started, but it isn't done.
+	games, _ := m.UbisoftProvider().Scan()
+	for _, g := range games {
+		if g.ExternalID == "uplay-5487" && g.Installed {
+			t.Fatal("a game that is still downloading must not count as installed")
+		}
+	}
+	// With Connect closed nothing is downloading: the download is paused.
+	if got := installing(m); len(got) != 0 {
+		t.Fatalf("Connect is closed, yet installing %v", got)
+	}
+
+	fakeConnect(t)
+	got := installing(m)
+	if b, ok := got["uplay-5487"]; !ok || b < 1<<20 {
+		t.Fatalf("installing %v, want uplay-5487 with at least 1 MiB", got)
+	}
+
+	// Playing during a download would restart Connect and end it.
+	if err := m.UbisoftLaunch("uplay-5487"); err == nil {
+		t.Error("an unfinished game must not launch")
+	}
+
+	// Connect finishes: it writes the uninstall key.
+	pfx := filepath.Join(ubisoftPrefix(), "pfx")
+	os.WriteFile(filepath.Join(pfx, "system.reg"), []byte(sampleReg+uninstallKey5487), 0o644)
+	if _, still := installing(m)["uplay-5487"]; still {
+		t.Error("finished, yet still installing")
+	}
+	games, _ = m.UbisoftProvider().Scan()
+	var installed bool
+	for _, g := range games {
+		installed = installed || (g.ExternalID == "uplay-5487" && g.Installed)
+	}
+	if !installed {
+		t.Error("a finished game must be installed")
+	}
+}
+
+func TestUbisoftInstallPendingAndWatcher(t *testing.T) {
+	m, ev, games, _ := installedEnv(t, false)
+	// Nothing recorded yet: the registry key for 5487 is missing.
+	os.WriteFile(filepath.Join(ubisoftPrefix(), "pfx", "system.reg"), nil, 0o644)
+
+	if err := m.UbisoftInstall("uplay-5487"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, games, "run start uplay://install/5487")
+	fakeConnect(t) // Connect opened to do it
+	if got := installing(m); got["uplay-5487"] != 0 || len(got) != 1 {
+		t.Fatalf("a requested install shows at once: %v", got)
+	}
+	if data := ev.wait(t, "ubisoft:installing"); data == nil {
+		t.Fatal("the UI is told about the download")
+	}
+
+	// A request Connect never acts on stops showing after a while.
+	m.ubiMu.Lock()
+	m.ubiPending["uplay-5487"] = time.Now().Add(-2 * pendingGrace)
+	m.ubiMu.Unlock()
+	if got := installing(m); len(got) != 0 {
+		t.Errorf("a stale request is dropped: %v", got)
+	}
+
+	// Already installed games aren't installed again.
+	os.WriteFile(filepath.Join(ubisoftPrefix(), "pfx", "system.reg"), []byte(sampleReg+uninstallKey5487), 0o644)
+	if err := m.UbisoftInstall("uplay-5487"); err == nil || !strings.Contains(err.Error(), "already installed") {
+		t.Errorf("reinstall: %v", err)
+	}
+}
+
+func TestUbisoftUninstall(t *testing.T) {
+	m, _, games, _ := installedEnv(t, true)
+	defer stopPrefixProcesses(ubisoftPrefix())
+
+	if err := m.UbisoftUninstall("uplay-5487"); err != nil {
+		t.Fatal(err)
+	}
+	waitFor(t, games, "run start uplay://uninstall/5487")
+
+	if err := m.UbisoftUninstall("uplay-4000"); err == nil {
+		t.Error("an unknown game can't be removed")
+	}
+	if err := m.UbisoftUninstall("uplay-11"); err == nil {
+		t.Error("a game that isn't in the library can't be removed")
+	}
+	// A game that isn't installed has nothing to remove.
+	os.WriteFile(filepath.Join(ubisoftPrefix(), "pfx", "system.reg"), []byte(sampleReg), 0o644)
+	if err := m.UbisoftUninstall("uplay-5487"); err == nil || !strings.Contains(err.Error(), "isn't installed") {
+		t.Errorf("unfinished game: %v", err)
+	}
+}
+
+func TestUbisoftLaunchFailureIsReported(t *testing.T) {
+	m, ev, _, _ := installedEnv(t, true)
+	defer stopPrefixProcesses(ubisoftPrefix())
+	t.Setenv("FAIL_LAUNCH", "1")
+
+	if err := m.UbisoftLaunch("uplay-5487"); err != nil {
+		t.Fatal(err)
+	}
+	data := ev.wait(t, "epic:launch-error")
+	msg, _ := data.(map[string]string)
+	if msg["appName"] != "uplay-5487" || !strings.Contains(msg["message"], "Riders Republic didn't start") ||
+		!strings.Contains(msg["message"], "boom") || !strings.Contains(msg["message"], ".log") {
+		t.Errorf("launch error: %v", msg)
 	}
 }

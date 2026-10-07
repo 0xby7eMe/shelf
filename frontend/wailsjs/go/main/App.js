@@ -198,6 +198,10 @@ export function UbisoftInstall(arg1) {
   return window['go']['main']['App']['UbisoftInstall'](arg1);
 }
 
+export function UbisoftInstalling() {
+  return window['go']['main']['App']['UbisoftInstalling']();
+}
+
 export function UbisoftOpenConnect() {
   return window['go']['main']['App']['UbisoftOpenConnect']();
 }
@@ -212,4 +216,8 @@ export function UbisoftSetup() {
 
 export function UbisoftSync() {
   return window['go']['main']['App']['UbisoftSync']();
+}
+
+export function UbisoftUninstall(arg1) {
+  return window['go']['main']['App']['UbisoftUninstall'](arg1);
 }

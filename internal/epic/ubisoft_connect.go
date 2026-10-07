@@ -334,33 +334,16 @@ func (m *Manager) UbisoftOpenConnect() error {
 	return nil
 }
 
-// watchConnect refreshes the library while Connect is open, since installing a
-// game in it changes the prefix's registry.
+// watchConnect notices when Connect closes.
 func (m *Manager) watchConnect(cmd *exec.Cmd) {
-	done := make(chan struct{})
-	go func() {
-		_ = cmd.Wait()
-		close(done)
-	}()
-
-	seen := m.connectFingerprint()
-	tick := time.NewTicker(15 * time.Second)
-	defer tick.Stop()
-	for {
-		select {
-		case <-done:
-			m.mu.Lock()
-			m.connect = nil
-			m.mu.Unlock()
-			m.send("library:changed", nil)
-			return
-		case <-tick.C:
-			if now := m.connectFingerprint(); now != seen {
-				seen = now
-				m.send("library:changed", nil)
-			}
-		}
+	m.startUbiWatch()
+	_ = cmd.Wait()
+	m.mu.Lock()
+	if m.connect == cmd {
+		m.connect = nil
 	}
+	m.mu.Unlock()
+	m.send("library:changed", nil)
 }
 
 // connectFingerprint changes when a game is installed or removed, and when
@@ -539,6 +522,70 @@ func (m *Manager) hand(build ProtonBuild, uri, installDir string, gs GameSetting
 	return cmd, nil
 }
 
+// launchWait is how long a game gets to appear after Connect was asked to
+// start it. Connect may update itself first, so it is generous.
+const launchWait = 2 * time.Minute
+
+// watchLaunch reports a launch that came to nothing. Connect starts the game
+// itself, so a launch worked if the game's process shows up; Shelf's own
+// command exits right away either way.
+func (m *Manager) watchLaunch(key, name string, exited <-chan error, started time.Time) {
+	fail := func(msg string) {
+		m.logf("launch", key, "ERROR: %s", msg)
+		m.send("epic:launch-error", map[string]string{
+			"appName": key,
+			"message": fmt.Sprintf("%s (log: %s)", msg, logPath(key)),
+		})
+	}
+
+	var cmdErr error
+	cmdDone := false
+
+	deadline := time.After(launchWait)
+	tick := time.NewTicker(2 * time.Second)
+	defer tick.Stop()
+	for {
+		select {
+		case err := <-exited:
+			cmdDone, cmdErr = true, err
+			if err != nil {
+				msg := "Proton couldn't hand the game to Ubisoft Connect"
+				if last := lastLogLine(key); last != "" {
+					msg = tail(last, 200)
+				}
+				fail(fmt.Sprintf("%s didn't start: %s", name, msg))
+				return
+			}
+		case <-tick.C:
+			for _, id := range m.runningUbisoft() {
+				if id == key {
+					return // it is running
+				}
+			}
+		case <-deadline:
+			if !cmdDone || cmdErr == nil {
+				fail(fmt.Sprintf("%s didn't start after %d seconds. Ubisoft Connect may be asking for something: open it and look", name, int(time.Since(started).Seconds())))
+			}
+			return
+		}
+	}
+}
+
+// lastLogLine is the last non-empty line of a game's log file.
+func lastLogLine(key string) string {
+	data, err := os.ReadFile(logPath(key))
+	if err != nil {
+		return ""
+	}
+	lines := strings.Split(strings.TrimSpace(string(data)), "\n")
+	for i := len(lines) - 1; i >= 0; i-- {
+		if l := strings.TrimSpace(lines[i]); l != "" {
+			return l
+		}
+	}
+	return ""
+}
+
 // UbisoftLaunch starts an installed Ubisoft game through Connect.
 func (m *Manager) UbisoftLaunch(key string) error {
 	g, ok := m.ubiLookup(key)
@@ -561,24 +608,61 @@ func (m *Manager) UbisoftLaunch(key string) error {
 	}
 
 	uri := "uplay://launch/" + strconv.Itoa(g.LaunchID) + "/0"
+	// Connect may be downloading, and it was started with software rendering,
+	// which a game would inherit. Restarting it would end the download.
+	if len(m.ubisoftInstalling()) > 0 && m.settings.get().UbisoftSoftwareRendering {
+		return fmt.Errorf("Ubisoft Connect is still downloading a game. Wait for it to finish before playing")
+	}
+
 	cmd, err := m.hand(build, uri, dir, m.games.get(key), key)
 	if err != nil {
 		return err
 	}
+	started := time.Now()
 	m.mu.Lock()
 	m.running[key] = cmd
 	m.mu.Unlock()
+	exited := make(chan error, 1)
 	go func() {
-		_ = cmd.Wait()
+		err := cmd.Wait()
 		m.mu.Lock()
 		delete(m.running, key)
 		m.mu.Unlock()
+		exited <- err
 	}()
+	go m.watchLaunch(key, g.Name, exited, started)
 	return nil
 }
 
-// UbisoftInstall asks Connect to install a game. Connect shows the download
-// itself; Shelf notices when it finishes.
+// sendLink hands a uplay:// address to Connect, starting it if it isn't open.
+// Connect's window is what shows downloads and asks questions, so it runs in
+// the mode that draws it properly. A restart would end a download in progress,
+// so Connect is left alone while one is running.
+func (m *Manager) sendLink(uri string) error {
+	build, err := m.ubisoftBuild()
+	if err != nil {
+		return err
+	}
+	if len(m.runningUbisoft()) == 0 && len(m.ubisoftInstalling()) == 0 {
+		stopPrefixProcesses(ubisoftPrefix())
+	}
+	wrapper, err := wrapperParts(GameSettings{}, build)
+	if err != nil {
+		return err
+	}
+	cmd := exec.Command(wrapper[0], append(wrapper[1:], "start", uri)...)
+	cmd.Env = append(library.ChildEnv(), connectEnv(build, "", m.settings.get().UbisoftSoftwareRendering)...)
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	if err := m.startPumped(cmd, ubisoftSource, ""); err != nil {
+		return err
+	}
+	go func() { _ = cmd.Wait() }()
+	m.startUbiWatch()
+	return nil
+}
+
+// UbisoftInstall asks Connect to install a game. Connect does the download;
+// Shelf shows it as installing until Connect marks the game complete.
 func (m *Manager) UbisoftInstall(key string) error {
 	g, ok := m.ubiLookup(key)
 	if !ok {
@@ -587,33 +671,111 @@ func (m *Manager) UbisoftInstall(key string) error {
 	if g.Platform != "" {
 		return fmt.Errorf("%s belongs to %s. Install it there", g.Name, g.Platform)
 	}
-	build, err := m.ubisoftBuild()
-	if err != nil {
+	id := strconv.Itoa(g.InstallID)
+	if _, done := m.ubisoftInstalls()[id]; done {
+		return fmt.Errorf("%s is already installed", g.Name)
+	}
+	if err := m.sendLink("uplay://install/" + id); err != nil {
 		return err
 	}
-	if len(m.runningUbisoft()) == 0 {
-		stopPrefixProcesses(ubisoftPrefix())
+	m.ubiMu.Lock()
+	if m.ubiPending == nil {
+		m.ubiPending = map[string]time.Time{}
 	}
-	// Connect is kept open for the download and runs in its window's own mode.
-	wrapper, err := wrapperParts(GameSettings{}, build)
-	if err != nil {
-		return err
-	}
-	cmd := exec.Command(wrapper[0], append(wrapper[1:], "start", "uplay://install/"+strconv.Itoa(g.InstallID))...)
-	cmd.Env = append(library.ChildEnv(), connectEnv(build, "", m.settings.get().UbisoftSoftwareRendering)...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	if err := m.startPumped(cmd, ubisoftSource, ""); err != nil {
-		return err
-	}
-	go func() {
-		_ = cmd.Wait()
-	}()
-	m.watchInstalls()
+	m.ubiPending[key] = time.Now()
+	m.ubiMu.Unlock()
+	m.broadcastInstalling()
 	return nil
 }
 
-// watchInstalls refreshes the library while a download may be running.
-func (m *Manager) watchInstalls() {
+// UbisoftUninstall asks Connect to remove a game. Connect shows its own
+// confirmation, and removing the files is its job.
+func (m *Manager) UbisoftUninstall(key string) error {
+	g, ok := m.ubiLookup(key)
+	if !ok {
+		return fmt.Errorf("unknown game")
+	}
+	if g.Platform != "" {
+		return fmt.Errorf("%s belongs to %s. Remove it there", g.Name, g.Platform)
+	}
+	if m.isRunningGame(key) {
+		return fmt.Errorf("close the game first")
+	}
+	id := strconv.Itoa(g.InstallID)
+	if _, done := m.ubisoftInstalls()[id]; !done {
+		return fmt.Errorf("%s isn't installed", g.Name)
+	}
+	return m.sendLink("uplay://uninstall/" + id)
+}
+
+// --- installs in progress ---
+
+// UbisoftInstalling is a game Connect is downloading.
+type UbisoftInstalling struct {
+	Key   string `json:"key"`
+	Bytes int64  `json:"bytes"` // written to disk so far
+}
+
+// pendingGrace is how long an Install request counts before Connect has
+// recorded the download, and how long it holds if Connect never does.
+const pendingGrace = 3 * time.Minute
+
+// ubisoftInstalling lists the games being downloaded right now: those Connect
+// has started and not finished while it is open, plus the ones just requested.
+func (m *Manager) ubisoftInstalling() []UbisoftInstalling {
+	complete, partial := m.ubisoftRegistry()
+	running := len(prefixProcesses(ubisoftPrefix())) > 0
+
+	var out []UbisoftInstalling
+	for _, g := range m.readConnect().games {
+		if g.Platform != "" {
+			continue
+		}
+		id := strconv.Itoa(g.InstallID)
+		key := g.key()
+		if _, done := complete[id]; done {
+			m.ubiMu.Lock()
+			delete(m.ubiPending, key)
+			m.ubiMu.Unlock()
+			continue
+		}
+
+		m.ubiMu.Lock()
+		since, pending := m.ubiPending[key]
+		if pending && time.Since(since) > pendingGrace {
+			delete(m.ubiPending, key)
+			pending = false
+		}
+		m.ubiMu.Unlock()
+
+		dir, started := partial[id]
+		switch {
+		case started && running:
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			out = append(out, UbisoftInstalling{Key: key, Bytes: diskUsage(ctx, dir)})
+			cancel()
+		case pending && running:
+			out = append(out, UbisoftInstalling{Key: key})
+		}
+	}
+	return out
+}
+
+// UbisoftInstallStates is what the UI shows for downloads, on demand.
+func (m *Manager) UbisoftInstallStates() []UbisoftInstalling {
+	out := m.ubisoftInstalling()
+	if out == nil {
+		out = []UbisoftInstalling{}
+	}
+	return out
+}
+
+func (m *Manager) broadcastInstalling() { m.send("ubisoft:installing", m.UbisoftInstallStates()) }
+
+// startUbiWatch keeps the library and the downloads current while Connect is
+// open or a game is installing: installing a game changes the prefix's
+// registry and Connect's records without any event of its own.
+func (m *Manager) startUbiWatch() {
 	m.ubiMu.Lock()
 	if m.watching {
 		m.ubiMu.Unlock()
@@ -621,17 +783,30 @@ func (m *Manager) watchInstalls() {
 	}
 	m.watching = true
 	m.ubiMu.Unlock()
+
 	go func() {
 		seen := m.connectFingerprint()
-		tick := time.NewTicker(15 * time.Second)
+		had := false
+		idle := 0
+		tick := time.NewTicker(3 * time.Second)
 		defer tick.Stop()
 		for range tick.C {
-			if len(prefixProcesses(ubisoftPrefix())) == 0 {
-				break
-			}
 			if now := m.connectFingerprint(); now != seen {
 				seen = now
 				m.send("library:changed", nil)
+			}
+			list := m.ubisoftInstalling()
+			if len(list) > 0 || had {
+				m.send("ubisoft:installing", append([]UbisoftInstalling{}, list...))
+				had = len(list) > 0
+			}
+			// Connect opens a moment after it is asked to; give it time.
+			if len(list) == 0 && len(prefixProcesses(ubisoftPrefix())) == 0 {
+				if idle++; idle >= 3 {
+					break
+				}
+			} else {
+				idle = 0
 			}
 		}
 		m.ubiMu.Lock()

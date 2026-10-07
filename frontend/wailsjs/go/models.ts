@@ -131,6 +131,7 @@ export namespace epic {
 	    eta?: string;
 	    speed?: string;
 	    error?: string;
+	    indeterminate?: boolean;
 	    position?: number;
 	    damaged?: boolean;
 	
@@ -147,6 +148,7 @@ export namespace epic {
 	        this.eta = source["eta"];
 	        this.speed = source["speed"];
 	        this.error = source["error"];
+	        this.indeterminate = source["indeterminate"];
 	        this.position = source["position"];
 	        this.damaged = source["damaged"];
 	    }
@@ -251,6 +253,20 @@ export namespace epic {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mangoHud = source["mangoHud"];
 	        this.gameMode = source["gameMode"];
+	    }
+	}
+	export class UbisoftInstalling {
+	    key: string;
+	    bytes: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UbisoftInstalling(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.bytes = source["bytes"];
 	    }
 	}
 	export class UbisoftSetupState {

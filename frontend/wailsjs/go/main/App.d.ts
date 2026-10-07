@@ -103,6 +103,8 @@ export function UbisoftCloseConnect():Promise<void>;
 
 export function UbisoftInstall(arg1:string):Promise<void>;
 
+export function UbisoftInstalling():Promise<Array<epic.UbisoftInstalling>>;
+
 export function UbisoftOpenConnect():Promise<void>;
 
 export function UbisoftReset():Promise<void>;
@@ -110,3 +112,5 @@ export function UbisoftReset():Promise<void>;
 export function UbisoftSetup():Promise<void>;
 
 export function UbisoftSync():Promise<void>;
+
+export function UbisoftUninstall(arg1:string):Promise<void>;

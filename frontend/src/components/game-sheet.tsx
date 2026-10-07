@@ -203,24 +203,29 @@ function Body({
 						<div className="flex items-center gap-2">
 							<div className="relative h-11 flex-1 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
 								<div
-									className="absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300"
-									style={{ width: `${job.percent}%` }}
+									className={cn(
+										"absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300",
+										job.indeterminate && "animate-pulse"
+									)}
+									style={{ width: job.indeterminate ? "100%" : `${job.percent}%` }}
 								/>
 								<span className="relative flex h-full items-center justify-center gap-2 text-sm tabular-nums">
-									{jobLabel(job)}
+									{isUbisoft && job.indeterminate ? "Installing in Ubisoft Connect" : jobLabel(job)}
 									{job.state === "installing" && job.percent > 0 && ` ${Math.floor(job.percent)}%`}
 									{job.speed && <span className="text-white/50">{job.speed}</span>}
 									{job.eta && <span className="text-white/50">ETA {job.eta}</span>}
 								</span>
 							</div>
+							{!isUbisoft && (
 							<button
-								onClick={() => epicActions.cancel(game)}
-								aria-label="Cancel"
-								title="Cancel"
-								className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
-							>
-								<X className="size-4" />
-							</button>
+									onClick={() => epicActions.cancel(game)}
+									aria-label="Cancel"
+									title="Cancel"
+									className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+								>
+									<X className="size-4" />
+								</button>
+							)}
 						</div>
 					) : (isEpic || isUbisoft) && !game.installed && game.thirdParty ? (
 						<div className="space-y-3">
@@ -320,7 +325,7 @@ function Body({
 					>
 						Folder
 					</Action>
-					{isEpic && game.installed && (
+					{(isEpic || isUbisoft) && game.installed && (
 						<Action icon={Trash2} disabled={running || !!job} onClick={() => epicActions.uninstall(game)}>
 							Uninstall
 						</Action>

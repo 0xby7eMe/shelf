@@ -31,6 +31,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 - Hero banner for the game you played last, plus "Continue playing" and "Never played" shelves
 - Detail sheet with playtime, last played, share of your library, store page and install folder
 - Favorites and a random game picker
+- **Collections and tags** of your own, to filter the library by (see [Collections and tags](#collections-and-tags))
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
@@ -52,6 +53,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 - Controller navigation with soft interface sounds, drawn with the buttons of your controller (Xbox, PlayStation or Nintendo)
 - One **Integrations** page with a tab per store
+- **Desktop integration:** Discord rich presence, application menu entries, `shelf://` links and a tray icon (see [Desktop integration](#desktop-integration))
 - An optional **hardware monitor** with live CPU, memory, disk, network and GPU graphs (see [Hardware monitor](#hardware-monitor))
 - A download queue, a disk usage view, and a log window
 - Frameless glass UI, dark only
@@ -133,6 +135,21 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
   <img src="assets/settings-downloads.png" width="49%" alt="Download queue">
   <img src="assets/settings-storage.png" width="49%" alt="Disk usage">
 </p>
+
+## Collections and tags
+
+Open a game and use **Collections** and **Tags** in its sheet. A game can be in any number of collections (press **New collection** to make one on the spot) and carry any number of tags; type a tag and press Enter or a comma. The **Collections** button in the header narrows the library to one collection or tag, and works together with the store filter, search and the Favorites tab. **Settings, Collections** renames and deletes collections and removes a tag from every game.
+
+Everything is saved in `~/.config/shelf/organizer.json`, separate from your favorites. Games are filed by store and id (`steam:620`, `epic:Fortnite`), so the same title on two stores can be filed differently.
+
+## Desktop integration
+
+**Settings, Desktop.** Everything is off until you switch it on.
+
+- **Discord rich presence** shows the game you are playing and how long you have been at it. Discord shows the name of an application, so create one called "Shelf" at [discord.com/developers/applications](https://discord.com/developers/applications) and paste its Application ID into Shelf. It talks to Discord's local socket (native, Flatpak and Snap installs are found), reconnects when Discord starts later, and clears itself when the game closes.
+- **Application menu entries** add every installed game to your launcher, kept up to date as games come and go. Shelf only ever removes entries it wrote itself.
+- **`shelf://` links** make `shelf://launch/steam:620` or `shelf://launch/epic:Fortnite` start a game from a browser, script or anything that opens URLs. Only installed games can be started this way, and a link can't do anything else. Menu entries use the same links. Only one Shelf runs at a time: a second start hands its link to the running one.
+- **Tray icon** shows recently played games with a click to start them. It uses the StatusNotifier protocol, so GNOME needs the AppIndicator extension. **Keep running in the tray** makes closing the window hide it; quit from the tray menu. Both apply at the next start.
 
 ## Controller
 

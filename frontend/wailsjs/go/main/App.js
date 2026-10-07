@@ -6,6 +6,18 @@ export function ClearLogs() {
   return window['go']['main']['App']['ClearLogs']();
 }
 
+export function CreateCollection(arg1) {
+  return window['go']['main']['App']['CreateCollection'](arg1);
+}
+
+export function DeleteCollection(arg1) {
+  return window['go']['main']['App']['DeleteCollection'](arg1);
+}
+
+export function DeleteTag(arg1) {
+  return window['go']['main']['App']['DeleteTag'](arg1);
+}
+
 export function EpicCancelInstall(arg1) {
   return window['go']['main']['App']['EpicCancelInstall'](arg1);
 }
@@ -106,6 +118,10 @@ export function GetBattlEyeRuntime() {
   return window['go']['main']['App']['GetBattlEyeRuntime']();
 }
 
+export function GetDesktopStatus() {
+  return window['go']['main']['App']['GetDesktopStatus']();
+}
+
 export function GetEpicAccount() {
   return window['go']['main']['App']['GetEpicAccount']();
 }
@@ -136,6 +152,10 @@ export function GetLogs() {
 
 export function GetNowPlaying() {
   return window['go']['main']['App']['GetNowPlaying']();
+}
+
+export function GetOrganization() {
+  return window['go']['main']['App']['GetOrganization']();
 }
 
 export function GetProtonBuilds() {
@@ -206,12 +226,28 @@ export function OpenStorePage(arg1) {
   return window['go']['main']['App']['OpenStorePage'](arg1);
 }
 
+export function RenameCollection(arg1, arg2) {
+  return window['go']['main']['App']['RenameCollection'](arg1, arg2);
+}
+
+export function SetDesktopSettings(arg1) {
+  return window['go']['main']['App']['SetDesktopSettings'](arg1);
+}
+
 export function SetEpicGameSettings(arg1, arg2) {
   return window['go']['main']['App']['SetEpicGameSettings'](arg1, arg2);
 }
 
 export function SetEpicSettings(arg1) {
   return window['go']['main']['App']['SetEpicSettings'](arg1);
+}
+
+export function SetGameCollections(arg1, arg2) {
+  return window['go']['main']['App']['SetGameCollections'](arg1, arg2);
+}
+
+export function SetGameTags(arg1, arg2) {
+  return window['go']['main']['App']['SetGameTags'](arg1, arg2);
 }
 
 export function ToggleFavorite(arg1) {

@@ -3,6 +3,7 @@ package main
 import (
 	"embed"
 	"net/http"
+	"os"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -11,6 +12,9 @@ import (
 
 	"shelf/internal/library"
 )
+
+// osArgs is what Shelf was started with, apart from the program itself.
+func osArgs() []string { return os.Args[1:] }
 
 //go:embed all:frontend/dist
 var assets embed.FS
@@ -29,6 +33,9 @@ func main() {
 		return
 	}
 
+	ds := app.desk.Get()
+	closeToTray := ds.Tray && ds.CloseToTray
+
 	err = wails.Run(&options.App{
 		Title:     "Shelf",
 		Width:     1424,
@@ -45,9 +52,18 @@ func main() {
 			Icon:             icon,
 			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
 		},
-		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 10, A: 1},
-		OnStartup:        app.startup,
-		OnShutdown:       app.shutdown,
+		// One Shelf at a time: a shelf:// link or menu entry reaches the running one.
+		SingleInstanceLock: &options.SingleInstanceLock{
+			UniqueId: "dev.0xby7eme.shelf",
+			OnSecondInstanceLaunch: func(data options.SecondInstanceData) {
+				app.onSecondInstance(data.Args)
+			},
+		},
+		// With the tray on, closing the window can keep Shelf running there.
+		HideWindowOnClose: closeToTray,
+		BackgroundColour:  &options.RGBA{R: 10, G: 10, B: 10, A: 1},
+		OnStartup:         app.startup,
+		OnShutdown:        app.shutdown,
 		Bind: []interface{}{
 			app,
 		},

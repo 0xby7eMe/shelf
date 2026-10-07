@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"time"
 
@@ -90,6 +91,17 @@ func (m *Manager) InstallProtonGE() error {
 	return nil
 }
 
+// geArch is the name GE-Proton gives this CPU in its downloads.
+func geArch() (string, bool) {
+	switch runtime.GOARCH {
+	case "amd64":
+		return "x86_64", true
+	case "arm64":
+		return "aarch64", true
+	}
+	return "", false
+}
+
 type geRelease struct {
 	Tag    string `json:"tag_name"`
 	Assets []struct {
@@ -130,17 +142,29 @@ func (m *Manager) installProtonGE(ctx context.Context, report func(float64, stri
 	if !strings.HasPrefix(rel.Tag, "GE-Proton") || strings.ContainsAny(rel.Tag, `/\`) || strings.Contains(rel.Tag, "..") {
 		return "", fmt.Errorf("unexpected release %q", rel.Tag)
 	}
-	var tarURL, sumURL string
-	for _, a := range rel.Assets {
-		switch a.Name {
-		case rel.Tag + ".tar.gz":
-			tarURL = a.URL
-		case rel.Tag + ".sha512sum":
-			sumURL = a.URL
+	arch, ok := geArch()
+	if !ok {
+		return "", fmt.Errorf("GE-Proton isn't built for this CPU (%s)", runtime.GOARCH)
+	}
+	// Newer releases name their files per architecture; older ones don't.
+	var tarURL, sumURL, base string
+	for _, candidate := range []string{rel.Tag + "-" + arch, rel.Tag} {
+		tarURL, sumURL = "", ""
+		for _, a := range rel.Assets {
+			switch a.Name {
+			case candidate + ".tar.gz":
+				tarURL = a.URL
+			case candidate + ".sha512sum":
+				sumURL = a.URL
+			}
+		}
+		if tarURL != "" && sumURL != "" {
+			base = candidate
+			break
 		}
 	}
-	if tarURL == "" || sumURL == "" {
-		return "", fmt.Errorf("%s has no download with a checksum", rel.Tag)
+	if base == "" {
+		return "", fmt.Errorf("%s has no download with a checksum for %s", rel.Tag, arch)
 	}
 
 	root, err := protonInstallDir()
@@ -181,8 +205,16 @@ func (m *Manager) installProtonGE(ctx context.Context, report func(float64, stri
 		os.RemoveAll(tmp)
 		return "", fmt.Errorf("couldn't unpack it: %w", err)
 	}
-	inner := filepath.Join(tmp, rel.Tag)
-	if !isProtonDir(rel.Tag, inner) {
+	// The archive's folder carries the architecture; the installed one doesn't,
+	// which is the name Steam and Shelf show.
+	inner := ""
+	for _, name := range []string{base, rel.Tag} {
+		if dir := filepath.Join(tmp, name); isProtonDir(rel.Tag, dir) {
+			inner = dir
+			break
+		}
+	}
+	if inner == "" {
 		os.RemoveAll(tmp)
 		return "", fmt.Errorf("the download doesn't contain a Proton build")
 	}

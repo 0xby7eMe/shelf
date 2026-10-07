@@ -48,7 +48,7 @@ func makeTarGz(t *testing.T, entries []tarEntry) []byte {
 }
 
 // fakeGE serves a release, its archive and its checksum.
-func fakeGE(t *testing.T, tag string, archive []byte, sum string) {
+func fakeGE(t *testing.T, tag, base string, archive []byte, sum string) {
 	t.Helper()
 	if sum == "" {
 		h := sha512.Sum512(archive)
@@ -58,10 +58,10 @@ func fakeGE(t *testing.T, tag string, archive []byte, sum string) {
 	var srv *httptest.Server
 	mux.HandleFunc("/release", func(w http.ResponseWriter, r *http.Request) {
 		fmt.Fprintf(w, `{"tag_name":%q,"assets":[{"name":%q,"browser_download_url":%q},{"name":%q,"browser_download_url":%q}]}`,
-			tag, tag+".tar.gz", srv.URL+"/tar", tag+".sha512sum", srv.URL+"/sum")
+			tag, base+".tar.gz", srv.URL+"/tar", base+".sha512sum", srv.URL+"/sum")
 	})
 	mux.HandleFunc("/tar", func(w http.ResponseWriter, r *http.Request) { w.Write(archive) })
-	mux.HandleFunc("/sum", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintf(w, "%s  %s.tar.gz\n", sum, tag) })
+	mux.HandleFunc("/sum", func(w http.ResponseWriter, r *http.Request) { fmt.Fprintf(w, "%s  %s.tar.gz\n", sum, base) })
 	srv = httptest.NewServer(mux)
 	old := geReleaseURL
 	geReleaseURL = srv.URL + "/release"
@@ -99,7 +99,7 @@ func goodBuild(tag string) []tarEntry {
 func TestInstallProtonGE(t *testing.T) {
 	m := geEnv(t)
 	tag := "GE-Proton10-99"
-	fakeGE(t, tag, makeTarGz(t, goodBuild(tag)), "")
+	fakeGE(t, tag, tag, makeTarGz(t, goodBuild(tag)), "")
 
 	if err := m.InstallProtonGE(); err != nil {
 		t.Fatal(err)
@@ -147,7 +147,7 @@ func TestInstallProtonGERejectsBadDownloads(t *testing.T) {
 	for name, c := range cases {
 		t.Run(name, func(t *testing.T) {
 			m := geEnv(t)
-			fakeGE(t, "GE-Proton10-99", makeTarGz(t, c.entries), c.sum)
+			fakeGE(t, "GE-Proton10-99", "GE-Proton10-99", makeTarGz(t, c.entries), c.sum)
 			if err := m.InstallProtonGE(); err != nil {
 				t.Fatal(err)
 			}
@@ -169,9 +169,46 @@ func TestInstallProtonGERejectsBadDownloads(t *testing.T) {
 
 func TestInstallProtonGERejectsOddTags(t *testing.T) {
 	m := geEnv(t)
-	fakeGE(t, "../../etc", makeTarGz(t, nil), "")
+	fakeGE(t, "../../etc", "../../etc", makeTarGz(t, nil), "")
 	m.InstallProtonGE()
 	if st := waitProton(t, m); st.State != "failed" || !strings.Contains(st.Error, "unexpected release") {
+		t.Fatalf("%+v", st)
+	}
+}
+
+// Current releases name everything per architecture, including the folder
+// inside the archive. It is installed under the plain name.
+func TestInstallProtonGEPerArchitecture(t *testing.T) {
+	arch, ok := geArch()
+	if !ok {
+		t.Skip("no GE-Proton build for this CPU")
+	}
+	m := geEnv(t)
+	tag := "GE-Proton11-7"
+	fakeGE(t, tag, tag+"-"+arch, makeTarGz(t, goodBuild(tag+"-"+arch)), "")
+
+	if err := m.InstallProtonGE(); err != nil {
+		t.Fatal(err)
+	}
+	if st := waitProton(t, m); st.State != "done" || st.Name != tag {
+		t.Fatalf("install: %+v", st)
+	}
+	home, _ := os.UserHomeDir()
+	root := filepath.Join(home, ".local", "share", "Steam", "compatibilitytools.d")
+	if entries, _ := os.ReadDir(root); len(entries) != 1 || entries[0].Name() != tag {
+		t.Errorf("want just %s, found %v", tag, entries)
+	}
+	if b, ok := resolveProton(""); !ok || b.Name != tag {
+		t.Errorf("Shelf should use it: %+v", b)
+	}
+}
+
+// A release with no download for this CPU says so instead of failing oddly.
+func TestInstallProtonGENoMatchingDownload(t *testing.T) {
+	m := geEnv(t)
+	fakeGE(t, "GE-Proton11-7", "GE-Proton11-7-riscv64", makeTarGz(t, nil), "")
+	m.InstallProtonGE()
+	if st := waitProton(t, m); st.State != "failed" || !strings.Contains(st.Error, "no download with a checksum") {
 		t.Fatalf("%+v", st)
 	}
 }

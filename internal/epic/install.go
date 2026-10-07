@@ -42,6 +42,9 @@ type Progress struct {
 	ETA     string  `json:"eta,omitempty"`
 	Speed   string  `json:"speed,omitempty"`
 	Error   string  `json:"error,omitempty"`
+	// Indeterminate is set when progress can't be measured, as with a download
+	// Ubisoft Connect does: the UI shows activity instead of a percentage.
+	Indeterminate bool `json:"indeterminate,omitempty"`
 	// Position is the place in the download queue, starting at 1, while queued.
 	Position int `json:"position,omitempty"`
 	// Damaged is set when a verify found corrupt or missing files, so the UI can offer a repair.

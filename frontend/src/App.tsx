@@ -6,6 +6,8 @@ import {
 	EpicUninstall,
 	EpicUpdate,
 	EpicVerify,
+	UbisoftInstall,
+	UbisoftUninstall,
 	GetFavorites,
 	GetGames,
 	GetNowPlaying,
@@ -18,21 +20,15 @@ import { GameCard } from "@/components/game-card"
 import { GameSheet, type EpicActions } from "@/components/game-sheet"
 import { Hero } from "@/components/hero"
 import { Input } from "@/components/ui/input"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { Skeleton } from "@/components/ui/skeleton"
 import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
+import { Activity, Download, Gauge, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
+import { setIntegrationTab, type Integration } from "@/lib/integrations"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
 import { confirm } from "@/lib/confirm"
@@ -41,15 +37,16 @@ import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
 import { LogPanel } from "@/components/log-panel"
 import { PadHints } from "@/components/pad-hints"
+import { FilterMenu, MoreMenu, headerButton, type MoreItem, type SortKey, type SourceFilter } from "@/components/header-menus"
+import { MonitorPage } from "@/components/monitor/monitor-page"
+import { UbisoftHint } from "@/components/ubisoft-hint"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
 import { usePrefs } from "@/lib/prefs"
 import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
 import { useGamepad } from "@/lib/gamepad"
 import { useStableHover } from "@/lib/hover"
 
-type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
-type SourceFilter = "all" | "steam" | "epic"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -74,9 +71,20 @@ function App() {
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
 	settingsRef.current = settings
+	// The hardware monitor, a page of its own like settings.
+	const [monitorOpen, setMonitorOpen] = useState(false)
+	const monitorRef = useRef(monitorOpen)
+	monitorRef.current = monitorOpen
+	// Whether the monitor is switched on in Advanced settings; read by the key handler.
+	const monitorEnabledRef = useRef(false)
+	// Opens settings on one store's tab.
+	const openIntegration = useCallback((tab: Integration) => {
+		setIntegrationTab(tab)
+		setSettings("integrations")
+	}, [])
 	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
 	const [source, setSource] = useState<SourceFilter>("all")
-	const { account, installs, queue, reloadAccount } = useEpic(games, () => setSettings("epic"))
+	const { account, installs, queue, reloadAccount } = useEpic(games, () => openIntegration("epic"))
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -135,13 +143,20 @@ function App() {
 				searchRef.current?.blur()
 			} else if (
 				e.key === "Escape" &&
-				settingsRef.current &&
+				(settingsRef.current || monitorRef.current) &&
 				!document.querySelector('[role="dialog"], [role="listbox"]')
 			) {
 				setSettings(null)
-			} else if (e.key === "r" && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
+				setMonitorOpen(false)
+			} else if (e.key === "r" && !typing && !settingsRef.current && !monitorRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				e.preventDefault()
 				randomRef.current()
+			} else if (e.key === "p" && monitorEnabledRef.current && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
+				// Not while typing in any field, such as a game's settings.
+				const tag = (document.activeElement as HTMLElement | null)?.tagName
+				if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+				e.preventDefault()
+				setMonitorOpen((open) => !open)
 			}
 		}
 		window.addEventListener("keydown", onKey)
@@ -196,12 +211,20 @@ function App() {
 	useStableHover()
 
 	const prefs = usePrefs()
+	monitorEnabledRef.current = prefs.hardwareMonitor
+	// Switching the monitor off closes it.
+	useEffect(() => {
+		if (!prefs.hardwareMonitor) setMonitorOpen(false)
+	}, [prefs.hardwareMonitor])
 	const logOpen = useLogOpen()
 	useEffect(() => startLogs(), [])
 
 	const filters: Filter[] = ["all", "installed", "favorites"]
 	useGamepad({
-		onBack: () => setSettings(null),
+		onBack: () => {
+			setSettings(null)
+			setMonitorOpen(false)
+		},
 		onTab: (dir) => {
 			if (settingsRef.current) {
 				const i = SECTIONS.findIndex((s) => s.id === settingsRef.current)
@@ -210,9 +233,9 @@ function App() {
 				setFilter((f) => filters[(filters.indexOf(f) + dir + filters.length) % filters.length])
 			}
 		},
-		onMenu: () => setSettings((s) => (s ? null : "epic")),
-		onRandom: () => !settingsRef.current && randomRef.current(),
-		onSearch: () => !settingsRef.current && searchRef.current?.focus(),
+		onMenu: () => setSettings((s) => (s ? null : "integrations")),
+		onRandom: () => !settingsRef.current && !monitorRef.current && randomRef.current(),
+		onSearch: () => !settingsRef.current && !monitorRef.current && searchRef.current?.focus(),
 	})
 
 	const featured = useMemo(() => {
@@ -257,8 +280,8 @@ function App() {
 	const showShelves = showHero && filter === "all"
 
 	function play(game: library.Game) {
-		// Epic games have to be installed through Shelf first.
-		if (game.source === "epic" && !game.installed) {
+		// Epic and Ubisoft games have to be installed through Shelf first.
+		if ((game.source === "epic" || game.source === "ubisoft") && !game.installed) {
 			setSelected(game)
 			return
 		}
@@ -272,6 +295,11 @@ function App() {
 
 	const epicActions: EpicActions = {
 		install: (g) => epicTask(g, "install", () => EpicInstall(g.externalId)),
+		installUbisoft: (g) =>
+			epicTask(g, "install", async () => {
+				await UbisoftInstall(g.externalId)
+				toast.info(`Installing ${g.name}`, { description: "Ubisoft Connect is downloading it. Shelf will notice when it's done." })
+			}),
 		cancel: (g) => EpicCancelInstall(g.externalId),
 		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
 		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
@@ -281,23 +309,60 @@ function App() {
 			}),
 		openSettings: setSettingsGame,
 		uninstall: async (g) => {
+			const ubisoft = g.source === "ubisoft"
 			const ok = await confirm({
 				title: "Uninstall this game?",
-				description:
-					"The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+				description: ubisoft
+					? "Ubisoft Connect removes the game files and asks you to confirm in its own window. Your saves and your Ubisoft library are kept."
+					: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
 				confirmLabel: "Uninstall",
 				destructive: true,
 				game: { name: g.name, cover: g.cover },
 			})
 			if (!ok) return
+			if (ubisoft) {
+				UbisoftUninstall(g.externalId)
+					.then(() =>
+						toast.info(`Uninstalling ${g.name}`, { description: "Confirm in Ubisoft Connect. Shelf updates when it's done." })
+					)
+					.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
+				return
+			}
 			EpicUninstall(g.externalId)
 				.then(() => toast.success(`${g.name} uninstalled`))
 				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
 		},
 	}
 
+	// What used to be a row of icons: used now and then, so kept out of the bar.
+	const moreItems: MoreItem[] = [
+		{ id: "random", label: "Random game", icon: <Shuffle className="size-3.5" />, hint: "R", onSelect: pickRandom },
+		{
+			id: "rescan",
+			label: "Rescan library",
+			icon: <RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />,
+			onSelect: () => refresh(),
+		},
+		{ id: "activity", label: "Activity", icon: <Activity className="size-3.5" />, onSelect: () => setActivityOpen(true) },
+		...(prefs.hardwareMonitor
+			? [{ id: "performance", label: "Performance", icon: <Gauge className="size-3.5" />, hint: "P", onSelect: () => setMonitorOpen(true) }]
+			: []),
+		...(prefs.logWindow
+			? [
+					{
+						id: "log",
+						label: logOpen ? "Hide log window" : "Show log window",
+						icon: <Terminal className="size-3.5" />,
+						checked: logOpen,
+						onSelect: () => setLogOpen(!logOpen),
+					},
+				]
+			: []),
+	]
+
 	return (
 		<>
+		{monitorOpen && prefs.hardwareMonitor && !settings && <MonitorPage onBack={() => setMonitorOpen(false)} />}
 		{settings && (
 			<SettingsPage
 				section={settings}
@@ -321,7 +386,7 @@ function App() {
 			className={cn(
 				"relative h-screen overflow-y-auto bg-background text-foreground",
 				// Kept mounted while settings are open so the scroll position survives.
-				settings && "invisible"
+				(settings || (monitorOpen && prefs.hardwareMonitor)) && "invisible"
 			)}
 		>
 			<header
@@ -340,7 +405,7 @@ function App() {
 			>
 				<h1 className="mr-2 text-sm font-medium tracking-[0.25em] uppercase">Shelf</h1>
 
-				<div className="relative max-w-md flex-1">
+				<div className="relative min-w-24 max-w-md flex-1">
 					<Search className="absolute top-1/2 left-3.5 size-3.5 -translate-y-1/2 text-muted-foreground" />
 					<Input
 						ref={searchRef}
@@ -373,97 +438,40 @@ function App() {
 					))}
 				</div>
 
-				<Select value={sort} onValueChange={(v) => setSort(v as SortKey)}>
-					<SelectTrigger className="h-9 w-36 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
-						<SelectItem value="name">Name</SelectItem>
-						<SelectItem value="playtime">Most played</SelectItem>
-						<SelectItem value="recent">Recently played</SelectItem>
-					</SelectContent>
-				</Select>
+				<FilterMenu source={source} onSource={setSource} sort={sort} onSort={setSort} />
 
 				<button
-					onClick={pickRandom}
-					title="Random game (R)"
-					aria-label="Random game"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<Shuffle className="size-3.5" />
-				</button>
-
-				<button
-					onClick={() => refresh()}
-					title="Rescan library"
-					aria-label="Rescan library"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
-				</button>
-
-				<Select value={source} onValueChange={(v) => setSource(v as SourceFilter)}>
-					<SelectTrigger className="h-9 w-28 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
-						<SelectItem value="all">All stores</SelectItem>
-						<SelectItem value="steam">Steam</SelectItem>
-						<SelectItem value="epic">Epic</SelectItem>
-					</SelectContent>
-				</Select>
-
-				{queue.jobs.length > 0 && (
-					<button
-						onClick={() => setSettings("downloads")}
-						title="Downloads"
-						aria-label="Downloads"
-						className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
-					>
-						<Download className="size-3.5" />
-						{queue.jobs.length}
-						{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
-							<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
-						)}
-					</button>
-				)}
-
-				{prefs.logWindow && (
-					<button
-						onClick={() => setLogOpen(!logOpen)}
-						title="Log window"
-						aria-label="Log window"
-						aria-pressed={logOpen}
-						className={cn(
-							"grid size-9 place-items-center rounded-full ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white",
-							logOpen ? "bg-white/15 text-white" : "bg-white/5 text-white/70"
-						)}
-					>
-						<Terminal className="size-3.5" />
-					</button>
-				)}
-
-				<button
-					onClick={() => setSettings("epic")}
+					onClick={() => setSettings("integrations")}
 					title="Settings"
 					aria-label="Settings"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+					className={headerButton}
 				>
 					<Settings className="size-3.5" />
 				</button>
 
-				<button
-					onClick={() => setActivityOpen(true)}
-					title="Activity"
-					aria-label="Activity"
-					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
-				>
-					<Activity className="size-3.5" />
-				</button>
+				<MoreMenu items={moreItems} />
 
-				{nowPlaying && (
-					<NowPlaying game={nowPlaying.game} since={nowPlaying.since} onSelect={setSelected} />
-				)}
+				{/* What is going on right now sits at the far side. */}
+				<div className="ml-auto flex items-center gap-3">
+					{nowPlaying && (
+						<NowPlaying game={nowPlaying.game} since={nowPlaying.since} onSelect={setSelected} />
+					)}
+
+					{queue.jobs.length > 0 && (
+						<button
+							onClick={() => setSettings("downloads")}
+							title="Downloads"
+							aria-label="Downloads"
+							className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
+						>
+							<Download className="size-3.5" />
+							{queue.jobs.length}
+							{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
+								<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
+							)}
+						</button>
+					)}
+				</div>
 
 				<WindowControls />
 			</header>
@@ -517,6 +525,8 @@ function App() {
 							<Skeleton key={i} className="aspect-[2/3] rounded-xl bg-white/5" />
 						))}
 					</Grid>
+				) : visible.length === 0 && source === "ubisoft" && !games.some((g) => g.source === "ubisoft") ? (
+					<UbisoftHint onSettings={() => openIntegration("ubisoft")} />
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0
@@ -571,7 +581,7 @@ function App() {
 		{prefs.logWindow && <LogPanel games={games ?? NO_GAMES} />}
 		<ConfirmDialog />
 		<Toaster />
-		<PadHints inSettings={settings !== null} />
+		<PadHints inSettings={settings !== null || (monitorOpen && prefs.hardwareMonitor)} />
 		</>
 	)
 }

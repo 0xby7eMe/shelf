@@ -49,3 +49,39 @@ export function formatBytes(bytes: number): string {
 	const v = bytes / 1000 ** i
 	return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
 }
+
+/** A transfer rate in bytes per second, e.g. "3.2 MB/s". */
+export function formatRate(bytesPerSec: number): string {
+	return `${formatBytes(bytesPerSec)}/s`
+}
+
+/** A network speed in bits per second, as network tools show it, e.g. "94.1 Mbps". */
+export function formatBitrate(bytesPerSec: number): string {
+	const bits = bytesPerSec * 8
+	const units = ["bps", "Kbps", "Mbps", "Gbps"]
+	let v = bits
+	let i = 0
+	while (v >= 1000 && i < units.length - 1) {
+		v /= 1000
+		i++
+	}
+	return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
+}
+
+/** Uptime as days:hours:minutes:seconds, e.g. "0:02:14:09". */
+export function formatUptime(totalSeconds: number): string {
+	const s = Math.max(0, Math.floor(totalSeconds))
+	const d = Math.floor(s / 86400)
+	const h = Math.floor((s % 86400) / 3600)
+	const m = Math.floor((s % 3600) / 60)
+	const pad = (n: number) => String(n).padStart(2, "0")
+	return `${d}:${pad(h)}:${pad(m)}:${pad(s % 60)}`
+}
+
+export function formatGHz(mhz: number): string {
+	return `${(mhz / 1000).toFixed(2)} GHz`
+}
+
+export function formatPercent(v: number): string {
+	return `${v >= 10 ? Math.round(v) : v.toFixed(1)}%`
+}

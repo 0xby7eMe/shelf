@@ -13,7 +13,7 @@ const GROUPS = {
 	downloads: { label: "Downloads", sources: ["install", "update", "repair", "verify", "import", "updates"] },
 	launch: { label: "Launch", sources: ["launch"] },
 	saves: { label: "Saves", sources: ["saves"] },
-	other: { label: "Other", sources: ["legendary", "app"] },
+	other: { label: "Other", sources: ["legendary", "ubisoft", "app"] },
 } as const
 
 type Group = keyof typeof GROUPS
@@ -37,7 +37,7 @@ export function LogPanel({ games }: { games: library.Game[] }) {
 	const stick = useRef(true) // follow new lines unless the user scrolled up
 
 	const titles = useMemo(
-		() => new Map(games.filter((g) => g.source === "epic").map((g) => [g.externalId, g.name])),
+		() => new Map(games.filter((g) => g.source === "epic" || g.source === "ubisoft").map((g) => [g.externalId, g.name])),
 		[games]
 	)
 

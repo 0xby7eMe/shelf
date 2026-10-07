@@ -87,6 +87,30 @@ export function usePadName(): string | null {
 	)
 }
 
+// --- which family of controller it is, so hints show the buttons it really has ---
+
+export type PadKind = "xbox" | "playstation" | "nintendo"
+
+/**
+ * Tells the controller family from the id the browser reports, which carries
+ * either "Vendor: 054c Product: 0ce6" or a leading "054c-0ce6-". The vendor id
+ * is the reliable part; names vary by driver. Anything unknown is treated as
+ * an Xbox-style pad, which is what the standard mapping is modelled on.
+ */
+export function padKind(id: string | null | undefined): PadKind {
+	if (!id) return "xbox"
+	const lower = id.toLowerCase()
+	const vendor = /vendor:\s*([0-9a-f]{4})/.exec(lower)?.[1] ?? /^([0-9a-f]{4})-[0-9a-f]{4}-/.exec(lower)?.[1]
+	if (vendor === "054c" || /playstation|dualshock|dualsense|sony|\bps[2345]\b/.test(lower)) return "playstation"
+	if (vendor === "057e" || /nintendo|switch|joy-?con|pro controller/.test(lower)) return "nintendo"
+	return "xbox"
+}
+
+/** The family of the pad in use. */
+export function usePadKind(): PadKind {
+	return padKind(usePadName())
+}
+
 /** Strips vendor/product ids from a pad id like "Xbox Controller (STANDARD GAMEPAD Vendor: 045e Product: 0b12)". */
 export function padLabel(id: string): string {
 	return id.replace(/\s*\(.*\)\s*$/, "").replace(/^[0-9a-f]{4}-[0-9a-f]{4}-/i, "") || id

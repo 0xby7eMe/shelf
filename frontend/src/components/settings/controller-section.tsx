@@ -1,22 +1,26 @@
 import { Gamepad2 } from "lucide-react"
 
-import { padLabel, usePadName } from "@/lib/gamepad"
+import { PadGlyph, type PadAction } from "@/components/pad-glyph"
+import { padKind, padLabel, usePadName, type PadKind } from "@/lib/gamepad"
 import { setPrefs, usePrefs } from "@/lib/prefs"
 import { sfx, useSoundSource } from "@/lib/sfx"
 import { ToggleRow } from "@/components/toggle-row"
 import { Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 
-export const PAD_HINTS: [string, string][] = [
-	["D-pad / Left stick", "Move"],
-	["A", "Select"],
-	["B", "Back"],
-	["X", "Favorite"],
-	["Y", "Random game"],
-	["LB / RB", "Switch tab"],
-	["Start", "Settings"],
-	["Select", "Search"],
-	["Right stick", "Scroll"],
+// What each button does. Movement has no single button, so it is text.
+const PAD_ACTIONS: [PadAction | null, string, string][] = [
+	[null, "D-pad / Left stick", "Move"],
+	["confirm", "", "Select"],
+	["back", "", "Back"],
+	["favorite", "", "Favorite"],
+	["random", "", "Random game"],
+	["tabs", "", "Switch tab"],
+	["menu", "", "Settings"],
+	["search", "", "Search"],
+	[null, "Right stick", "Scroll"],
 ]
+
+const KIND_NAME: Record<PadKind, string> = { xbox: "Xbox", playstation: "PlayStation", nintendo: "Nintendo" }
 
 export function ControllerSection() {
 	const prefs = usePrefs()
@@ -43,7 +47,9 @@ export function ControllerSection() {
 				<div className="min-w-0">
 					<p className="truncate text-sm font-medium">{pad ? padLabel(pad) : "No controller found"}</p>
 					<p className="text-xs text-white/45">
-						{pad ? "Connected" : "Connect one and press any button. The window needs to be focused."}
+						{pad
+							? `Connected · shown with ${KIND_NAME[padKind(pad)]} buttons`
+							: "Connect one and press any button. The window needs to be focused."}
 					</p>
 				</div>
 			</Panel>
@@ -93,11 +99,17 @@ export function ControllerSection() {
 			<Panel>
 				<Label>Buttons</Label>
 				<dl className="grid grid-cols-2 gap-x-6 gap-y-2.5 text-sm">
-					{PAD_HINTS.map(([button, action]) => (
-						<div key={button} className="flex items-center justify-between gap-3">
-							<dt className="text-white/55">{action}</dt>
-							<dd className="rounded-md bg-white/5 px-2 py-0.5 text-xs text-white/80 ring-1 ring-white/10">
-								{button}
+					{PAD_ACTIONS.map(([action, text, label]) => (
+						<div key={label} className="flex items-center justify-between gap-3">
+							<dt className="text-white/55">{label}</dt>
+							<dd className="flex min-h-5 items-center">
+								{action ? (
+									<PadGlyph action={action} />
+								) : (
+									<span className="rounded-md bg-white/5 px-2 py-0.5 text-xs text-white/80 ring-1 ring-white/10">
+										{text}
+									</span>
+								)}
 							</dd>
 						</div>
 					))}

@@ -41,6 +41,15 @@ export function AdvancedSection() {
 					Each game's launch output is also saved as a file in the log folder, whether or not the window is on.
 				</p>
 			</Panel>
+
+			<Panel>
+				<ToggleRow
+					label="Hardware monitor"
+					hint="A task-manager-style page with live graphs for CPU, memory, disks, network and graphics cards. Adds a button to the header, and P opens it. Nothing is sampled while the page is closed."
+					checked={prefs.hardwareMonitor}
+					onChange={(v) => setPrefs({ hardwareMonitor: v })}
+				/>
+			</Panel>
 		</div>
 	)
 }

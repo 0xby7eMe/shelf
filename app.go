@@ -15,6 +15,7 @@ import (
 	"shelf/internal/applog"
 	"shelf/internal/epic"
 	"shelf/internal/library"
+	"shelf/internal/sysmon"
 )
 
 type App struct {
@@ -24,6 +25,8 @@ type App struct {
 	monitor *library.Monitor
 	hist    *library.History
 	epic    *epic.Manager
+	sys     *sysmon.Sampler
+	hw      *sysmon.Monitor
 
 	mu    sync.RWMutex
 	paths map[string]string
@@ -34,13 +37,15 @@ func NewApp() *App {
 	ep := epic.New(hist, nil)
 	monitor := library.NewMonitor()
 	monitor.Extra = ep.Running
+	sys := sysmon.New()
 
 	return &App{
-		lib:     library.New(library.NewSteam(), ep.Provider()),
+		lib:     library.New(library.NewSteam(), ep.Provider(), ep.UbisoftProvider()),
 		favs:    library.NewFavorites(),
 		monitor: monitor,
 		hist:    hist,
 		epic:    ep,
+		sys:     sys,
 	}
 }
 
@@ -89,6 +94,32 @@ func (a *App) startup(ctx context.Context) {
 		})
 	})
 }
+
+// --- hardware monitor ---
+
+func (a *App) hardware() *sysmon.Monitor {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hw == nil {
+		a.hw = sysmon.NewMonitor(a.sys, func(s sysmon.Sample) {
+			runtime.EventsEmit(a.ctx, "hardware:sample", s)
+		})
+	}
+	return a.hw
+}
+
+// HardwareInfo is what doesn't change: names, sizes and capabilities.
+func (a *App) HardwareInfo() sysmon.Info { return a.sys.Info() }
+
+// HardwareStart starts the samples that arrive as "hardware:sample" events, and
+// keeps them coming. The view calls it again every few seconds; if it stops
+// calling, so do the samples.
+func (a *App) HardwareStart() { a.hardware().Start() }
+
+func (a *App) HardwareStop() { a.hardware().Stop() }
+
+// HardwareHistory is the samples taken so far, oldest first.
+func (a *App) HardwareHistory() []sysmon.Sample { return a.hardware().History() }
 
 func (a *App) GetNowPlaying() []library.Session {
 	return a.monitor.Snapshot()
@@ -145,6 +176,12 @@ func (a *App) OpenStorePage(id string) error {
 			return err
 		}
 		return library.OpenURL(u)
+	case library.SourceUbisoft:
+		u, err := a.epic.UbisoftStoreURL(ext)
+		if err != nil {
+			return err
+		}
+		return library.OpenURL(u)
 	}
 	return fmt.Errorf("unknown game")
 }
@@ -168,9 +205,31 @@ func (a *App) Launch(id string) error {
 		return library.Launch(ext)
 	case library.SourceEpic:
 		return a.epic.Launch(ext)
+	case library.SourceUbisoft:
+		return a.epic.UbisoftLaunch(ext)
 	}
 	return fmt.Errorf("unknown game")
 }
+
+func (a *App) UbisoftSync() error { return a.epic.UbisoftSync() }
+
+func (a *App) GetUbisoftStatus() epic.UbisoftStatus { return a.epic.UbisoftStatus() }
+
+func (a *App) GetUbisoftSetup() epic.UbisoftSetupState { return a.epic.UbisoftSetupState() }
+
+func (a *App) UbisoftSetup() error { return a.epic.UbisoftSetup() }
+
+func (a *App) UbisoftOpenConnect() error { return a.epic.UbisoftOpenConnect() }
+
+func (a *App) UbisoftCloseConnect() error { return a.epic.UbisoftCloseConnect() }
+
+func (a *App) UbisoftReset() error { return a.epic.UbisoftReset() }
+
+func (a *App) UbisoftInstall(id string) error { return a.epic.UbisoftInstall(id) }
+
+func (a *App) UbisoftUninstall(id string) error { return a.epic.UbisoftUninstall(id) }
+
+func (a *App) UbisoftInstalling() []epic.UbisoftInstalling { return a.epic.UbisoftInstallStates() }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 
@@ -264,6 +323,16 @@ func (a *App) OpenLogsFolder() error {
 	}
 	return library.OpenFolder(dir)
 }
+
+func (a *App) GetBattlEyeRuntime() epic.BattlEyeRuntime { return a.epic.BattlEyeRuntime() }
+
+func (a *App) InstallBattlEyeRuntime() error { return a.epic.InstallBattlEyeRuntime() }
+
+func (a *App) GetBattlEyeInstall() epic.ProtonInstallState { return a.epic.BattlEyeInstallState() }
+
+func (a *App) InstallProtonGE() error { return a.epic.InstallProtonGE() }
+
+func (a *App) GetProtonInstall() epic.ProtonInstallState { return a.epic.ProtonInstallState() }
 
 func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 

@@ -25,11 +25,14 @@ import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "
 import { heroSrc } from "@/lib/cover"
 import { jobLabel } from "@/lib/use-epic"
 import { cn } from "@/lib/utils"
+import { BattlEyeNotice, needsBattlEyeNotice } from "@/components/battleye-notice"
+import { useBattlEyeRuntime } from "@/lib/use-battleye"
 import { LiveDot } from "@/components/live-dot"
 
 // What the sheet can ask the app to do with an Epic game.
 export interface EpicActions {
 	install: (game: library.Game) => void
+	installUbisoft: (game: library.Game) => void // asks Ubisoft Connect to install it
 	cancel: (game: library.Game) => void
 	uninstall: (game: library.Game) => void
 	update: (game: library.Game) => void
@@ -138,6 +141,9 @@ function Body({
 	const [heroFailed, setHeroFailed] = useState(false)
 	const [armed, setArmed] = useState(false)
 	const isEpic = game.source === "epic"
+	const isUbisoft = game.source === "ubisoft"
+	const battleye = useBattlEyeRuntime()
+	const needsInstall = (isEpic || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
 
@@ -200,26 +206,31 @@ function Body({
 						<div className="flex items-center gap-2">
 							<div className="relative h-11 flex-1 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
 								<div
-									className="absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300"
-									style={{ width: `${job.percent}%` }}
+									className={cn(
+										"absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300",
+										job.indeterminate && "animate-pulse"
+									)}
+									style={{ width: job.indeterminate ? "100%" : `${job.percent}%` }}
 								/>
 								<span className="relative flex h-full items-center justify-center gap-2 text-sm tabular-nums">
-									{jobLabel(job)}
+									{isUbisoft && job.indeterminate ? "Installing in Ubisoft Connect" : jobLabel(job)}
 									{job.state === "installing" && job.percent > 0 && ` ${Math.floor(job.percent)}%`}
 									{job.speed && <span className="text-white/50">{job.speed}</span>}
 									{job.eta && <span className="text-white/50">ETA {job.eta}</span>}
 								</span>
 							</div>
+							{!isUbisoft && (
 							<button
-								onClick={() => epicActions.cancel(game)}
-								aria-label="Cancel"
-								title="Cancel"
-								className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
-							>
-								<X className="size-4" />
-							</button>
+									onClick={() => epicActions.cancel(game)}
+									aria-label="Cancel"
+									title="Cancel"
+									className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+								>
+									<X className="size-4" />
+								</button>
+							)}
 						</div>
-					) : isEpic && !game.installed && game.thirdParty ? (
+					) : (isEpic || isUbisoft) && !game.installed && game.thirdParty ? (
 						<div className="space-y-3">
 							<button
 								disabled
@@ -229,14 +240,17 @@ function Body({
 								Can't be installed here
 							</button>
 							<p className="rounded-xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/55 ring-1 ring-white/[0.06]">
-								{game.name} has to be installed through {game.thirdParty}. Epic doesn't let other
-								launchers download it, so Shelf can't install it for you.
+								{isUbisoft
+									? `${game.name} belongs to ${game.thirdParty}, so it has to be installed and started there. Shelf lists it because it's in your Ubisoft library.`
+									: `${game.name} has to be installed through ${game.thirdParty}. Epic doesn't let other launchers download it, so Shelf can't install it for you.`}
 							</p>
 						</div>
 					) : (
 						<div className="flex gap-2">
 							<button
-								onClick={() => (isEpic && !game.installed ? epicActions.install(game) : onPlay(game))}
+								onClick={() =>
+									needsInstall ? (isUbisoft ? epicActions.installUbisoft(game) : epicActions.install(game)) : onPlay(game)
+								}
 								disabled={running}
 								className={cn(
 									"flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
@@ -250,7 +264,7 @@ function Body({
 										<LiveDot />
 										Running
 									</>
-								) : isEpic && !game.installed ? (
+								) : needsInstall ? (
 									<>
 										<Download className="size-3.5" />
 										Install
@@ -275,6 +289,12 @@ function Body({
 						</div>
 					)}
 				</Reveal>
+
+				{needsBattlEyeNotice(game, battleye) && (
+					<Reveal i={3}>
+						<BattlEyeNotice game={game} be={battleye} />
+					</Reveal>
+				)}
 
 				<Reveal i={3} className="grid grid-cols-2 gap-3">
 					<Stat label="Playtime" value={formatPlaytime(game.playtimeMinutes)} />
@@ -314,7 +334,7 @@ function Body({
 					>
 						Folder
 					</Action>
-					{isEpic && game.installed && (
+					{(isEpic || isUbisoft) && game.installed && (
 						<Action icon={Trash2} disabled={running || !!job} onClick={() => epicActions.uninstall(game)}>
 							Uninstall
 						</Action>

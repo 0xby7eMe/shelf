@@ -237,6 +237,7 @@ func (p provider) Scan() ([]library.Game, error) {
 			g.InstallPath = in.InstallPath
 			g.Version = in.Version
 			g.SizeBytes = in.InstallSize
+			g.AntiCheat = antiCheatOf(in.InstallPath)
 			_, g.UpdateAvailable = updates[o.AppName]
 		}
 		g.PlaytimeMinutes, g.LastPlayed = m.hist.Totals(o.AppName)

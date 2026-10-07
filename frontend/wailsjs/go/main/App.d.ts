@@ -4,6 +4,7 @@ import {epic} from '../models';
 import {library} from '../models';
 import {applog} from '../models';
 import {main} from '../models';
+import {sysmon} from '../models';
 
 export function ClearLogs():Promise<void>;
 
@@ -53,6 +54,10 @@ export function EpicUpdates():Promise<Array<epic.UpdateInfo>>;
 
 export function EpicVerify(arg1:string):Promise<void>;
 
+export function GetBattlEyeInstall():Promise<epic.ProtonInstallState>;
+
+export function GetBattlEyeRuntime():Promise<epic.BattlEyeRuntime>;
+
 export function GetEpicAccount():Promise<epic.Account>;
 
 export function GetEpicGameSettings(arg1:string):Promise<epic.GameSettings>;
@@ -71,11 +76,29 @@ export function GetNowPlaying():Promise<Array<library.Session>>;
 
 export function GetProtonBuilds():Promise<Array<epic.ProtonBuild>>;
 
+export function GetProtonInstall():Promise<epic.ProtonInstallState>;
+
 export function GetStats(arg1:number):Promise<library.Stats>;
 
 export function GetStorage():Promise<main.Storage>;
 
+export function GetUbisoftSetup():Promise<epic.UbisoftSetupState>;
+
+export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
+
 export function Greet(arg1:string):Promise<string>;
+
+export function HardwareHistory():Promise<Array<sysmon.Sample>>;
+
+export function HardwareInfo():Promise<sysmon.Info>;
+
+export function HardwareStart():Promise<void>;
+
+export function HardwareStop():Promise<void>;
+
+export function InstallBattlEyeRuntime():Promise<void>;
+
+export function InstallProtonGE():Promise<void>;
 
 export function Launch(arg1:string):Promise<void>;
 
@@ -90,3 +113,19 @@ export function SetEpicGameSettings(arg1:string,arg2:epic.GameSettings):Promise<
 export function SetEpicSettings(arg1:epic.Settings):Promise<void>;
 
 export function ToggleFavorite(arg1:string):Promise<Array<string>>;
+
+export function UbisoftCloseConnect():Promise<void>;
+
+export function UbisoftInstall(arg1:string):Promise<void>;
+
+export function UbisoftInstalling():Promise<Array<epic.UbisoftInstalling>>;
+
+export function UbisoftOpenConnect():Promise<void>;
+
+export function UbisoftReset():Promise<void>;
+
+export function UbisoftSetup():Promise<void>;
+
+export function UbisoftSync():Promise<void>;
+
+export function UbisoftUninstall(arg1:string):Promise<void>;

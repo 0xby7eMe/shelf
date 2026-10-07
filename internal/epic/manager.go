@@ -13,6 +13,7 @@ import (
 	"regexp"
 	"strings"
 	"sync"
+	"time"
 
 	"shelf/internal/applog"
 	"shelf/internal/library"
@@ -42,6 +43,19 @@ type Manager struct {
 	queue    []*installJob // waiting, in order
 	active   *installJob   // the running queued job, if any
 	paused   bool
+
+	// Ubisoft Connect: the launcher in its prefix, and what it has recorded.
+	ubiMu           sync.Mutex
+	ubiCache        *ubiLocalCache
+	ubiSetup        UbisoftSetupState
+	protonInstall   ProtonInstallState
+	battleyeInstall ProtonInstallState
+	connect         *exec.Cmd
+	watching        bool
+	ubiSizes        map[string]ubiSizeEntry // install folder -> last measured size
+	ubiSizing       map[string]bool         // folders being measured now
+	ubiPending      map[string]time.Time    // game key -> when Install was pressed
+	reg             *regCache
 
 	announcedUpdates map[string]string // app -> version already shown to the user
 	announcedImport  bool

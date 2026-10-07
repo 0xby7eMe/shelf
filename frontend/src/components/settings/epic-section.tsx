@@ -23,6 +23,7 @@ import {
 	SelectTrigger,
 	SelectValue,
 } from "@/components/ui/select"
+import { BattlEyePanel } from "@/components/settings/battleye-panel"
 import { ToggleRow } from "@/components/toggle-row"
 import {
 	IconButton,
@@ -258,6 +259,8 @@ export function EpicSection({ account, onAccountChange }: Props) {
 							</Panel>
 						</>
 					)}
+
+					<BattlEyePanel />
 
 					<Panel>
 						<div className="flex items-center justify-between">

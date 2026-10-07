@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { EpicQueue, EpicRepair, GetEpicAccount, Launch } from "../../wailsjs/go/main/App"
+import { EpicQueue, EpicRepair, GetEpicAccount, Launch, UbisoftInstalling } from "../../wailsjs/go/main/App"
 import { epic, library } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { setLogOpen } from "@/lib/logs"
 import { getPrefs } from "@/lib/prefs"
+import { formatBytes } from "@/lib/format"
 import { toast } from "@/lib/toast"
 
 // Payloads of backend events that aren't part of the generated bindings.
@@ -38,6 +39,8 @@ export function jobLabel(job: epic.Progress): string {
 export function useEpic(games: library.Game[] | null, onReviewImport: () => void) {
 	const [account, setAccount] = useState<epic.Account | null>(null)
 	const [queue, setQueue] = useState<epic.QueueState>(() => new epic.QueueState({ jobs: [], paused: false }))
+	const [ubisoft, setUbisoft] = useState<epic.UbisoftInstalling[]>([])
+	const ubisoftRef = useRef<epic.UbisoftInstalling[]>([])
 	const gamesRef = useRef(games)
 	gamesRef.current = games
 	const reviewRef = useRef(onReviewImport)
@@ -151,6 +154,33 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 			})
 		)
 
+		// Ubisoft Connect does its own downloads. All Shelf can see is that one is
+		// going and how much has been written, so it shows as an install of unknown size.
+		const ubisoftNow = (list: epic.UbisoftInstalling[]) => {
+			const gone = ubisoftRef.current.filter((p) => !list.some((n) => n.key === p.key))
+			ubisoftRef.current = list
+			setUbisoft(list)
+			for (const g of gone) {
+				// Finished or interrupted? The library says which, once it has caught up.
+				setTimeout(() => {
+					const game = gamesRef.current?.find((x) => x.externalId === g.key && x.source === "ubisoft")
+					if (!game) return
+					if (game.installed) {
+						toast.success(`${game.name} is installed`, {
+							description: "Ready to play.",
+							action: { label: "Play", onClick: () => Launch(game.id).catch((e) => toast.error(String(e))) },
+						})
+					} else {
+						toast.info(`Download of ${game.name} stopped`, {
+							description: "Ubisoft Connect closed before it finished. Press Install to continue.",
+						})
+					}
+				}, 2500)
+			}
+		}
+		UbisoftInstalling().then((l) => ubisoftNow(l ?? [])).catch(() => {})
+		const offUbisoft = EventsOn("ubisoft:installing", (l: epic.UbisoftInstalling[]) => ubisoftNow(l ?? []))
+
 		const offLibrary = EventsOn("library:changed", reloadAccount)
 		return () => {
 			offQueue()
@@ -160,13 +190,24 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 			offUpdates()
 			offImport()
 			offLibrary()
+			offUbisoft()
 		}
 	}, [reloadAccount])
 
-	const installs = useMemo(
-		() => Object.fromEntries(queue.jobs.map((j) => [j.appName, j])) as Record<string, epic.Progress>,
-		[queue]
-	)
+	const installs = useMemo(() => {
+		const out = Object.fromEntries(queue.jobs.map((j) => [j.appName, j])) as Record<string, epic.Progress>
+		for (const u of ubisoft) {
+			out[u.key] = new epic.Progress({
+				appName: u.key,
+				kind: "install",
+				state: "installing",
+				percent: 0,
+				indeterminate: true,
+				speed: u.bytes > 0 ? `${formatBytes(u.bytes)} downloaded` : "",
+			})
+		}
+		return out
+	}, [queue, ubisoft])
 
 	return { account, installs, queue, reloadAccount }
 }

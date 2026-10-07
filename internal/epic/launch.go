@@ -32,7 +32,11 @@ func prefixDir(appName string) string {
 
 // protonEnv builds the environment Proton expects when started outside Steam.
 func protonEnv(build ProtonBuild, appName, installPath string) []string {
-	prefix := prefixDir(appName)
+	return protonEnvAt(build, prefixDir(appName), installPath)
+}
+
+// protonEnvAt is protonEnv for a prefix that isn't one game's own.
+func protonEnvAt(build ProtonBuild, prefix, installPath string) []string {
 	steam, err := library.SteamRoot()
 	if err != nil {
 		// Proton only needs the variable to point somewhere real.
@@ -74,21 +78,33 @@ func (m *Manager) LaunchInfo(appName string) (LaunchInfo, error) {
 
 // wrapperFor builds legendary's --wrapper value: optional tools, then Proton.
 func wrapperFor(gs GameSettings, build ProtonBuild) (string, error) {
+	parts, err := wrapperParts(gs, build)
+	if err != nil {
+		return "", err
+	}
+	// Only the Proton path can contain spaces; legendary splits the rest like a shell.
+	parts[len(parts)-2] = shellQuote(parts[len(parts)-2])
+	return strings.Join(parts, " "), nil
+}
+
+// wrapperParts lists the command that runs a Windows program for a game:
+// optional tools first, then `<proton> run`.
+func wrapperParts(gs GameSettings, build ProtonBuild) ([]string, error) {
 	var parts []string
 	if gs.MangoHud {
 		if !hasBinary("mangohud") {
-			return "", fmt.Errorf("MangoHud is turned on for this game but isn't installed")
+			return nil, fmt.Errorf("MangoHud is turned on for this game but isn't installed")
 		}
 		parts = append(parts, "mangohud")
 	}
 	if gs.GameMode {
 		if !hasBinary("gamemoderun") {
-			return "", fmt.Errorf("GameMode is turned on for this game but isn't installed")
+			return nil, fmt.Errorf("GameMode is turned on for this game but isn't installed")
 		}
 		parts = append(parts, "gamemoderun")
 	}
-	parts = append(parts, shellQuote(filepath.Join(build.Path, "proton")), "run")
-	return strings.Join(parts, " "), nil
+	parts = append(parts, filepath.Join(build.Path, "proton"), "run")
+	return parts, nil
 }
 
 // Launch starts an installed game through Proton and returns once it is running.
@@ -131,6 +147,10 @@ func (m *Manager) Launch(appName string) error {
 	if err != nil {
 		return err
 	}
+	beEnv, err := battleyeEnvFor(game.InstallPath, game.Title)
+	if err != nil {
+		return err
+	}
 
 	prefix := prefixDir(appName)
 	if err := os.MkdirAll(prefix, 0o755); err != nil {
@@ -158,6 +178,7 @@ func (m *Manager) Launch(appName string) error {
 		return err
 	}
 	cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
+	cmd.Env = append(cmd.Env, beEnv...)
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
@@ -271,6 +292,9 @@ func (m *Manager) Running() []string {
 		if _, ok := installed[name]; ok {
 			seen[name] = true
 		}
+	}
+	for _, id := range m.runningUbisoft() {
+		seen[id] = true
 	}
 
 	out := make([]string, 0, len(seen))

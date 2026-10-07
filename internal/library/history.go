@@ -79,7 +79,7 @@ func NewHistory() *History {
 		return h
 	}
 	for _, r := range recs {
-		if appIDRe.MatchString(r.AppID) && r.End > r.Start {
+		if entryIDRe.MatchString(r.AppID) && r.End > r.Start {
 			h.records = append(h.records, r)
 		}
 	}
@@ -87,7 +87,7 @@ func NewHistory() *History {
 }
 
 func (h *History) Add(appID string, startMs, endMs int64) (added bool, err error) {
-	if !appIDRe.MatchString(appID) {
+	if !entryIDRe.MatchString(appID) {
 		return false, fmt.Errorf("invalid app id")
 	}
 	if endMs-startMs < minSession.Milliseconds() {
@@ -98,6 +98,24 @@ func (h *History) Add(appID string, startMs, endMs int64) (added bool, err error
 	defer h.mu.Unlock()
 	h.records = append(h.records, Record{AppID: appID, Start: startMs, End: endMs})
 	return true, h.saveLocked()
+}
+
+// Totals returns the tracked play time and the end of the latest session for a game.
+func (h *History) Totals(appID string) (minutes int, lastPlayed int64) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	var total time.Duration
+	var last int64
+	for _, r := range h.records {
+		if r.AppID != appID {
+			continue
+		}
+		total += time.Duration(r.End-r.Start) * time.Millisecond
+		if r.End > last {
+			last = r.End
+		}
+	}
+	return minutesOf(total), last / 1000
 }
 
 func (h *History) saveLocked() error {

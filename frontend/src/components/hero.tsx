@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Play } from "lucide-react"
 
 import { library } from "../../wailsjs/go/models"
+import { heroSrc } from "@/lib/cover"
 import { formatLastPlayed, formatPlaytime } from "@/lib/format"
 
 interface Props {
@@ -17,7 +18,7 @@ export function Hero({ game, onPlay, onDetails }: Props) {
 		<section className="relative isolate -mt-16 h-[52vh] min-h-[340px] overflow-hidden">
 			{!heroFailed ? (
 				<img
-					src={`${game.cover}?kind=hero`}
+					src={heroSrc(game)}
 					alt=""
 					onError={() => setHeroFailed(true)}
 					className="absolute inset-0 size-full animate-in object-cover object-top duration-1000 fade-in"

@@ -1,9 +1,21 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { GetFavorites, GetGames, GetNowPlaying, Launch, ToggleFavorite } from "../wailsjs/go/main/App"
+import {
+	EpicCancelInstall,
+	EpicInstall,
+	EpicSyncSaves,
+	EpicUninstall,
+	EpicUpdate,
+	EpicVerify,
+	GetFavorites,
+	GetGames,
+	GetNowPlaying,
+	Launch,
+	ToggleFavorite,
+} from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
-import { GameSheet } from "@/components/game-sheet"
+import { GameSheet, type EpicActions } from "@/components/game-sheet"
 import { Hero } from "@/components/hero"
 import { Input } from "@/components/ui/input"
 import {
@@ -18,12 +30,26 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, RefreshCw, Search, Shuffle } from "lucide-react"
+import { Activity, Download, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
+import { useEpic } from "@/lib/use-epic"
+import { toast } from "@/lib/toast"
+import { confirm } from "@/lib/confirm"
+import { ConfirmDialog } from "@/components/confirm-dialog"
+import { Toaster } from "@/components/toaster"
+import { EpicGameSettings } from "@/components/epic-game-settings"
+import { LogPanel } from "@/components/log-panel"
+import { PadHints } from "@/components/pad-hints"
+import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
+import { usePrefs } from "@/lib/prefs"
+import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
+import { useGamepad } from "@/lib/gamepad"
+import { useStableHover } from "@/lib/hover"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
+type SourceFilter = "all" | "steam" | "epic"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -45,6 +71,12 @@ function App() {
 	const [refreshing, setRefreshing] = useState(false)
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
+	const [settings, setSettings] = useState<SettingsSection | null>(null)
+	const settingsRef = useRef(settings)
+	settingsRef.current = settings
+	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
+	const [source, setSource] = useState<SourceFilter>("all")
+	const { account, installs, queue, reloadAccount } = useEpic(games, () => setSettings("epic"))
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -101,7 +133,13 @@ function App() {
 			} else if (e.key === "Escape" && typing) {
 				setQuery("")
 				searchRef.current?.blur()
-			} else if (e.key === "r" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			} else if (
+				e.key === "Escape" &&
+				settingsRef.current &&
+				!document.querySelector('[role="dialog"], [role="listbox"]')
+			) {
+				setSettings(null)
+			} else if (e.key === "r" && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				e.preventDefault()
 				randomRef.current()
 			}
@@ -121,11 +159,13 @@ function App() {
 						? favorites.has(g.externalId)
 						: true
 			)
+			.filter((g) => source === "all" || g.source === source)
 			.filter((g) => !q || g.name.toLowerCase().includes(q))
 			.sort(sorters[sort])
-	}, [games, query, filter, sort, favorites])
+	}, [games, query, filter, source, sort, favorites])
 
-	function toggleFavorite(game: library.Game) {
+	// Stable identity, so memoized cards don't re-render when something unrelated changes.
+	const toggleFavorite = useCallback((game: library.Game) => {
 		const id = game.externalId
 		setFavorites((prev) => {
 			const next = new Set(prev)
@@ -139,7 +179,7 @@ function App() {
 				setError(String(e))
 				GetFavorites().then((ids) => setFavorites(new Set(ids)))
 			})
-	}
+	}, [])
 
 	function pickRandom() {
 		const installed = visible.filter((g) => g.installed)
@@ -151,6 +191,28 @@ function App() {
 
 	useEffect(() => {
 		randomRef.current = pickRandom
+	})
+
+	useStableHover()
+
+	const prefs = usePrefs()
+	const logOpen = useLogOpen()
+	useEffect(() => startLogs(), [])
+
+	const filters: Filter[] = ["all", "installed", "favorites"]
+	useGamepad({
+		onBack: () => setSettings(null),
+		onTab: (dir) => {
+			if (settingsRef.current) {
+				const i = SECTIONS.findIndex((s) => s.id === settingsRef.current)
+				setSettings(SECTIONS[(i + dir + SECTIONS.length) % SECTIONS.length].id)
+			} else {
+				setFilter((f) => filters[(filters.indexOf(f) + dir + filters.length) % filters.length])
+			}
+		},
+		onMenu: () => setSettings((s) => (s ? null : "epic")),
+		onRandom: () => !settingsRef.current && randomRef.current(),
+		onSearch: () => !settingsRef.current && searchRef.current?.focus(),
 	})
 
 	const featured = useMemo(() => {
@@ -195,21 +257,80 @@ function App() {
 	const showShelves = showHero && filter === "all"
 
 	function play(game: library.Game) {
-		Launch(game.externalId).catch((e: any) => setError(String(e)))
+		// Epic games have to be installed through Shelf first.
+		if (game.source === "epic" && !game.installed) {
+			setSelected(game)
+			return
+		}
+		Launch(game.id).catch((e: any) => toast.error(`Couldn't start ${game.name}`, { description: String(e) }))
+	}
+
+	// Run an Epic action, turning a refusal into a toast.
+	function epicTask(game: library.Game, what: string, task: () => Promise<unknown>) {
+		task().catch((e: any) => toast.error(`Couldn't ${what} ${game.name}`, { description: String(e) }))
+	}
+
+	const epicActions: EpicActions = {
+		install: (g) => epicTask(g, "install", () => EpicInstall(g.externalId)),
+		cancel: (g) => EpicCancelInstall(g.externalId),
+		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
+		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
+		syncSaves: (g) =>
+			epicTask(g, "sync saves for", async () => {
+				await EpicSyncSaves(g.externalId)
+			}),
+		openSettings: setSettingsGame,
+		uninstall: async (g) => {
+			const ok = await confirm({
+				title: "Uninstall this game?",
+				description:
+					"The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+				confirmLabel: "Uninstall",
+				destructive: true,
+				game: { name: g.name, cover: g.cover },
+			})
+			if (!ok) return
+			EpicUninstall(g.externalId)
+				.then(() => toast.success(`${g.name} uninstalled`))
+				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
+		},
 	}
 
 	return (
+		<>
+		{settings && (
+			<SettingsPage
+				section={settings}
+				onSection={setSettings}
+				onBack={() => setSettings(null)}
+				account={account}
+				onAccountChange={reloadAccount}
+				queue={queue}
+				games={games ?? NO_GAMES}
+				onSelectGame={(g) => {
+					setSettings(null)
+					setSelected(g)
+				}}
+			/>
+		)}
 		<div
-			onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 24)}
-			className="relative h-screen overflow-y-auto bg-background text-foreground"
+			data-scroll-root
+			onScroll={(e) => {
+				setScrolled(e.currentTarget.scrollTop > 24)
+			}}
+			className={cn(
+				"relative h-screen overflow-y-auto bg-background text-foreground",
+				// Kept mounted while settings are open so the scroll position survives.
+				settings && "invisible"
+			)}
 		>
 			<header
 				onDoubleClick={(e) => {
 					if (e.target === e.currentTarget) WindowToggleMaximise()
 				}}
 				style={{
-					backdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
-					WebkitBackdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+					backdropFilter: scrolled ? "blur(14px)" : "none",
+					WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
 					backgroundColor: scrolled ? "rgba(10, 10, 10, 0.55)" : "transparent",
 				}}
 				className={cn(
@@ -281,6 +402,56 @@ function App() {
 					<RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
 				</button>
 
+				<Select value={source} onValueChange={(v) => setSource(v as SourceFilter)}>
+					<SelectTrigger className="h-9 w-28 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
+						<SelectItem value="all">All stores</SelectItem>
+						<SelectItem value="steam">Steam</SelectItem>
+						<SelectItem value="epic">Epic</SelectItem>
+					</SelectContent>
+				</Select>
+
+				{queue.jobs.length > 0 && (
+					<button
+						onClick={() => setSettings("downloads")}
+						title="Downloads"
+						aria-label="Downloads"
+						className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
+					>
+						<Download className="size-3.5" />
+						{queue.jobs.length}
+						{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
+							<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
+						)}
+					</button>
+				)}
+
+				{prefs.logWindow && (
+					<button
+						onClick={() => setLogOpen(!logOpen)}
+						title="Log window"
+						aria-label="Log window"
+						aria-pressed={logOpen}
+						className={cn(
+							"grid size-9 place-items-center rounded-full ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white",
+							logOpen ? "bg-white/15 text-white" : "bg-white/5 text-white/70"
+						)}
+					>
+						<Terminal className="size-3.5" />
+					</button>
+				)}
+
+				<button
+					onClick={() => setSettings("epic")}
+					title="Settings"
+					aria-label="Settings"
+					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+				>
+					<Settings className="size-3.5" />
+				</button>
+
 				<button
 					onClick={() => setActivityOpen(true)}
 					title="Activity"
@@ -349,7 +520,7 @@ function App() {
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0
-							? "No Steam games found."
+							? "No games found."
 							: filter === "favorites" && !query
 								? "No favorites yet. Click the heart on a poster."
 								: "Nothing matches."
@@ -366,6 +537,7 @@ function App() {
 								onSelect={setSelected}
 								onToggleFavorite={toggleFavorite}
 								playing={playingIds.has(g.externalId)}
+								job={installs[g.externalId]}
 							/>
 						))}
 					</Grid>
@@ -381,7 +553,11 @@ function App() {
 				running={selected ? playingIds.has(selected.externalId) : false}
 				onPlay={play}
 				activity={selected ? stats?.games.find((g) => g.appId === selected.externalId) : undefined}
+				job={selected ? installs[selected.externalId] : undefined}
+				epicActions={epicActions}
 			/>
+
+			<EpicGameSettings game={settingsGame} onClose={() => setSettingsGame(null)} />
 
 			<ActivityDialog
 				open={activityOpen}
@@ -391,6 +567,12 @@ function App() {
 				onSelect={setSelected}
 			/>
 		</div>
+
+		{prefs.logWindow && <LogPanel games={games ?? NO_GAMES} />}
+		<ConfirmDialog />
+		<Toaster />
+		<PadHints inSettings={settings !== null} />
+		</>
 	)
 }
 

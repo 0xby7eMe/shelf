@@ -2,7 +2,7 @@
 Name=Shelf
 Exec=/usr/bin/shelf
 Type=Application
-Comment=A minimal Steam library
+Comment=A minimal library for your Steam and Epic games
 Icon=shelf
 Categories=Game;
 Terminal=false

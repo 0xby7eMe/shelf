@@ -2,6 +2,7 @@ package main
 
 import (
 	"embed"
+	"net/http"
 
 	"github.com/wailsapp/wails/v2"
 	"github.com/wailsapp/wails/v2/pkg/options"
@@ -18,6 +19,8 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	library.EnterAppImage()
+
 	app := NewApp()
 
 	covers, err := library.NewCovers()
@@ -33,8 +36,10 @@ func main() {
 		MinWidth:  720,
 		MinHeight: 480,
 		AssetServer: &assetserver.Options{
-			Assets:     assets,
-			Middleware: covers.Middleware,
+			Assets: assets,
+			Middleware: func(next http.Handler) http.Handler {
+				return covers.Middleware(library.Sounds(next))
+			},
 		},
 		Linux: &linux.Options{
 			Icon:             icon,

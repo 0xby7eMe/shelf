@@ -4,7 +4,7 @@
 
 # Shelf
 
-A minimal, good-looking desktop library for your Steam games.
+A minimal, good-looking desktop library for your Steam and Epic Games.
 
 [![Build](https://github.com/0xby7eMe/shelf/actions/workflows/build.yml/badge.svg)](https://github.com/0xby7eMe/shelf/actions/workflows/build.yml)
 [![Release](https://img.shields.io/github/v/release/0xby7eMe/shelf)](https://github.com/0xby7eMe/shelf/releases)
@@ -22,23 +22,112 @@ A minimal, good-looking desktop library for your Steam games.
 
 ## Features
 
+**Library**
+
 - Reads your Steam library from its local files. No login, no API key.
-- Poster grid with instant search, installed and favorites filters, and sorting
+- Your Epic Games library alongside it, after a one-time sign-in (see [Epic Games](#epic-games)).
+- Poster grid with instant search, installed and favorites filters, a store filter and sorting. Stays smooth with a couple of hundred games.
 - Hero banner for the game you played last, plus "Continue playing" and "Never played" shelves
 - Detail sheet with playtime, last played, share of your library, store page and install folder
 - Favorites and a random game picker
-- Launch games through Steam
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
+
+**Epic Games**
+
+- Install, update, verify, repair and uninstall games without leaving Shelf
+- Launch through Proton with a separate prefix per game
+- Cloud saves, per-game launch settings, and import of games you already have installed
+
+**Everything else**
+
+- Controller navigation with soft interface sounds
+- A download queue, a disk usage view, and a log window
 - Frameless glass UI, dark only
+
+<p align="center">
+  <img src="assets/library-epic.png" alt="Library showing Steam and Epic games, with update and install badges">
+</p>
+
+## Epic Games
+
+Shelf drives [legendary](https://github.com/derrod/legendary), the same CLI Heroic uses, so it needs to be installed (Arch: `pacman -S legendary`). Shelf keeps its own legendary login, separate from any existing one.
+
+1. Click the gear in the header and open **Epic Games**. Choose **Open Epic login**, sign in and paste the code Epic shows you.
+2. Your Epic games appear in the library. Open one and press **Install**.
+3. **Play** runs the game with Proton. Shelf finds Proton in Steam, `compatibilitytools.d` (GE-Proton) and Heroic's tools folder. Pick a version in the settings; by default the newest GE-Proton wins, then Proton Experimental.
+
+<p align="center">
+  <img src="assets/settings-epic.png" alt="Settings page, Epic Games section">
+</p>
+
+Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Play time for Epic games is recorded while Shelf is running, since Epic doesn't provide it.
+
+### Updates
+
+Shelf checks for new versions at startup and every few hours, marks games that are behind and can install updates by itself. Both are switches in the Epic settings, and each game can opt in or out. Epic refuses to start an outdated game, so Shelf tells you when an update is needed. A game can also be allowed to launch outdated.
+
+### Verify and repair
+
+Check a game's files against Epic's manifest from its sheet. If anything is damaged or missing, repair downloads just those files again.
+
+### Cloud saves
+
+Newer saves are downloaded before a game starts and uploaded after it closes, or synced by hand from the sheet. Shelf finds the save folder inside the game's Proton prefix, and you can override it per game. A game has to be started once before its saves can sync. Only games that support cloud saves show the option.
+
+### Per-game settings
+
+Proton version, launch arguments, environment variables, MangoHud, GameMode, offline mode, whether outdated launches are allowed, and update and cloud save behavior. Each can follow the global setting.
+
+### Existing installs
+
+Games already installed by Heroic, legendary or the Epic Games Launcher are found and imported in place, with no download. Shelf only offers games that belong to your account.
+
+### Games that can't be installed
+
+Some Epic titles, such as Ubisoft Connect and EA app games, have to be installed through their own launcher, and Epic doesn't let other launchers download them. Shelf marks these in the game sheet instead of offering an install that can't work.
+
+## Downloads and storage
+
+Installs, updates and repairs run one at a time. **Settings, Downloads** shows the queue: reorder it, send a game to the front, cancel entries or pause the queue. "Update all" queues every outdated game.
+
+**Settings, Storage** shows how much space each Steam and Epic game uses, free space per disk, and Proton prefixes, including leftovers from uninstalled games that you can delete.
+
+<p align="center">
+  <img src="assets/settings-downloads.png" width="49%" alt="Download queue">
+  <img src="assets/settings-storage.png" width="49%" alt="Disk usage">
+</p>
+
+## Controller
+
+Plug in a gamepad and press any button (the window needs focus). Focus moves smoothly between games, and the interface plays soft sounds as you go.
+
+| Button | Action |
+| --- | --- |
+| D-pad / left stick | Move |
+| `A` | Select |
+| `B` | Back, or close the open dialog |
+| `X` | Favorite |
+| `Y` | Random game |
+| `LB` / `RB` | Switch tabs |
+| `Start` | Settings |
+| `Select` | Search |
+| Right stick | Scroll |
+
+The sounds are Steam's own Deck UI sounds, played from your Steam install (nothing is copied or bundled). Without Steam, Shelf uses a small built-in set instead. Navigation, sounds and volume are under **Settings, Controller**. Dialogs and menus trap the focus, so the controller never wanders behind them.
+
+## Log window
+
+**Settings, Advanced** turns on a log window: a console along the bottom of the window with live output from downloads, updates, game launches and cloud saves, including the commands that were run. Filter it, copy it or clear it. It opens by itself when a game fails to start. Each game's launch output is also written to `~/.local/share/shelf/logs`, whether or not the window is on.
+
 
 ## Keyboard
 
 | Key | Action |
 | --- | --- |
 | `/` | Focus search |
-| `Esc` | Clear search |
+| `Esc` | Clear search, or leave the settings page |
 | `R` | Open a random game from the current view |
 
 ## Install
@@ -63,9 +152,29 @@ sudo pacman -S gtk3 webkit2gtk-4.1
 sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
 ```
 
+For Epic Games you also need legendary, and a Proton build from Steam or ProtonUp-Qt:
+
+```bash
+# Arch
+sudo pacman -S legendary
+```
+
+Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
+
+### AppImage
+
+`shelf-linux-x86_64.AppImage` runs on most distros, including Ubuntu 22.04 and later, with GTK and WebKitGTK bundled, so nothing else needs installing:
+
+```bash
+chmod +x shelf-linux-x86_64.AppImage
+./shelf-linux-x86_64.AppImage
+```
+
+For Epic Games you still need `legendary` and a Proton build on the system.
+
 ### From source
 
-Requires Go 1.21+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
+Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
 
 ```bash
 # Arch
@@ -88,18 +197,25 @@ make install
 ```bash
 make dev      # run with hot reload
 make build    # production binary in build/bin/
+go test ./internal/...
 ```
 
 ## How it works
 
-Shelf parses Steam's own files: `libraryfolders.vdf` for your library locations, the `appmanifest_*.acf` files for installed games and `localconfig.vdf` for playtime. A file watcher reloads the library when they change. Cover and hero art come from Steam's local library cache, with the Steam CDN as a fallback.
+**Steam.** Shelf parses Steam's own files: `libraryfolders.vdf` for your library locations, the `appmanifest_*.acf` files for installed games and `localconfig.vdf` for playtime. A file watcher reloads the library when they change. Cover and hero art come from Steam's local library cache, with the Steam CDN as a fallback. "Now playing" looks for Steam's `SteamLaunch` wrapper process in `/proc`.
 
-"Now playing" looks for Steam's `SteamLaunch` wrapper process in `/proc`. Finished sessions feed the activity heatmap.
+**Epic.** Shelf runs legendary with its own config folder and reads its files for the library and installed games. Games start as `legendary launch` with Proton as the wrapper, with `STEAM_COMPAT_DATA_PATH` pointing at the game's own prefix. Legendary exits right after starting the game, so "now playing" finds the game by the `-epicapp=<name>` argument on its processes. Downloads are one legendary process at a time, with progress read from its output.
+
+Finished sessions of either store feed the activity heatmap.
 
 | Data | Location |
 | --- | --- |
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
+| Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
+| Epic login and metadata | `~/.config/shelf/legendary` |
+| Proton prefixes | `~/.local/share/shelf/prefixes` |
+| Game launch logs | `~/.local/share/shelf/logs` |
 | Downloaded art | `~/.cache/shelf/covers` |
 
 Built with Go, [Wails v2](https://wails.io), React, Tailwind CSS v4 and shadcn/ui.
@@ -107,6 +223,10 @@ Built with Go, [Wails v2](https://wails.io), React, Tailwind CSS v4 and shadcn/u
 ## Limitations
 
 - Linux only for now. The Steam provider only knows Linux paths, including the Flatpak one.
-- Only installed games are listed, because Steam doesn't store names of uninstalled games locally.
+- Only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. Epic shows your whole library.
 - "Now playing" and session history work with native Steam, not the Flatpak version.
-- Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files.
+- Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files, and Epic playtime counts only what Shelf saw.
+- Epic needs legendary and a Proton build. Games that must be installed through Ubisoft Connect or the EA app can't be installed from Shelf.
+- The download queue is kept in memory only, so it's empty after a restart. A cancelled download resumes where it stopped.
+- Cloud saves rely on legendary finding the save folder in the game's Proton prefix. If it can't, set the save folder in the game's settings.
+- Controller sounds depend on the webview allowing audio, which can need one click or key press after launch.

@@ -13,9 +13,10 @@ interface Props {
 	onSelect: (game: library.Game) => void
 	onToggleFavorite: (game: library.Game) => void
 	playing?: boolean
+	installing?: number // percent, while an install is running
 }
 
-export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, playing }: Props) {
+export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, playing, installing }: Props) {
 	const [failed, setFailed] = useState(false)
 	const cover = game.cover && !failed ? game.cover : null
 
@@ -30,7 +31,7 @@ export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, pl
 			style={{ animationDelay: `${Math.min(index, 24) * 25}ms` }}
 			className={cn(
 				"group relative animate-in duration-500 [animation-fill-mode:backwards] fade-in slide-in-from-bottom-2",
-				!game.installed && "opacity-50 saturate-0 transition hover:opacity-100 hover:saturate-100"
+				!game.installed && installing === undefined && "opacity-50 saturate-0 transition hover:opacity-100 hover:saturate-100"
 			)}
 		>
 			<button
@@ -92,6 +93,12 @@ export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, pl
 			>
 				<Heart className={cn("size-3.5", favorite && "fill-current")} />
 			</button>
+
+			{installing !== undefined && (
+				<span className="absolute bottom-10 left-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md">
+					Installing {Math.floor(installing)}%
+				</span>
+			)}
 
 			{playing && (
 				<span className="absolute top-2 left-2 z-10 flex items-center gap-1.5 rounded-full bg-black/50 px-2 py-1 text-[10px] font-medium text-white ring-1 ring-white/10 backdrop-blur-md transition duration-300 group-hover:-translate-y-1">

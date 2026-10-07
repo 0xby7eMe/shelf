@@ -1,5 +1,14 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { GetFavorites, GetGames, GetNowPlaying, Launch, ToggleFavorite } from "../wailsjs/go/main/App"
+import {
+	EpicCancelInstall,
+	EpicInstall,
+	EpicUninstall,
+	GetFavorites,
+	GetGames,
+	GetNowPlaying,
+	Launch,
+	ToggleFavorite,
+} from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
@@ -18,12 +27,15 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, RefreshCw, Search, Shuffle } from "lucide-react"
+import { Activity, Gamepad2, RefreshCw, Search, Shuffle, X } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
+import { useEpic } from "@/lib/use-epic"
+import { EpicDialog } from "@/components/epic-dialog"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
+type SourceFilter = "all" | "steam" | "epic"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -45,6 +57,9 @@ function App() {
 	const [refreshing, setRefreshing] = useState(false)
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
+	const [epicOpen, setEpicOpen] = useState(false)
+	const [source, setSource] = useState<SourceFilter>("all")
+	const { account, installs, notice, setNotice, reloadAccount } = useEpic()
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -121,9 +136,10 @@ function App() {
 						? favorites.has(g.externalId)
 						: true
 			)
+			.filter((g) => source === "all" || g.source === source)
 			.filter((g) => !q || g.name.toLowerCase().includes(q))
 			.sort(sorters[sort])
-	}, [games, query, filter, sort, favorites])
+	}, [games, query, filter, source, sort, favorites])
 
 	function toggleFavorite(game: library.Game) {
 		const id = game.externalId
@@ -195,7 +211,21 @@ function App() {
 	const showShelves = showHero && filter === "all"
 
 	function play(game: library.Game) {
-		Launch(game.externalId).catch((e: any) => setError(String(e)))
+		// Epic games have to be installed through Shelf first.
+		if (game.source === "epic" && !game.installed) {
+			setSelected(game)
+			return
+		}
+		Launch(game.id).catch((e: any) => setNotice(String(e)))
+	}
+
+	function installEpic(game: library.Game) {
+		EpicInstall(game.externalId).catch((e: any) => setNotice(String(e)))
+	}
+
+	function uninstallEpic(game: library.Game) {
+		if (!window.confirm(`Uninstall ${game.name}? Saves and the Proton prefix are kept.`)) return
+		EpicUninstall(game.externalId).catch((e: any) => setNotice(String(e)))
 	}
 
 	return (
@@ -281,6 +311,26 @@ function App() {
 					<RefreshCw className={cn("size-3.5", refreshing && "animate-spin")} />
 				</button>
 
+				<Select value={source} onValueChange={(v) => setSource(v as SourceFilter)}>
+					<SelectTrigger className="h-9 w-28 rounded-full border-0 bg-white/5 text-xs shadow-none ring-1 ring-white/5 backdrop-blur-md">
+						<SelectValue />
+					</SelectTrigger>
+					<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
+						<SelectItem value="all">All stores</SelectItem>
+						<SelectItem value="steam">Steam</SelectItem>
+						<SelectItem value="epic">Epic</SelectItem>
+					</SelectContent>
+				</Select>
+
+				<button
+					onClick={() => setEpicOpen(true)}
+					title="Epic Games"
+					aria-label="Epic Games"
+					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+				>
+					<Gamepad2 className="size-3.5" />
+				</button>
+
 				<button
 					onClick={() => setActivityOpen(true)}
 					title="Activity"
@@ -349,7 +399,7 @@ function App() {
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0
-							? "No Steam games found."
+							? "No games found."
 							: filter === "favorites" && !query
 								? "No favorites yet. Click the heart on a poster."
 								: "Nothing matches."
@@ -366,6 +416,7 @@ function App() {
 								onSelect={setSelected}
 								onToggleFavorite={toggleFavorite}
 								playing={playingIds.has(g.externalId)}
+								installing={installs[g.externalId]?.percent}
 							/>
 						))}
 					</Grid>
@@ -381,7 +432,34 @@ function App() {
 				running={selected ? playingIds.has(selected.externalId) : false}
 				onPlay={play}
 				activity={selected ? stats?.games.find((g) => g.appId === selected.externalId) : undefined}
+				install={selected ? installs[selected.externalId] : undefined}
+				onInstall={installEpic}
+				onCancelInstall={(g) => EpicCancelInstall(g.externalId)}
+				onUninstall={uninstallEpic}
 			/>
+
+			<EpicDialog
+				open={epicOpen}
+				account={account}
+				onOpenChange={setEpicOpen}
+				onAccountChange={reloadAccount}
+			/>
+
+			{notice && (
+				<div
+					role="alert"
+					className="fixed right-6 bottom-6 z-50 flex max-w-md items-start gap-3 rounded-xl bg-black/70 px-4 py-3 text-sm text-white/90 ring-1 ring-white/10 backdrop-blur-xl"
+				>
+					<span className="min-w-0 break-words">{notice}</span>
+					<button
+						onClick={() => setNotice("")}
+						aria-label="Dismiss"
+						className="shrink-0 text-white/50 transition hover:text-white"
+					>
+						<X className="size-4" />
+					</button>
+				</div>
+			)}
 
 			<ActivityDialog
 				open={activityOpen}

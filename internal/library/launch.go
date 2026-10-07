@@ -3,6 +3,7 @@ package library
 import (
 	"fmt"
 	"os/exec"
+	"strings"
 )
 
 func openExternal(target string) error {
@@ -26,6 +27,14 @@ func OpenStore(appID string) error {
 		return fmt.Errorf("invalid app id")
 	}
 	return openExternal("https://store.steampowered.com/app/" + appID)
+}
+
+// OpenURL opens an http(s) link in the default browser.
+func OpenURL(u string) error {
+	if !strings.HasPrefix(u, "https://") {
+		return fmt.Errorf("refusing to open %q", u)
+	}
+	return openExternal(u)
 }
 
 func OpenFolder(path string) error {

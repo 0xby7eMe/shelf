@@ -14,6 +14,9 @@ import (
 )
 
 var appIDRe = regexp.MustCompile(`^\d{1,12}$`)
+
+// entryIDRe matches the external id of any store: numeric for Steam, alphanumeric for Epic.
+var entryIDRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
 var coverKinds = []string{"library_600x900", "header"}
 var heroKinds = []string{"library_hero"}
 

@@ -4,6 +4,7 @@ type Source string
 
 const (
 	SourceSteam Source = "steam"
+	SourceEpic  Source = "epic"
 )
 
 type Game struct {
@@ -16,4 +17,5 @@ type Game struct {
 	LastPlayed      int64  `json:"lastPlayed"` 
 	InstallPath     string `json:"installPath,omitempty"`
 	Cover           string `json:"cover,omitempty"` 
+	Hero            string `json:"hero,omitempty"`  // wide banner; empty means derive it from Cover
 }

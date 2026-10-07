@@ -35,7 +35,7 @@ func NewFavorites() *Favorites {
 		var ids []string
 		if json.Unmarshal(data, &ids) == nil {
 			for _, id := range ids {
-				if appIDRe.MatchString(id) {
+				if entryIDRe.MatchString(id) {
 					f.set[id] = true
 				}
 			}
@@ -60,7 +60,7 @@ func (f *Favorites) listLocked() []string {
 }
 
 func (f *Favorites) Toggle(appID string) ([]string, error) {
-	if !appIDRe.MatchString(appID) {
+	if !entryIDRe.MatchString(appID) {
 		return nil, fmt.Errorf("invalid app id")
 	}
 	f.mu.Lock()

@@ -28,10 +28,21 @@ A minimal, good-looking desktop library for your Steam games.
 - Detail sheet with playtime, last played, share of your library, store page and install folder
 - Favorites and a random game picker
 - Launch games through Steam
+- **Epic Games:** sign in, browse your library, install games and launch them through Proton (see below)
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - Frameless glass UI, dark only
+
+## Epic Games
+
+Shelf drives [legendary](https://github.com/derrod/legendary), the same CLI Heroic uses, so it needs to be installed (Arch: `pacman -S legendary`). Shelf keeps its own legendary login, separate from any existing one.
+
+1. Click the gamepad button in the header, choose **Open Epic login**, sign in and paste the code Epic shows you.
+2. Your Epic games appear in the library. Open one and press **Install**.
+3. **Play** runs the game with Proton, using one found in Steam, `compatibilitytools.d` (GE-Proton) or Heroic. Pick a specific version in the Epic dialog; by default the newest GE-Proton wins, then Proton Experimental.
+
+Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Launch logs are in `~/.local/share/shelf/logs`. Play time for Epic games is recorded while Shelf is running.
 
 ## Keyboard
 

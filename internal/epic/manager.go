@@ -1,0 +1,127 @@
+// Package epic connects Shelf to the Epic Games Store by driving legendary,
+// the same open-source CLI Heroic uses. Games are Windows builds, so they run
+// through Proton.
+package epic
+
+import (
+	"bytes"
+	"context"
+	"fmt"
+	"os"
+	"os/exec"
+	"path/filepath"
+	"regexp"
+	"strings"
+	"sync"
+
+	"shelf/internal/library"
+)
+
+// appNameRe matches Epic app names such as "Fortnite" or a 32-char hex id.
+// Anchoring on an alphanumeric first char keeps them from being read as flags.
+var appNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
+
+// ErrNoLegendary means the legendary binary is not installed.
+var ErrNoLegendary = fmt.Errorf("legendary is not installed. Install it with your package manager (Arch: pacman -S legendary)")
+
+type Manager struct {
+	settings *settingsStore
+	hist     *library.History
+	emit     func(event string, data any)
+
+	// legendary keeps its own config, kept apart from a user's existing legendary/Heroic login.
+	cfgDir string
+
+	mu       sync.Mutex
+	installs map[string]*installJob
+	running  map[string]*exec.Cmd
+	owned    []ownedGame // nil until loaded
+}
+
+// New creates a Manager. emit publishes frontend events and may be nil.
+func New(hist *library.History, emit func(string, any)) *Manager {
+	if emit == nil {
+		emit = func(string, any) {}
+	}
+	m := &Manager{
+		settings: newSettingsStore(),
+		hist:     hist,
+		emit:     emit,
+		installs: map[string]*installJob{},
+		running:  map[string]*exec.Cmd{},
+	}
+	if dir := configDir(); dir != "" {
+		m.cfgDir = filepath.Join(dir, "legendary")
+	}
+	return m
+}
+
+// SetEmitter replaces the event publisher, for use once the app context exists.
+func (m *Manager) SetEmitter(emit func(string, any)) {
+	m.mu.Lock()
+	m.emit = emit
+	m.mu.Unlock()
+}
+
+func (m *Manager) send(event string, data any) {
+	m.mu.Lock()
+	emit := m.emit
+	m.mu.Unlock()
+	emit(event, data)
+}
+
+func findLegendary() (string, error) {
+	if p, err := exec.LookPath("legendary"); err == nil {
+		return p, nil
+	}
+	if home, err := os.UserHomeDir(); err == nil {
+		for _, p := range []string{
+			filepath.Join(home, ".local", "bin", "legendary"),
+			filepath.Join(configDir(), "bin", "legendary"),
+		} {
+			if st, err := os.Stat(p); err == nil && !st.IsDir() {
+				return p, nil
+			}
+		}
+	}
+	return "", ErrNoLegendary
+}
+
+// command builds a legendary invocation pinned to Shelf's own config dir.
+func (m *Manager) command(ctx context.Context, args ...string) (*exec.Cmd, error) {
+	bin, err := findLegendary()
+	if err != nil {
+		return nil, err
+	}
+	if m.cfgDir == "" {
+		return nil, fmt.Errorf("no config directory available")
+	}
+	if err := os.MkdirAll(m.cfgDir, 0o755); err != nil {
+		return nil, err
+	}
+	cmd := exec.CommandContext(ctx, bin, args...)
+	cmd.Env = append(os.Environ(), "LEGENDARY_CONFIG_PATH="+m.cfgDir)
+	return cmd, nil
+}
+
+// run executes legendary and returns stdout. Failures carry the tail of stderr.
+func (m *Manager) run(ctx context.Context, args ...string) ([]byte, error) {
+	cmd, err := m.command(ctx, args...)
+	if err != nil {
+		return nil, err
+	}
+	var stdout, stderr bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &stdout, &stderr
+	if err := cmd.Run(); err != nil {
+		return nil, fmt.Errorf("legendary %s: %w: %s", args[0], err, tail(stderr.String(), 400))
+	}
+	return stdout.Bytes(), nil
+}
+
+func tail(s string, n int) string {
+	s = strings.TrimSpace(s)
+	if len(s) > n {
+		s = "…" + s[len(s)-n:]
+	}
+	return s
+}

@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react"
-import { ExternalLink, FolderOpen, Heart, Play } from "lucide-react"
+import { Download, ExternalLink, FolderOpen, Heart, Play, Trash2, X } from "lucide-react"
 
-import { OpenInstallFolder, OpenStorePage } from "../../wailsjs/go/main/App"
-import { library } from "../../wailsjs/go/models"
+import { EpicLaunchInfo, OpenInstallFolder, OpenStorePage } from "../../wailsjs/go/main/App"
+import { epic, library } from "../../wailsjs/go/models"
 import {
 	Sheet,
 	SheetContent,
@@ -10,6 +10,7 @@ import {
 	SheetTitle,
 } from "@/components/ui/sheet"
 import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "@/lib/format"
+import { heroSrc } from "@/lib/cover"
 import { cn } from "@/lib/utils"
 import { LiveDot } from "@/components/live-dot"
 
@@ -22,6 +23,10 @@ interface Props {
 	onPlay: (game: library.Game) => void
 	running: boolean
 	activity?: library.GameStat
+	install?: epic.Progress
+	onInstall: (game: library.Game) => void
+	onCancelInstall: (game: library.Game) => void
+	onUninstall: (game: library.Game) => void
 }
 
 export function GameSheet({
@@ -32,7 +37,11 @@ export function GameSheet({
 	onClose,
 	onPlay,
 	running,
-	activity
+	activity,
+	install,
+	onInstall,
+	onCancelInstall,
+	onUninstall,
 }: Props) {
 	return (
 		<Sheet open={game !== null} onOpenChange={(open) => !open && onClose()}>
@@ -54,6 +63,10 @@ export function GameSheet({
 						onPlay={onPlay}
 						running={running}
 						activity={activity}
+						install={install}
+						onInstall={onInstall}
+						onCancelInstall={onCancelInstall}
+						onUninstall={onUninstall}
 					/>
 				)}
 			</SheetContent>
@@ -90,7 +103,11 @@ function Body({
 	onToggleFavorite,
 	onPlay,
 	running,
-	activity
+	activity,
+	install,
+	onInstall,
+	onCancelInstall,
+	onUninstall,
 }: {
 	game: library.Game
 	totalMinutes: number
@@ -99,9 +116,15 @@ function Body({
 	onPlay: (game: library.Game) => void
 	running: boolean
 	activity?: library.GameStat
+	install?: epic.Progress
+	onInstall: (game: library.Game) => void
+	onCancelInstall: (game: library.Game) => void
+	onUninstall: (game: library.Game) => void
 }) {
 	const [heroFailed, setHeroFailed] = useState(false)
 	const [armed, setArmed] = useState(false)
+	const isEpic = game.source === "epic"
+	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
 
 	// The share bar fills once the content above it has appeared.
@@ -110,13 +133,20 @@ function Body({
 		return () => clearTimeout(t)
 	}, [])
 
+	useEffect(() => {
+		if (!isEpic || !game.installed) return
+		EpicLaunchInfo(game.externalId)
+			.then((i) => setProton(i.proton))
+			.catch(() => setProton(""))
+	}, [isEpic, game.installed, game.externalId])
+
 	return (
 		<>
 			{/* Banner */}
 			<div className="relative h-52 shrink-0 overflow-hidden">
 				{!heroFailed ? (
 					<img
-						src={`${game.cover}?kind=hero`}
+						src={heroSrc(game)}
 						alt=""
 						onError={() => setHeroFailed(true)}
 						className="size-full animate-in object-cover duration-1000 ease-out fade-in zoom-in-110 motion-reduce:animate-none"
@@ -152,28 +182,57 @@ function Body({
 
 			<div className="space-y-6 px-6 pt-6 pb-8">
 				<Reveal i={2}>
-					<button
-						onClick={() => onPlay(game)}
-						disabled={running}
-						className={cn(
-							"flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
-							running
-								? "bg-white/10 text-white/80 ring-1 ring-white/10"
-								: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
-						)}
-					>
-						{running ? (
-							<>
-								<LiveDot />
-								Running
-							</>
-						) : (
-							<>
-								<Play className="size-3.5 fill-current" />
-								{game.installed ? "Play" : "Install in Steam"}
-							</>
-						)}
-					</button>
+					{install ? (
+						<div className="flex items-center gap-2">
+							<div className="relative h-11 flex-1 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
+								<div
+									className="absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300"
+									style={{ width: `${install.percent}%` }}
+								/>
+								<span className="relative flex h-full items-center justify-center gap-2 text-sm tabular-nums">
+									Installing {Math.floor(install.percent)}%
+									{install.speed && <span className="text-white/50">{install.speed}</span>}
+									{install.eta && <span className="text-white/50">ETA {install.eta}</span>}
+								</span>
+							</div>
+							<button
+								onClick={() => onCancelInstall(game)}
+								aria-label="Cancel install"
+								title="Cancel install"
+								className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+							>
+								<X className="size-4" />
+							</button>
+						</div>
+					) : (
+						<button
+							onClick={() => (isEpic && !game.installed ? onInstall(game) : onPlay(game))}
+							disabled={running}
+							className={cn(
+								"flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
+								running
+									? "bg-white/10 text-white/80 ring-1 ring-white/10"
+									: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+							)}
+						>
+							{running ? (
+								<>
+									<LiveDot />
+									Running
+								</>
+							) : isEpic && !game.installed ? (
+								<>
+									<Download className="size-3.5" />
+									Install
+								</>
+							) : (
+								<>
+									<Play className="size-3.5 fill-current" />
+									{game.installed ? "Play" : "Install in Steam"}
+								</>
+							)}
+						</button>
+					)}
 				</Reveal>
 
 				<Reveal i={3} className="grid grid-cols-2 gap-3">
@@ -204,16 +263,21 @@ function Body({
 					<Action icon={Heart} active={favorite} onClick={() => onToggleFavorite(game)}>
 						{favorite ? "Favorited" : "Favorite"}
 					</Action>
-					<Action icon={ExternalLink} onClick={() => OpenStorePage(game.externalId)}>
+					<Action icon={ExternalLink} onClick={() => OpenStorePage(game.id)}>
 						Store
 					</Action>
 					<Action
 						icon={FolderOpen}
 						disabled={!game.installed}
-						onClick={() => OpenInstallFolder(game.externalId)}
+						onClick={() => OpenInstallFolder(game.id)}
 					>
 						Folder
 					</Action>
+					{isEpic && game.installed && (
+						<Action icon={Trash2} disabled={running} onClick={() => onUninstall(game)}>
+							Uninstall
+						</Action>
+					)}
 				</Reveal>
 
 				<Reveal i={3} className="grid grid-cols-2 gap-3">
@@ -234,6 +298,12 @@ function Body({
 						</>
 					)}
 				</Reveal>
+
+				{isEpic && game.installed && proton && (
+					<Reveal i={6}>
+						<p className="text-[11px] text-white/30">Runs with {proton}</p>
+					</Reveal>
+				)}
 
 				{game.installPath && (
 					<Reveal i={6}>

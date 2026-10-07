@@ -3,11 +3,14 @@ package main
 import (
 	"context"
 	"fmt"
-	"sync"
 	"log"
+	"strings"
+	"sync"
 	"time"
+
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"shelf/internal/epic"
 	"shelf/internal/library"
 )
 
@@ -17,22 +20,32 @@ type App struct {
 	favs    *library.Favorites
 	monitor *library.Monitor
 	hist    *library.History
+	epic    *epic.Manager
 
 	mu    sync.RWMutex
 	paths map[string]string
 }
 
 func NewApp() *App {
+	hist := library.NewHistory()
+	ep := epic.New(hist, nil)
+	monitor := library.NewMonitor()
+	monitor.Extra = ep.Running
+
 	return &App{
-		lib:     library.New(library.NewSteam()),
+		lib:     library.New(library.NewSteam(), ep.Provider()),
 		favs:    library.NewFavorites(),
-		monitor: library.NewMonitor(),
-		hist:    library.NewHistory(),
+		monitor: monitor,
+		hist:    hist,
+		epic:    ep,
 	}
 }
 
 func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
+	a.epic.SetEmitter(func(event string, data any) {
+		runtime.EventsEmit(ctx, event, data)
+	})
 
 	go func() {
 		err := library.Watch(ctx, func() {
@@ -84,7 +97,7 @@ func (a *App) GetGames() []library.Game {
 	paths := make(map[string]string, len(games))
 	for _, g := range games {
 		if g.Installed && g.InstallPath != "" {
-			paths[g.ExternalID] = g.InstallPath
+			paths[g.ID] = g.InstallPath
 		}
 	}
 	a.mu.Lock()
@@ -94,9 +107,18 @@ func (a *App) GetGames() []library.Game {
 	return games
 }
 
-func (a *App) OpenInstallFolder(appID string) error {
+// splitID breaks a game id such as "epic:Fortnite" into its store and external id.
+func splitID(id string) (library.Source, string) {
+	store, ext, ok := strings.Cut(id, ":")
+	if !ok {
+		return "", id
+	}
+	return library.Source(store), ext
+}
+
+func (a *App) OpenInstallFolder(id string) error {
 	a.mu.RLock()
-	p, ok := a.paths[appID]
+	p, ok := a.paths[id]
 	a.mu.RUnlock()
 	if !ok {
 		return fmt.Errorf("unknown game")
@@ -104,8 +126,18 @@ func (a *App) OpenInstallFolder(appID string) error {
 	return library.OpenFolder(p)
 }
 
-func (a *App) OpenStorePage(appID string) error {
-	return library.OpenStore(appID)
+func (a *App) OpenStorePage(id string) error {
+	switch store, ext := splitID(id); store {
+	case library.SourceSteam:
+		return library.OpenStore(ext)
+	case library.SourceEpic:
+		u, err := a.epic.StoreURL(ext)
+		if err != nil {
+			return err
+		}
+		return library.OpenURL(u)
+	}
+	return fmt.Errorf("unknown game")
 }
 
 func (a *App) shutdown(ctx context.Context) {
@@ -121,9 +153,45 @@ func (a *App) GetStats(weeks int) library.Stats {
 	return a.hist.Stats(weeks)
 }
 
-func (a *App) Launch(appID string) error {
-	return library.Launch(appID)
+func (a *App) Launch(id string) error {
+	switch store, ext := splitID(id); store {
+	case library.SourceSteam:
+		return library.Launch(ext)
+	case library.SourceEpic:
+		return a.epic.Launch(ext)
+	}
+	return fmt.Errorf("unknown game")
 }
+
+func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
+
+func (a *App) EpicLoginURL() string { return epic.LoginURL }
+
+func (a *App) EpicOpenLogin() error { return library.OpenURL(epic.LoginURL) }
+
+func (a *App) EpicLogin(code string) error { return a.epic.Login(code) }
+
+func (a *App) EpicLogout() error { return a.epic.Logout() }
+
+func (a *App) EpicSync() error { return a.epic.SyncLibrary() }
+
+func (a *App) EpicInstall(appName string) error { return a.epic.Install(appName) }
+
+func (a *App) EpicCancelInstall(appName string) { a.epic.CancelInstall(appName) }
+
+func (a *App) EpicUninstall(appName string) error { return a.epic.Uninstall(appName) }
+
+func (a *App) EpicInstallStates() []epic.Progress { return a.epic.InstallStates() }
+
+func (a *App) EpicLaunchInfo(appName string) (epic.LaunchInfo, error) {
+	return a.epic.LaunchInfo(appName)
+}
+
+func (a *App) GetEpicSettings() epic.Settings { return a.epic.Settings() }
+
+func (a *App) SetEpicSettings(s epic.Settings) error { return a.epic.SetSettings(s) }
+
+func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 
 func (a *App) Greet(name string) string {
 	return fmt.Sprintf("Hello %s, It's show time!", name)

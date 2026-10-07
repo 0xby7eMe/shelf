@@ -1,3 +1,88 @@
+export namespace epic {
+	
+	export class Account {
+	    legendaryFound: boolean;
+	    loggedIn: boolean;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Account(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.legendaryFound = source["legendaryFound"];
+	        this.loggedIn = source["loggedIn"];
+	        this.name = source["name"];
+	    }
+	}
+	export class LaunchInfo {
+	    proton: string;
+	    prefix: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new LaunchInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.proton = source["proton"];
+	        this.prefix = source["prefix"];
+	    }
+	}
+	export class Progress {
+	    appName: string;
+	    state: string;
+	    percent: number;
+	    eta?: string;
+	    speed?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Progress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appName = source["appName"];
+	        this.state = source["state"];
+	        this.percent = source["percent"];
+	        this.eta = source["eta"];
+	        this.speed = source["speed"];
+	        this.error = source["error"];
+	    }
+	}
+	export class ProtonBuild {
+	    name: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProtonBuild(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.path = source["path"];
+	    }
+	}
+	export class Settings {
+	    installDir: string;
+	    protonPath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Settings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installDir = source["installDir"];
+	        this.protonPath = source["protonPath"];
+	    }
+	}
+
+}
+
 export namespace library {
 	
 	export class DayStat {
@@ -24,6 +109,7 @@ export namespace library {
 	    lastPlayed: number;
 	    installPath?: string;
 	    cover?: string;
+	    hero?: string;
 	
 	    static createFrom(source: any = {}) {
 	        return new Game(source);
@@ -40,6 +126,7 @@ export namespace library {
 	        this.lastPlayed = source["lastPlayed"];
 	        this.installPath = source["installPath"];
 	        this.cover = source["cover"];
+	        this.hero = source["hero"];
 	    }
 	}
 	export class GameStat {

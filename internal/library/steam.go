@@ -181,3 +181,9 @@ func readPlaytime(root string) map[string]userStat {
 	}
 	return out
 }
+
+// SteamRoot returns the Steam installation directory, if there is one.
+func SteamRoot() (string, error) { return findSteamRoot() }
+
+// SteamLibraryDirs lists every Steam library folder, root included.
+func SteamLibraryDirs(root string) []string { return libraryDirs(root) }

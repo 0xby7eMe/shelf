@@ -56,6 +56,10 @@ func runningAppIDs() []string {
 }
 
 type Monitor struct {
+	// Extra reports ids of games started by Shelf itself, which Steam's
+	// process markers can't see. Set it before calling Run.
+	Extra func() []string
+
 	mu      sync.RWMutex
 	current map[string]int64
 }
@@ -99,6 +103,9 @@ func (m *Monitor) Run(ctx context.Context, every time.Duration, onChange func(no
 
 func (m *Monitor) poll(onChange func(now, stopped []Session)) {
 	ids := runningAppIDs()
+	if m.Extra != nil {
+		ids = append(ids, m.Extra()...)
+	}
 	now := time.Now().UnixMilli()
 
 	m.mu.Lock()

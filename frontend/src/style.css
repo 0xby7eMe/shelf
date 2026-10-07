@@ -194,7 +194,13 @@
 	display: none;
 }
 
-/* Set by App while the page scrolls, so cards don't flicker through hover states. */
-[data-scrolling] .group {
-	pointer-events: none;
+/* Controller focus. Rings only show while a pad is in use (App sets data-input). */
+[data-input="pad"] :focus:not([data-card]):not(body):not([data-scroll-root]) {
+	outline: 2px solid rgba(255, 255, 255, 0.9);
+	outline-offset: 3px;
+}
+
+[data-input="pad"] .group:has([data-card]:focus) [data-poster] {
+	outline: 2px solid rgba(255, 255, 255, 0.9);
+	outline-offset: 3px;
 }

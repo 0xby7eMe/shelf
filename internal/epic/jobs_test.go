@@ -125,22 +125,25 @@ func TestJobsAndSaves(t *testing.T) {
 		t.Fatalf("verify: %+v", e)
 	}
 
-	// Jobs on one game can't overlap, and queued ones are visible.
-	m.jobSlot <- struct{}{} // hold the slot
+	// Jobs on one game can't overlap, and queued ones are visible and orderable.
+	m.SetQueuePaused(true) // nothing starts while paused
 	if err := m.Repair("Sugar"); err != nil {
 		t.Fatal(err)
 	}
 	if err := m.Repair("Sugar"); err == nil {
 		t.Error("second job on the same game should be refused")
 	}
-	if st := m.InstallStates(); len(st) != 1 || st[0].State != StateQueued {
-		t.Errorf("states: %+v", st)
+	if st := m.QueueState(); !st.Paused || len(st.Jobs) != 1 || st.Jobs[0].State != StateQueued || st.Jobs[0].Position != 1 {
+		t.Errorf("state: %+v", st)
 	}
 	m.CancelInstall("Sugar")
-	<-m.jobSlot
 	if e := rec.waitFinal(t, KindRepair); e.State != StateCancelled {
 		t.Errorf("cancelled queued job: %+v", e)
 	}
+	if st := m.QueueState(); len(st.Jobs) != 0 {
+		t.Errorf("cancelled job still listed: %+v", st)
+	}
+	m.SetQueuePaused(false)
 
 	// Cloud saves: not before Proton made the prefix, then through legendary.
 	if err := m.SyncSaves("Sugar"); err == nil {
@@ -209,5 +212,47 @@ func TestImportFlow(t *testing.T) {
 	}
 	if m.Import("Sugar", "relative/path") == nil {
 		t.Error("relative paths must be refused")
+	}
+}
+
+func TestQueueOrder(t *testing.T) {
+	m := &Manager{installs: map[string]*installJob{}, emit: func(string, any) {}}
+	m.paused = true // keep the scheduler from starting anything
+	for _, name := range []string{"A", "B", "C"} {
+		j := &installJob{p: Progress{AppName: name, State: StateQueued}}
+		m.installs[name] = j
+		m.queue = append(m.queue, j)
+	}
+	order := func() string {
+		var out []string
+		for _, j := range m.QueueState().Jobs {
+			out = append(out, j.AppName)
+		}
+		return strings.Join(out, "")
+	}
+
+	if order() != "ABC" {
+		t.Fatal(order())
+	}
+	m.QueueMove("C", -1000) // to the front
+	if order() != "CAB" {
+		t.Errorf("front: %s", order())
+	}
+	m.QueueMove("C", 1)
+	if order() != "ACB" {
+		t.Errorf("down: %s", order())
+	}
+	m.QueueMove("B", -1)
+	m.QueueMove("B", -5) // clamps at the front
+	if order() != "BAC" {
+		t.Errorf("clamp: %s", order())
+	}
+	if m.QueueMove("Nope", 1) == nil {
+		t.Error("unknown game should error")
+	}
+	for i, j := range m.QueueState().Jobs {
+		if j.Position != i+1 {
+			t.Errorf("position of %s = %d", j.AppName, j.Position)
+		}
 	}
 }

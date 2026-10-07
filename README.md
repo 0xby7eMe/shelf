@@ -29,6 +29,8 @@ A minimal, good-looking desktop library for your Steam games.
 - Favorites and a random game picker
 - Launch games through Steam
 - **Epic Games:** sign in, browse your library, install games and launch them through Proton (see below)
+- **Gamepad:** navigate, select, favorite and launch with a controller, with soft interface sounds
+- **Settings page:** Epic account and options, download queue, disk usage and controller settings in one place
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
@@ -51,6 +53,14 @@ Beyond install and play:
 - **Existing installs:** games already installed by Heroic, legendary or the Epic Games Launcher are found and imported in place, with no download.
 
 Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Launch logs are in `~/.local/share/shelf/logs`. Play time for Epic games is recorded while Shelf is running.
+
+## Controller
+
+Plug in a gamepad and press any button (the window needs focus). The D-pad or left stick moves, **A** selects, **B** goes back or closes, **X** favorites, **Y** picks a random game, **LB/RB** switch tabs, **Start** opens settings and the right stick scrolls. Sounds and navigation can be turned off under Settings, Controller.
+
+## Downloads and storage
+
+Installs, updates and repairs run one at a time. Settings, Downloads shows the queue: reorder it, send a game to the front, cancel entries or pause the queue. Settings, Storage shows how much space each Steam and Epic game uses, free space per disk, and Proton prefixes, including leftovers from uninstalled games that you can delete.
 
 ## Keyboard
 

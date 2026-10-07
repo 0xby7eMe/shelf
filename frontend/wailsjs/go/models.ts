@@ -78,6 +78,26 @@ export namespace epic {
 	        this.prefix = source["prefix"];
 	    }
 	}
+	export class PrefixUsage {
+	    appName: string;
+	    title: string;
+	    path: string;
+	    bytes: number;
+	    installed: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new PrefixUsage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appName = source["appName"];
+	        this.title = source["title"];
+	        this.path = source["path"];
+	        this.bytes = source["bytes"];
+	        this.installed = source["installed"];
+	    }
+	}
 	export class Progress {
 	    appName: string;
 	    kind: string;
@@ -86,6 +106,7 @@ export namespace epic {
 	    eta?: string;
 	    speed?: string;
 	    error?: string;
+	    position?: number;
 	    damaged?: boolean;
 	
 	    static createFrom(source: any = {}) {
@@ -101,6 +122,7 @@ export namespace epic {
 	        this.eta = source["eta"];
 	        this.speed = source["speed"];
 	        this.error = source["error"];
+	        this.position = source["position"];
 	        this.damaged = source["damaged"];
 	    }
 	}
@@ -117,6 +139,38 @@ export namespace epic {
 	        this.name = source["name"];
 	        this.path = source["path"];
 	    }
+	}
+	export class QueueState {
+	    jobs: Progress[];
+	    paused: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new QueueState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.jobs = this.convertValues(source["jobs"], Progress);
+	        this.paused = source["paused"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
 	}
 	export class Settings {
 	    installDir: string;
@@ -199,6 +253,7 @@ export namespace library {
 	    lastPlayed: number;
 	    installPath?: string;
 	    cover?: string;
+	    sizeBytes?: number;
 	    version?: string;
 	    updateAvailable?: boolean;
 	    cloudSaves?: boolean;
@@ -219,6 +274,7 @@ export namespace library {
 	        this.lastPlayed = source["lastPlayed"];
 	        this.installPath = source["installPath"];
 	        this.cover = source["cover"];
+	        this.sizeBytes = source["sizeBytes"];
 	        this.version = source["version"];
 	        this.updateAvailable = source["updateAvailable"];
 	        this.cloudSaves = source["cloudSaves"];
@@ -279,6 +335,59 @@ export namespace library {
 	        this.sessions = source["sessions"];
 	        this.since = source["since"];
 	        this.games = this.convertValues(source["games"], GameStat);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Volume {
+	    path: string;
+	    total: number;
+	    free: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Volume(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.total = source["total"];
+	        this.free = source["free"];
+	    }
+	}
+
+}
+
+export namespace main {
+	
+	export class Storage {
+	    volumes: library.Volume[];
+	    prefixes: epic.PrefixUsage[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Storage(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.volumes = this.convertValues(source["volumes"], library.Volume);
+	        this.prefixes = this.convertValues(source["prefixes"], epic.PrefixUsage);
 	    }
 	
 		convertValues(a: any, classs: any, asMap: boolean = false): any {

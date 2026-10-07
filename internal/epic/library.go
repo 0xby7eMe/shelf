@@ -7,6 +7,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"shelf/internal/library"
@@ -38,6 +39,7 @@ type installedGame struct {
 	LaunchParam string `json:"launch_parameters"`
 	IsDLC       bool   `json:"is_dlc"`
 	Version     string `json:"version"`
+	InstallSize int64  `json:"install_size"`
 	Platform    string `json:"platform"`
 }
 
@@ -159,6 +161,15 @@ func pickImage(imgs []keyImage, kinds ...string) string {
 	return ""
 }
 
+// posterSize asks Epic's image CDN for a poster-sized copy. The originals are
+// around 900 KB each, which adds up to far too much decoding for a big library.
+func posterSize(u string) string {
+	if u == "" || strings.Contains(u, "?") {
+		return u
+	}
+	return u + "?h=600&resize=1&w=400"
+}
+
 // Provider returns the library.Provider for Epic games.
 func (m *Manager) Provider() library.Provider { return provider{m} }
 
@@ -194,7 +205,7 @@ func (p provider) Scan() ([]library.Game, error) {
 			Source:     library.SourceEpic,
 			ExternalID: o.AppName,
 			Name:       o.AppTitle,
-			Cover:      pickImage(o.Metadata.KeyImages, "DieselGameBoxTall", "OfferImageTall", "Thumbnail"),
+			Cover:      posterSize(pickImage(o.Metadata.KeyImages, "DieselGameBoxTall", "OfferImageTall", "Thumbnail")),
 			Hero:       pickImage(o.Metadata.KeyImages, "DieselGameBox", "OfferImageWide", "DieselStoreFrontWide"),
 		}
 		g.CloudSaves = o.supportsCloudSaves()
@@ -202,6 +213,7 @@ func (p provider) Scan() ([]library.Game, error) {
 			g.Installed = true
 			g.InstallPath = in.InstallPath
 			g.Version = in.Version
+			g.SizeBytes = in.InstallSize
 			_, g.UpdateAvailable = updates[o.AppName]
 		}
 		g.PlaytimeMinutes, g.LastPlayed = m.hist.Totals(o.AppName)

@@ -71,7 +71,7 @@ func TestFakeLegendaryFlow(t *testing.T) {
 		t.Fatalf("scan: %v %v", list, err)
 	}
 	g := list[0]
-	if g.ID != "epic:Sugar" || g.Installed || g.Cover != "https://x/tall.jpg" || g.Hero != "https://x/wide.jpg" {
+	if g.ID != "epic:Sugar" || g.Installed || g.Cover != "https://x/tall.jpg?h=600&resize=1&w=400" || g.Hero != "https://x/wide.jpg" {
 		t.Fatalf("game: %+v", g)
 	}
 

@@ -36,8 +36,10 @@ type Manager struct {
 	mu       sync.Mutex
 	installs map[string]*installJob
 	running  map[string]*exec.Cmd
-	owned    []ownedGame // nil until loaded
-	jobSlot  chan struct{}
+	owned    []ownedGame   // nil until loaded
+	queue    []*installJob // waiting, in order
+	active   *installJob   // the running queued job, if any
+	paused   bool
 
 	announcedUpdates map[string]string // app -> version already shown to the user
 	announcedImport  bool
@@ -55,7 +57,6 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 		emit:     emit,
 		installs: map[string]*installJob{},
 		running:  map[string]*exec.Cmd{},
-		jobSlot:  make(chan struct{}, 1),
 
 		announcedUpdates: map[string]string{},
 	}

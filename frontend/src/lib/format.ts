@@ -41,3 +41,11 @@ export function formatDuration(minutes: number): string {
 	const m = minutes % 60
 	return m ? `${h} h ${m} min` : `${h} h`
 }
+
+export function formatBytes(bytes: number): string {
+	if (bytes <= 0) return "0 B"
+	const units = ["B", "KB", "MB", "GB", "TB"]
+	const i = Math.min(units.length - 1, Math.floor(Math.log(bytes) / Math.log(1000)))
+	const v = bytes / 1000 ** i
+	return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${units[i]}`
+}

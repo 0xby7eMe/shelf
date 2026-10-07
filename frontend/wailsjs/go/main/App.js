@@ -10,6 +10,10 @@ export function EpicCheckUpdates() {
   return window['go']['main']['App']['EpicCheckUpdates']();
 }
 
+export function EpicDeletePrefix(arg1) {
+  return window['go']['main']['App']['EpicDeletePrefix'](arg1);
+}
+
 export function EpicFindImportable() {
   return window['go']['main']['App']['EpicFindImportable']();
 }
@@ -50,8 +54,20 @@ export function EpicOpenLogin() {
   return window['go']['main']['App']['EpicOpenLogin']();
 }
 
+export function EpicQueue() {
+  return window['go']['main']['App']['EpicQueue']();
+}
+
+export function EpicQueueMove(arg1, arg2) {
+  return window['go']['main']['App']['EpicQueueMove'](arg1, arg2);
+}
+
 export function EpicRepair(arg1) {
   return window['go']['main']['App']['EpicRepair'](arg1);
+}
+
+export function EpicSetQueuePaused(arg1) {
+  return window['go']['main']['App']['EpicSetQueuePaused'](arg1);
 }
 
 export function EpicSync() {
@@ -112,6 +128,10 @@ export function GetProtonBuilds() {
 
 export function GetStats(arg1) {
   return window['go']['main']['App']['GetStats'](arg1);
+}
+
+export function GetStorage() {
+  return window['go']['main']['App']['GetStorage']();
 }
 
 export function Greet(arg1) {

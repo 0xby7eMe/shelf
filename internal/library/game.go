@@ -17,6 +17,7 @@ type Game struct {
 	LastPlayed      int64  `json:"lastPlayed"` 
 	InstallPath     string `json:"installPath,omitempty"`
 	Cover           string `json:"cover,omitempty"` 
+	SizeBytes       int64  `json:"sizeBytes,omitempty"` // space the install takes on disk
 	Version         string `json:"version,omitempty"`
 	UpdateAvailable bool   `json:"updateAvailable,omitempty"`
 	CloudSaves      bool   `json:"cloudSaves,omitempty"` // the game supports cloud saves

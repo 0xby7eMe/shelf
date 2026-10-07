@@ -8,6 +8,7 @@ import (
 	"io"
 	"os"
 	"regexp"
+	"sort"
 	"strconv"
 	"strings"
 	"sync"
@@ -41,6 +42,8 @@ type Progress struct {
 	ETA     string  `json:"eta,omitempty"`
 	Speed   string  `json:"speed,omitempty"`
 	Error   string  `json:"error,omitempty"`
+	// Position is the place in the download queue, starting at 1, while queued.
+	Position int `json:"position,omitempty"`
 	// Damaged is set when a verify found corrupt or missing files, so the UI can offer a repair.
 	Damaged bool `json:"damaged,omitempty"`
 }
@@ -49,6 +52,7 @@ type installJob struct {
 	cancel context.CancelFunc
 	mu     sync.Mutex
 	p      Progress
+	run    func() // runs the job to completion; the scheduler calls it in its own goroutine
 }
 
 func (j *installJob) snapshot() Progress {
@@ -100,15 +104,101 @@ func scanLines(data []byte, atEOF bool) (int, []byte, error) {
 	return 0, nil, nil
 }
 
-// InstallStates returns every job currently running, for a freshly loaded UI.
-func (m *Manager) InstallStates() []Progress {
+// QueueState is the ordered job list shown in the downloads view, sent as "epic:queue".
+type QueueState struct {
+	// Jobs lists the running download, then the queued ones in order, then
+	// verifications, which don't wait for anything.
+	Jobs   []Progress `json:"jobs"`
+	Paused bool       `json:"paused"`
+}
+
+// QueueState returns the current jobs in display order.
+func (m *Manager) QueueState() QueueState {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	out := make([]Progress, 0, len(m.installs))
-	for _, j := range m.installs {
-		out = append(out, j.snapshot())
+
+	jobs := []Progress{}
+	listed := map[*installJob]bool{}
+	if m.active != nil {
+		jobs = append(jobs, m.active.snapshot())
+		listed[m.active] = true
 	}
-	return out
+	for i, j := range m.queue {
+		p := j.snapshot()
+		p.Position = i + 1
+		jobs = append(jobs, p)
+		listed[j] = true
+	}
+	var rest []Progress
+	for _, j := range m.installs {
+		if !listed[j] {
+			rest = append(rest, j.snapshot())
+		}
+	}
+	sort.Slice(rest, func(i, j int) bool { return rest[i].AppName < rest[j].AppName })
+	return QueueState{Jobs: append(jobs, rest...), Paused: m.paused}
+}
+
+// InstallStates returns every job currently known, for a freshly loaded UI.
+func (m *Manager) InstallStates() []Progress { return m.QueueState().Jobs }
+
+func (m *Manager) broadcastQueue() { m.send("epic:queue", m.QueueState()) }
+
+// pump starts the next queued job when nothing else is downloading.
+// Legendary only lets one process modify the install data at a time.
+func (m *Manager) pump() {
+	m.mu.Lock()
+	if m.paused || m.active != nil || len(m.queue) == 0 {
+		m.mu.Unlock()
+		return
+	}
+	job := m.queue[0]
+	m.queue = m.queue[1:]
+	m.active = job
+	m.mu.Unlock()
+
+	go job.run()
+	m.broadcastQueue()
+}
+
+// SetQueuePaused stops (or resumes) starting new downloads. A running one carries on.
+func (m *Manager) SetQueuePaused(paused bool) {
+	m.mu.Lock()
+	m.paused = paused
+	m.mu.Unlock()
+	if !paused {
+		m.pump()
+	}
+	m.broadcastQueue()
+}
+
+// QueueMove moves a queued job by delta places; a large negative delta sends it to the front.
+func (m *Manager) QueueMove(appName string, delta int) error {
+	m.mu.Lock()
+	idx := -1
+	for i, j := range m.queue {
+		if j.snapshot().AppName == appName {
+			idx = i
+		}
+	}
+	if idx < 0 {
+		m.mu.Unlock()
+		return fmt.Errorf("that game isn't waiting in the queue")
+	}
+	to := idx + delta
+	if to < 0 {
+		to = 0
+	}
+	if to > len(m.queue)-1 {
+		to = len(m.queue) - 1
+	}
+	job := m.queue[idx]
+	m.queue = append(m.queue[:idx], m.queue[idx+1:]...)
+	m.queue = append(m.queue[:to], append([]*installJob{job}, m.queue[to:]...)...)
+	m.mu.Unlock()
+
+	m.broadcastQueue()
+	return nil
 }
 
 // isRunningGame reports whether the game's process is alive.
@@ -121,9 +211,8 @@ func (m *Manager) isRunningGame(appName string) bool {
 	return false
 }
 
-// startJob runs a legendary command in the background with progress events.
-// Jobs that change the install data queue behind each other, because legendary
-// only lets one process modify it at a time.
+// startJob schedules a legendary command with progress events. Jobs that
+// change the install data wait their turn in the queue; verification doesn't.
 func (m *Manager) startJob(kind, appName string, args []string) error {
 	if !m.Account().LoggedIn {
 		return fmt.Errorf("not logged in to Epic Games")
@@ -138,27 +227,7 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 
 	exclusive := kind != KindVerify
 	job := &installJob{cancel: cancel, p: Progress{AppName: appName, Kind: kind, State: StateQueued}}
-	m.mu.Lock()
-	if _, busy := m.installs[appName]; busy {
-		m.mu.Unlock()
-		cancel()
-		return fmt.Errorf("this game is already being worked on")
-	}
-	m.installs[appName] = job
-	m.mu.Unlock()
-	m.send("epic:install", job.snapshot())
-
-	go func() {
-		if exclusive {
-			select {
-			case m.jobSlot <- struct{}{}:
-				defer func() { <-m.jobSlot }()
-			case <-ctx.Done():
-				m.finishJob(job, StateCancelled, "", false)
-				return
-			}
-		}
-
+	job.run = func() {
 		// legendary logs to stderr but verify writes its progress to stdout;
 		// one pipe keeps the lines in order.
 		r, w, err := os.Pipe()
@@ -170,7 +239,11 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 		cmd.Stdout, cmd.Stderr = w, w
 		if err := cmd.Start(); err != nil {
 			w.Close()
-			m.finishJob(job, StateFailed, err.Error(), false)
+			if ctx.Err() != nil {
+				m.finishJob(job, StateCancelled, "", false)
+			} else {
+				m.finishJob(job, StateFailed, err.Error(), false)
+			}
 			return
 		}
 		w.Close() // the child holds its own copy
@@ -217,7 +290,27 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 		default:
 			m.finishJob(job, StateDone, "", false)
 		}
-	}()
+	}
+
+	m.mu.Lock()
+	if _, busy := m.installs[appName]; busy {
+		m.mu.Unlock()
+		cancel()
+		return fmt.Errorf("this game is already being worked on")
+	}
+	m.installs[appName] = job
+	if exclusive {
+		m.queue = append(m.queue, job)
+	}
+	m.mu.Unlock()
+
+	m.send("epic:install", job.snapshot())
+	if exclusive {
+		m.pump()
+	} else {
+		go job.run()
+	}
+	m.broadcastQueue()
 	return nil
 }
 
@@ -266,10 +359,15 @@ func (m *Manager) finishJob(job *installJob, state, msg string, damaged bool) {
 
 	m.mu.Lock()
 	delete(m.installs, final.AppName)
+	if m.active == job {
+		m.active = nil
+	}
 	m.mu.Unlock()
 
 	m.send("epic:install", final)
 	m.send("library:changed", nil)
+	m.pump()
+	m.broadcastQueue()
 }
 
 func (m *Manager) checkGame(appName string, needInstalled bool) error {
@@ -333,6 +431,15 @@ func (m *Manager) Verify(appName string) error {
 func (m *Manager) CancelInstall(appName string) {
 	m.mu.Lock()
 	job := m.installs[appName]
+	for i, q := range m.queue {
+		if q == job {
+			// Never started: take it out of the queue and finish it here.
+			m.queue = append(m.queue[:i], m.queue[i+1:]...)
+			m.mu.Unlock()
+			m.finishJob(job, StateCancelled, "", false)
+			return
+		}
+	}
 	m.mu.Unlock()
 	if job != nil {
 		job.cancel()

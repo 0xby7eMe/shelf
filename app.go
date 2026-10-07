@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"path/filepath"
 	"strings"
 	"sync"
 	"time"
@@ -221,6 +222,31 @@ func (a *App) EpicFindImportable() ([]epic.Importable, error) { return a.epic.Fi
 func (a *App) EpicImport(appName, path string) error { return a.epic.Import(appName, path) }
 
 func (a *App) EpicImportAll() (int, error) { return a.epic.ImportAll() }
+
+func (a *App) EpicQueue() epic.QueueState { return a.epic.QueueState() }
+
+func (a *App) EpicQueueMove(appName string, delta int) error { return a.epic.QueueMove(appName, delta) }
+
+func (a *App) EpicSetQueuePaused(paused bool) { a.epic.SetQueuePaused(paused) }
+
+// Storage is what the storage view needs beyond the game list: free space and prefixes.
+type Storage struct {
+	Volumes  []library.Volume   `json:"volumes"`
+	Prefixes []epic.PrefixUsage `json:"prefixes"`
+}
+
+func (a *App) GetStorage() Storage {
+	var paths []string
+	if root, err := library.SteamRoot(); err == nil {
+		for _, lib := range library.SteamLibraryDirs(root) {
+			paths = append(paths, filepath.Join(lib, "steamapps"))
+		}
+	}
+	paths = append(paths, a.epic.InstallRoots()...)
+	return Storage{Volumes: library.Volumes(paths), Prefixes: a.epic.Prefixes()}
+}
+
+func (a *App) EpicDeletePrefix(appName string) error { return a.epic.DeletePrefix(appName) }
 
 func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 

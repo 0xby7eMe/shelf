@@ -166,3 +166,49 @@ func TestGameSettingsValidate(t *testing.T) {
 		}
 	}
 }
+
+func TestPrefixesAndDelete(t *testing.T) {
+	root := t.TempDir()
+	t.Setenv("XDG_DATA_HOME", root)
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+
+	big := filepath.Join(prefixRoot(), "Big", "pfx")
+	small := filepath.Join(prefixRoot(), "Small")
+	os.MkdirAll(big, 0o755)
+	os.MkdirAll(small, 0o755)
+	os.WriteFile(filepath.Join(big, "data"), make([]byte, 200_000), 0o644)
+	os.WriteFile(filepath.Join(small, "data"), make([]byte, 5_000), 0o644)
+	os.Symlink("/", filepath.Join(big, "z:")) // must not be followed
+	os.MkdirAll(filepath.Join(prefixRoot(), "not a game"), 0o755)
+
+	m := New(nil, nil)
+	got := m.Prefixes()
+	if len(got) != 2 || got[0].AppName != "Big" || got[0].Bytes < 200_000 || got[0].Bytes > 400_000 || got[1].AppName != "Small" {
+		t.Fatalf("prefixes: %+v", got)
+	}
+	if got[0].Installed {
+		t.Error("nothing is installed")
+	}
+
+	if err := m.DeletePrefix("../x"); err == nil {
+		t.Error("path traversal accepted")
+	}
+	if err := m.DeletePrefix("Big"); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(filepath.Join(prefixRoot(), "Big")); !os.IsNotExist(err) {
+		t.Error("prefix still there")
+	}
+}
+
+func TestPosterSize(t *testing.T) {
+	if got := posterSize("https://cdn1.epicgames.com/a.jpg"); got != "https://cdn1.epicgames.com/a.jpg?h=600&resize=1&w=400" {
+		t.Error(got)
+	}
+	if got := posterSize(""); got != "" {
+		t.Error("empty must stay empty")
+	}
+	if got := posterSize("https://x/a.jpg?v=1"); got != "https://x/a.jpg?v=1" {
+		t.Error("existing query must be left alone")
+	}
+}

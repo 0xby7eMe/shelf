@@ -1,6 +1,6 @@
-import { useCallback, useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { EpicInstallStates, EpicRepair, GetEpicAccount, Launch } from "../../wailsjs/go/main/App"
+import { EpicQueue, EpicRepair, GetEpicAccount, Launch } from "../../wailsjs/go/main/App"
 import { epic, library } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { toast } from "@/lib/toast"
@@ -35,7 +35,7 @@ export function jobLabel(job: epic.Progress): string {
 // Events from the backend turn into toasts here.
 export function useEpic(games: library.Game[] | null, onReviewImport: () => void) {
 	const [account, setAccount] = useState<epic.Account | null>(null)
-	const [installs, setInstalls] = useState<Record<string, epic.Progress>>({})
+	const [queue, setQueue] = useState<epic.QueueState>(() => new epic.QueueState({ jobs: [], paused: false }))
 	const gamesRef = useRef(games)
 	gamesRef.current = games
 	const reviewRef = useRef(onReviewImport)
@@ -51,9 +51,14 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 
 	useEffect(() => {
 		reloadAccount()
-		EpicInstallStates()
-			.then((list) => setInstalls(Object.fromEntries((list ?? []).map((p) => [p.appName, p]))))
+		EpicQueue()
+			.then((q) => setQueue(new epic.QueueState({ jobs: q.jobs ?? [], paused: q.paused })))
 			.catch(() => {})
+
+		// Structure changes (added, started, finished, reordered) arrive as a whole list.
+		const offQueue = EventsOn("epic:queue", (q: epic.QueueState) =>
+			setQueue(new epic.QueueState({ jobs: q.jobs ?? [], paused: q.paused }))
+		)
 
 		const titleOf = (appName: string) =>
 			gamesRef.current?.find((g) => g.id === `epic:${appName}`)?.name ?? appName
@@ -63,11 +68,14 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 		})
 
 		const offInstall = EventsOn("epic:install", (p: epic.Progress) => {
-			setInstalls((prev) => {
-				const next = { ...prev }
-				if (p.state === "installing" || p.state === "queued") next[p.appName] = p
-				else delete next[p.appName]
-				return next
+			// Progress ticks only update a job that is already listed.
+			setQueue((prev) => {
+				if (p.state !== "installing" && p.state !== "queued") return prev
+				if (!prev.jobs.some((j) => j.appName === p.appName)) return prev
+				return new epic.QueueState({
+					jobs: prev.jobs.map((j) => (j.appName === p.appName ? { ...p, position: j.position } : j)),
+					paused: prev.paused,
+				})
 			})
 
 			const title = titleOf(p.appName)
@@ -142,6 +150,7 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 
 		const offLibrary = EventsOn("library:changed", reloadAccount)
 		return () => {
+			offQueue()
 			offInstall()
 			offLaunch()
 			offSaves()
@@ -151,5 +160,10 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 		}
 	}, [reloadAccount])
 
-	return { account, installs, reloadAccount }
+	const installs = useMemo(
+		() => Object.fromEntries(queue.jobs.map((j) => [j.appName, j])) as Record<string, epic.Progress>,
+		[queue]
+	)
+
+	return { account, installs, queue, reloadAccount }
 }

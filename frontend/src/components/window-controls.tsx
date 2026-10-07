@@ -16,6 +16,7 @@ function Dot({
 }) {
 	return (
 		<button
+			data-nav-skip
 			onClick={onClick}
 			aria-label={label}
 			className={cn(

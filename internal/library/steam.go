@@ -129,6 +129,7 @@ func parseManifest(path, lib string) (Game, bool) {
 
 	flags, _ := strconv.Atoi(app.str("stateflags"))
 	last, _ := strconv.ParseInt(app.str("lastplayed"), 10, 64)
+	size, _ := strconv.ParseInt(app.str("sizeondisk"), 10, 64)
 
 	return Game{
 		ID:          "steam:" + appid,
@@ -138,6 +139,7 @@ func parseManifest(path, lib string) (Game, bool) {
 		Cover:       "/cover/" + appid,
 		Installed:   flags&4 != 0,
 		LastPlayed:  last,
+		SizeBytes:   size,
 		InstallPath: filepath.Join(lib, "steamapps", "common", app.str("installdir")),
 	}, true
 }

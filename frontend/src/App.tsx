@@ -30,14 +30,17 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Gamepad2, RefreshCw, Search, Shuffle } from "lucide-react"
+import { Activity, Download, RefreshCw, Search, Settings, Shuffle } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
 import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
-import { EpicDialog } from "@/components/epic-dialog"
+import { PadHints } from "@/components/pad-hints"
+import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
+import { useGamepad } from "@/lib/gamepad"
+import { useStableHover } from "@/lib/hover"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
@@ -51,18 +54,6 @@ const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 
 const NO_GAMES: library.Game[] = []
 
-// While scrolling, cards slide under a still cursor and each one would play its
-// hover lift for a moment. Hover is switched off until the scroll settles.
-const scrollTimers = new WeakMap<HTMLElement, number>()
-function suspendHover(el: HTMLElement) {
-	el.dataset.scrolling = "true"
-	window.clearTimeout(scrollTimers.get(el))
-	scrollTimers.set(
-		el,
-		window.setTimeout(() => delete el.dataset.scrolling, 150)
-	)
-}
-
 function App() {
 	const [games, setGames] = useState<library.Game[] | null>(null)
 	const [error, setError] = useState("")
@@ -75,10 +66,12 @@ function App() {
 	const [refreshing, setRefreshing] = useState(false)
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
-	const [epicOpen, setEpicOpen] = useState(false)
+	const [settings, setSettings] = useState<SettingsSection | null>(null)
+	const settingsRef = useRef(settings)
+	settingsRef.current = settings
 	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
 	const [source, setSource] = useState<SourceFilter>("all")
-	const { account, installs, reloadAccount } = useEpic(games, () => setEpicOpen(true))
+	const { account, installs, queue, reloadAccount } = useEpic(games, () => setSettings("epic"))
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -135,7 +128,13 @@ function App() {
 			} else if (e.key === "Escape" && typing) {
 				setQuery("")
 				searchRef.current?.blur()
-			} else if (e.key === "r" && !typing && !e.ctrlKey && !e.metaKey && !e.altKey) {
+			} else if (
+				e.key === "Escape" &&
+				settingsRef.current &&
+				!document.querySelector('[role="dialog"], [role="listbox"]')
+			) {
+				setSettings(null)
+			} else if (e.key === "r" && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				e.preventDefault()
 				randomRef.current()
 			}
@@ -160,7 +159,8 @@ function App() {
 			.sort(sorters[sort])
 	}, [games, query, filter, source, sort, favorites])
 
-	function toggleFavorite(game: library.Game) {
+	// Stable identity, so memoized cards don't re-render when something unrelated changes.
+	const toggleFavorite = useCallback((game: library.Game) => {
 		const id = game.externalId
 		setFavorites((prev) => {
 			const next = new Set(prev)
@@ -174,7 +174,7 @@ function App() {
 				setError(String(e))
 				GetFavorites().then((ids) => setFavorites(new Set(ids)))
 			})
-	}
+	}, [])
 
 	function pickRandom() {
 		const installed = visible.filter((g) => g.installed)
@@ -186,6 +186,24 @@ function App() {
 
 	useEffect(() => {
 		randomRef.current = pickRandom
+	})
+
+	useStableHover()
+
+	const filters: Filter[] = ["all", "installed", "favorites"]
+	useGamepad({
+		onBack: () => setSettings(null),
+		onTab: (dir) => {
+			if (settingsRef.current) {
+				const i = SECTIONS.findIndex((s) => s.id === settingsRef.current)
+				setSettings(SECTIONS[(i + dir + SECTIONS.length) % SECTIONS.length].id)
+			} else {
+				setFilter((f) => filters[(filters.indexOf(f) + dir + filters.length) % filters.length])
+			}
+		},
+		onMenu: () => setSettings((s) => (s ? null : "epic")),
+		onRandom: () => !settingsRef.current && randomRef.current(),
+		onSearch: () => !settingsRef.current && searchRef.current?.focus(),
 	})
 
 	const featured = useMemo(() => {
@@ -262,20 +280,40 @@ function App() {
 	}
 
 	return (
+		<>
+		{settings && (
+			<SettingsPage
+				section={settings}
+				onSection={setSettings}
+				onBack={() => setSettings(null)}
+				account={account}
+				onAccountChange={reloadAccount}
+				queue={queue}
+				games={games ?? NO_GAMES}
+				onSelectGame={(g) => {
+					setSettings(null)
+					setSelected(g)
+				}}
+			/>
+		)}
 		<div
+			data-scroll-root
 			onScroll={(e) => {
 				setScrolled(e.currentTarget.scrollTop > 24)
-				suspendHover(e.currentTarget)
 			}}
-			className="relative h-screen overflow-y-auto bg-background text-foreground"
+			className={cn(
+				"relative h-screen overflow-y-auto bg-background text-foreground",
+				// Kept mounted while settings are open so the scroll position survives.
+				settings && "invisible"
+			)}
 		>
 			<header
 				onDoubleClick={(e) => {
 					if (e.target === e.currentTarget) WindowToggleMaximise()
 				}}
 				style={{
-					backdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
-					WebkitBackdropFilter: scrolled ? "blur(20px) saturate(140%)" : "none",
+					backdropFilter: scrolled ? "blur(14px)" : "none",
+					WebkitBackdropFilter: scrolled ? "blur(14px)" : "none",
 					backgroundColor: scrolled ? "rgba(10, 10, 10, 0.55)" : "transparent",
 				}}
 				className={cn(
@@ -358,13 +396,28 @@ function App() {
 					</SelectContent>
 				</Select>
 
+				{queue.jobs.length > 0 && (
+					<button
+						onClick={() => setSettings("downloads")}
+						title="Downloads"
+						aria-label="Downloads"
+						className="flex h-9 items-center gap-2 rounded-full bg-white/10 px-3 text-xs tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md transition hover:bg-white/15"
+					>
+						<Download className="size-3.5" />
+						{queue.jobs.length}
+						{queue.jobs[0].state === "installing" && queue.jobs[0].percent > 0 && (
+							<span className="text-white/60">{Math.floor(queue.jobs[0].percent)}%</span>
+						)}
+					</button>
+				)}
+
 				<button
-					onClick={() => setEpicOpen(true)}
-					title="Epic Games"
-					aria-label="Epic Games"
+					onClick={() => setSettings("epic")}
+					title="Settings"
+					aria-label="Settings"
 					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
 				>
-					<Gamepad2 className="size-3.5" />
+					<Settings className="size-3.5" />
 				</button>
 
 				<button
@@ -474,15 +527,6 @@ function App() {
 
 			<EpicGameSettings game={settingsGame} onClose={() => setSettingsGame(null)} />
 
-			<EpicDialog
-				open={epicOpen}
-				account={account}
-				onOpenChange={setEpicOpen}
-				onAccountChange={reloadAccount}
-			/>
-
-			<Toaster />
-
 			<ActivityDialog
 				open={activityOpen}
 				onOpenChange={setActivityOpen}
@@ -491,6 +535,10 @@ function App() {
 				onSelect={setSelected}
 			/>
 		</div>
+
+		<Toaster />
+		<PadHints inSettings={settings !== null} />
+		</>
 	)
 }
 

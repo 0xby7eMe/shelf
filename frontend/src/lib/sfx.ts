@@ -2,29 +2,27 @@ import { getPrefs } from "@/lib/prefs"
 
 // Interface sounds, synthesized so the app ships no audio files.
 //
-// The character is soft and glassy, in the spirit of a handheld console UI:
-// short sine notes with a faint octave overtone, rounded off by a low-pass
-// filter and placed in a small room. A compressor on the way out keeps louder
-// volumes from distorting.
+// The character follows console-style UI sounds such as Steam Deck's: dry,
+// rounded "pop" blips with a quick pitch glide and a small tap at the front,
+// not bells. Everything is low-passed so nothing is harsh, and a compressor on
+// the way out keeps louder volumes from distorting.
 
 interface Bus {
 	ac: AudioContext
-	input: GainNode // dry signal and reverb send meet the compressor via these
-	send: GainNode
+	input: GainNode // dry signal
+	send: GainNode // small room, mixed in very lightly
+	noise: AudioBuffer // the raw material for the tap that opens each sound
 }
 
 let bus: Bus | null = null
 
-// A short, dark room: decaying noise, generated once.
+// A tiny, dark room: decaying noise, generated once.
 function roomImpulse(ac: AudioContext): AudioBuffer {
-	const len = Math.floor(ac.sampleRate * 0.45)
+	const len = Math.floor(ac.sampleRate * 0.22)
 	const buf = ac.createBuffer(2, len, ac.sampleRate)
 	for (let ch = 0; ch < 2; ch++) {
 		const data = buf.getChannelData(ch)
-		for (let i = 0; i < len; i++) {
-			const t = i / len
-			data[i] = (Math.random() * 2 - 1) * (1 - t) ** 3.2
-		}
+		for (let i = 0; i < len; i++) data[i] = (Math.random() * 2 - 1) * (1 - i / len) ** 3
 	}
 	return buf
 }
@@ -50,10 +48,14 @@ function getBus(): Bus | null {
 			const reverb = ac.createConvolver()
 			reverb.buffer = roomImpulse(ac)
 			const send = ac.createGain()
-			send.gain.value = 0.22
+			send.gain.value = 0.07
 			send.connect(reverb).connect(comp)
 
-			bus = { ac, input, send }
+			const noise = ac.createBuffer(1, Math.floor(ac.sampleRate * 0.1), ac.sampleRate)
+			const nd = noise.getChannelData(0)
+			for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1
+
+			bus = { ac, input, send, noise }
 		}
 		if (bus.ac.state === "suspended") void bus.ac.resume()
 		return bus
@@ -75,10 +77,10 @@ interface Note {
 	at?: number // seconds from now
 	len: number
 	gain?: number
-	/** Level of the octave-up overtone relative to the note. 0 is a pure sine. */
-	shimmer?: number
 	/** Low-pass cutoff in Hz. */
 	tone?: number
+	/** A burst of band-passed noise centred on `freq` instead of a pitched note: the tap. */
+	noise?: boolean
 }
 
 function play(notes: Note[]) {
@@ -93,78 +95,77 @@ function play(notes: Note[]) {
 
 	for (const n of notes) {
 		const t0 = ac.currentTime + (n.at ?? 0)
-		const peak = master * (n.gain ?? 1)
 
 		const amp = ac.createGain()
 		amp.gain.setValueAtTime(0.0001, t0)
-		amp.gain.linearRampToValueAtTime(peak, t0 + 0.004)
+		amp.gain.linearRampToValueAtTime(master * (n.gain ?? 1), t0 + 0.003)
 		amp.gain.exponentialRampToValueAtTime(0.0001, t0 + n.len)
-
-		const lp = ac.createBiquadFilter()
-		lp.type = "lowpass"
-		lp.frequency.value = n.tone ?? 4200
-		lp.Q.value = 0.4
-
-		lp.connect(amp)
 		amp.connect(b.input)
 		amp.connect(b.send)
 
-		const voices: [number, number][] = [[1, 1]]
-		if (n.shimmer) voices.push([2, n.shimmer])
-		for (const [mult, level] of voices) {
-			const osc = ac.createOscillator()
-			osc.type = "sine"
-			osc.frequency.setValueAtTime(n.freq * mult, t0)
-			if (n.to) osc.frequency.exponentialRampToValueAtTime(n.to * mult, t0 + n.len)
-
-			const g = ac.createGain()
-			g.gain.value = level
-			osc.connect(g).connect(lp)
-			osc.start(t0)
-			osc.stop(t0 + n.len + 0.05)
+		if (n.noise) {
+			const src = ac.createBufferSource()
+			src.buffer = b.noise
+			const bp = ac.createBiquadFilter()
+			bp.type = "bandpass"
+			bp.frequency.value = n.freq
+			bp.Q.value = 1.1
+			src.connect(bp).connect(amp)
+			src.start(t0)
+			src.stop(t0 + n.len + 0.02)
+			continue
 		}
+
+		const lp = ac.createBiquadFilter()
+		lp.type = "lowpass"
+		lp.frequency.value = n.tone ?? 2400
+		lp.Q.value = 0.5
+		lp.connect(amp)
+
+		const osc = ac.createOscillator()
+		osc.type = "sine"
+		osc.frequency.setValueAtTime(n.freq, t0)
+		if (n.to) osc.frequency.exponentialRampToValueAtTime(n.to, t0 + n.len)
+		osc.connect(lp)
+		osc.start(t0)
+		osc.stop(t0 + n.len + 0.02)
 	}
 }
 
-// Moving walks along a pentatonic scale: right and down climb, left and up
-// fall. Every note sounds good next to the others, so browsing plays a soft
-// melody rather than the same blip over and over.
-const SCALE = [523, 587, 659, 784, 880, 1047, 1175, 1319]
-let step = 3
-
 type Dir = "up" | "down" | "left" | "right"
 
+// Every step sounds like the same soft tick, nudged a little so rapid
+// movement doesn't machine-gun. Going up or left sits slightly lower.
 function moveSound(dir: Dir = "right") {
-	step = Math.min(SCALE.length - 1, Math.max(0, step + (dir === "right" || dir === "down" ? 1 : -1)))
-	const f = SCALE[step]
+	const base = dir === "up" || dir === "left" ? 430 : 470
+	const f = base * (0.97 + Math.random() * 0.06)
 	play([
-		// A tiny bright click gives the note a clear front edge...
-		{ freq: 2600, to: 1900, len: 0.014, gain: 0.3, tone: 7000 },
-		// ...and the body is a round, bell-like note that settles into its pitch.
-		{ freq: f * 1.03, to: f, len: 0.13, gain: 1, shimmer: 0.35, tone: 5200 },
+		{ freq: 3000, len: 0.012, gain: 0.22, noise: true }, // the tap
+		{ freq: f * 1.25, to: f * 0.85, len: 0.075, gain: 1, tone: 1900 }, // the round "pop"
 	])
 }
 
 export const sfx = {
 	move: moveSound,
-	// A warm rising pair, like a bell being touched.
+	// Two quick pops, the second higher and a touch longer: a clear "yes".
 	confirm: () =>
 		play([
-			{ freq: 784, len: 0.16, gain: 0.8, shimmer: 0.3 },
-			{ freq: 1175, at: 0.075, len: 0.28, gain: 0.85, shimmer: 0.3 },
+			{ freq: 3000, len: 0.012, gain: 0.25, noise: true },
+			{ freq: 520, to: 600, len: 0.07, gain: 0.85, tone: 2300 },
+			{ freq: 780, to: 920, at: 0.07, len: 0.13, gain: 0.95, tone: 2600 },
 		]),
-	// The same pair falling and quieter.
+	// The same two pops falling, softer.
 	back: () =>
 		play([
-			{ freq: 1047, len: 0.1, gain: 0.6, shimmer: 0.22, tone: 3600 },
-			{ freq: 698, at: 0.065, len: 0.2, gain: 0.65, shimmer: 0.22, tone: 3600 },
+			{ freq: 620, to: 520, len: 0.065, gain: 0.7, tone: 2000 },
+			{ freq: 440, to: 340, at: 0.065, len: 0.12, gain: 0.75, tone: 1800 },
 		]),
-	// A quick upward sweep when switching tabs.
+	// A quick rising swipe.
 	tab: () =>
 		play([
-			{ freq: 659, len: 0.09, gain: 0.55, shimmer: 0.2, tone: 3600 },
-			{ freq: 988, at: 0.06, len: 0.14, gain: 0.6, shimmer: 0.2, tone: 3600 },
+			{ freq: 2200, len: 0.05, gain: 0.12, noise: true },
+			{ freq: 360, to: 700, len: 0.1, gain: 0.7, tone: 2300 },
 		]),
 	// Nothing further that way: a dull low bump.
-	blocked: () => play([{ freq: 210, to: 160, len: 0.09, gain: 0.7, tone: 900 }]),
+	blocked: () => play([{ freq: 170, to: 120, len: 0.09, gain: 0.8, tone: 700 }]),
 }

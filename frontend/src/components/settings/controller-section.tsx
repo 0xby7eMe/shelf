@@ -23,7 +23,7 @@ export function ControllerSection() {
 	const pad = usePadName()
 
 	function test() {
-		// A few steps along the scale, then select and back.
+		// A few steps, then select and back.
 		sfx.move("right")
 		setTimeout(() => sfx.move("right"), 140)
 		setTimeout(() => sfx.move("right"), 280)

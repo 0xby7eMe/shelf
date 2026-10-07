@@ -538,3 +538,349 @@ export namespace main {
 
 }
 
+export namespace sysmon {
+	
+	export class CPUInfo {
+	    model: string;
+	    cores: number;
+	    threads: number;
+	    maxMHz: number;
+	    arch: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new CPUInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.model = source["model"];
+	        this.cores = source["cores"];
+	        this.threads = source["threads"];
+	        this.maxMHz = source["maxMHz"];
+	        this.arch = source["arch"];
+	    }
+	}
+	export class CPUSample {
+	    usage: number;
+	    cores: number[];
+	    freqMHz: number;
+	    tempC?: number;
+	    processes: number;
+	    threads: number;
+	    load: number[];
+	    uptime: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new CPUSample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.usage = source["usage"];
+	        this.cores = source["cores"];
+	        this.freqMHz = source["freqMHz"];
+	        this.tempC = source["tempC"];
+	        this.processes = source["processes"];
+	        this.threads = source["threads"];
+	        this.load = source["load"];
+	        this.uptime = source["uptime"];
+	    }
+	}
+	export class MountInfo {
+	    path: string;
+	    fs: string;
+	    total: number;
+	    free: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MountInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.path = source["path"];
+	        this.fs = source["fs"];
+	        this.total = source["total"];
+	        this.free = source["free"];
+	    }
+	}
+	export class DiskInfo {
+	    name: string;
+	    model: string;
+	    size: number;
+	    kind: string;
+	    mounts: MountInfo[];
+	
+	    static createFrom(source: any = {}) {
+	        return new DiskInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.model = source["model"];
+	        this.size = source["size"];
+	        this.kind = source["kind"];
+	        this.mounts = this.convertValues(source["mounts"], MountInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class DiskSample {
+	    name: string;
+	    readBps: number;
+	    writeBps: number;
+	    activePct: number;
+	    tempC?: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new DiskSample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.readBps = source["readBps"];
+	        this.writeBps = source["writeBps"];
+	        this.activePct = source["activePct"];
+	        this.tempC = source["tempC"];
+	    }
+	}
+	export class GPUInfo {
+	    id: string;
+	    name: string;
+	    driver: string;
+	    vramTotal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GPUInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.driver = source["driver"];
+	        this.vramTotal = source["vramTotal"];
+	    }
+	}
+	export class GPUSample {
+	    id: string;
+	    name: string;
+	    usage?: number;
+	    vramUsed: number;
+	    vramTotal: number;
+	    tempC?: number;
+	    powerW?: number;
+	    clockMHz?: number;
+	    asleep: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new GPUSample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.usage = source["usage"];
+	        this.vramUsed = source["vramUsed"];
+	        this.vramTotal = source["vramTotal"];
+	        this.tempC = source["tempC"];
+	        this.powerW = source["powerW"];
+	        this.clockMHz = source["clockMHz"];
+	        this.asleep = source["asleep"];
+	    }
+	}
+	export class HostInfo {
+	    hostname: string;
+	    os: string;
+	    kernel: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new HostInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.hostname = source["hostname"];
+	        this.os = source["os"];
+	        this.kernel = source["kernel"];
+	    }
+	}
+	export class NetInfo {
+	    name: string;
+	    kind: string;
+	    speedMbps: number;
+	    addrs: string[];
+	
+	    static createFrom(source: any = {}) {
+	        return new NetInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.kind = source["kind"];
+	        this.speedMbps = source["speedMbps"];
+	        this.addrs = source["addrs"];
+	    }
+	}
+	export class MemoryInfo {
+	    total: number;
+	    swapTotal: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MemoryInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.swapTotal = source["swapTotal"];
+	    }
+	}
+	export class Info {
+	    host: HostInfo;
+	    cpu: CPUInfo;
+	    memory: MemoryInfo;
+	    disks: DiskInfo[];
+	    nets: NetInfo[];
+	    gpus: GPUInfo[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Info(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.host = this.convertValues(source["host"], HostInfo);
+	        this.cpu = this.convertValues(source["cpu"], CPUInfo);
+	        this.memory = this.convertValues(source["memory"], MemoryInfo);
+	        this.disks = this.convertValues(source["disks"], DiskInfo);
+	        this.nets = this.convertValues(source["nets"], NetInfo);
+	        this.gpus = this.convertValues(source["gpus"], GPUInfo);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class MemorySample {
+	    total: number;
+	    used: number;
+	    available: number;
+	    free: number;
+	    cached: number;
+	    buffers: number;
+	    swapTotal: number;
+	    swapUsed: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new MemorySample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.total = source["total"];
+	        this.used = source["used"];
+	        this.available = source["available"];
+	        this.free = source["free"];
+	        this.cached = source["cached"];
+	        this.buffers = source["buffers"];
+	        this.swapTotal = source["swapTotal"];
+	        this.swapUsed = source["swapUsed"];
+	    }
+	}
+	
+	
+	export class NetSample {
+	    name: string;
+	    rxBps: number;
+	    txBps: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new NetSample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.name = source["name"];
+	        this.rxBps = source["rxBps"];
+	        this.txBps = source["txBps"];
+	    }
+	}
+	export class Sample {
+	    time: number;
+	    cpu: CPUSample;
+	    memory: MemorySample;
+	    disks: DiskSample[];
+	    nets: NetSample[];
+	    gpus: GPUSample[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Sample(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.time = source["time"];
+	        this.cpu = this.convertValues(source["cpu"], CPUSample);
+	        this.memory = this.convertValues(source["memory"], MemorySample);
+	        this.disks = this.convertValues(source["disks"], DiskSample);
+	        this.nets = this.convertValues(source["nets"], NetSample);
+	        this.gpus = this.convertValues(source["gpus"], GPUSample);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+

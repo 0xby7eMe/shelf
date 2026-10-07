@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
+import { Activity, Download, Gauge, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
 import { setIntegrationTab, type Integration } from "@/lib/integrations"
@@ -44,6 +44,7 @@ import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
 import { LogPanel } from "@/components/log-panel"
 import { PadHints } from "@/components/pad-hints"
+import { MonitorPage } from "@/components/monitor/monitor-page"
 import { UbisoftHint } from "@/components/ubisoft-hint"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
 import { usePrefs } from "@/lib/prefs"
@@ -78,6 +79,12 @@ function App() {
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
 	settingsRef.current = settings
+	// The hardware monitor, a page of its own like settings.
+	const [monitorOpen, setMonitorOpen] = useState(false)
+	const monitorRef = useRef(monitorOpen)
+	monitorRef.current = monitorOpen
+	// Whether the monitor is switched on in Advanced settings; read by the key handler.
+	const monitorEnabledRef = useRef(false)
 	// Opens settings on one store's tab.
 	const openIntegration = useCallback((tab: Integration) => {
 		setIntegrationTab(tab)
@@ -144,13 +151,20 @@ function App() {
 				searchRef.current?.blur()
 			} else if (
 				e.key === "Escape" &&
-				settingsRef.current &&
+				(settingsRef.current || monitorRef.current) &&
 				!document.querySelector('[role="dialog"], [role="listbox"]')
 			) {
 				setSettings(null)
-			} else if (e.key === "r" && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
+				setMonitorOpen(false)
+			} else if (e.key === "r" && !typing && !settingsRef.current && !monitorRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
 				e.preventDefault()
 				randomRef.current()
+			} else if (e.key === "p" && monitorEnabledRef.current && !typing && !settingsRef.current && !e.ctrlKey && !e.metaKey && !e.altKey) {
+				// Not while typing in any field, such as a game's settings.
+				const tag = (document.activeElement as HTMLElement | null)?.tagName
+				if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return
+				e.preventDefault()
+				setMonitorOpen((open) => !open)
 			}
 		}
 		window.addEventListener("keydown", onKey)
@@ -205,12 +219,20 @@ function App() {
 	useStableHover()
 
 	const prefs = usePrefs()
+	monitorEnabledRef.current = prefs.hardwareMonitor
+	// Switching the monitor off closes it.
+	useEffect(() => {
+		if (!prefs.hardwareMonitor) setMonitorOpen(false)
+	}, [prefs.hardwareMonitor])
 	const logOpen = useLogOpen()
 	useEffect(() => startLogs(), [])
 
 	const filters: Filter[] = ["all", "installed", "favorites"]
 	useGamepad({
-		onBack: () => setSettings(null),
+		onBack: () => {
+			setSettings(null)
+			setMonitorOpen(false)
+		},
 		onTab: (dir) => {
 			if (settingsRef.current) {
 				const i = SECTIONS.findIndex((s) => s.id === settingsRef.current)
@@ -220,8 +242,8 @@ function App() {
 			}
 		},
 		onMenu: () => setSettings((s) => (s ? null : "integrations")),
-		onRandom: () => !settingsRef.current && randomRef.current(),
-		onSearch: () => !settingsRef.current && searchRef.current?.focus(),
+		onRandom: () => !settingsRef.current && !monitorRef.current && randomRef.current(),
+		onSearch: () => !settingsRef.current && !monitorRef.current && searchRef.current?.focus(),
 	})
 
 	const featured = useMemo(() => {
@@ -322,6 +344,7 @@ function App() {
 
 	return (
 		<>
+		{monitorOpen && prefs.hardwareMonitor && !settings && <MonitorPage onBack={() => setMonitorOpen(false)} />}
 		{settings && (
 			<SettingsPage
 				section={settings}
@@ -345,7 +368,7 @@ function App() {
 			className={cn(
 				"relative h-screen overflow-y-auto bg-background text-foreground",
 				// Kept mounted while settings are open so the scroll position survives.
-				settings && "invisible"
+				(settings || (monitorOpen && prefs.hardwareMonitor)) && "invisible"
 			)}
 		>
 			<header
@@ -477,6 +500,17 @@ function App() {
 					<Settings className="size-3.5" />
 				</button>
 
+				{prefs.hardwareMonitor && (
+					<button
+						onClick={() => setMonitorOpen(true)}
+						title="Performance (P)"
+						aria-label="Performance"
+						className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
+					>
+						<Gauge className="size-3.5" />
+					</button>
+				)}
+
 				<button
 					onClick={() => setActivityOpen(true)}
 					title="Activity"
@@ -598,7 +632,7 @@ function App() {
 		{prefs.logWindow && <LogPanel games={games ?? NO_GAMES} />}
 		<ConfirmDialog />
 		<Toaster />
-		<PadHints inSettings={settings !== null} />
+		<PadHints inSettings={settings !== null || (monitorOpen && prefs.hardwareMonitor)} />
 		</>
 	)
 }

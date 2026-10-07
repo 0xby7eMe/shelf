@@ -8,10 +8,11 @@ export interface Prefs {
 	volume: number // 0-100
 	logWindow: boolean // show the log window button
 	logHeight: number // px
+	hardwareMonitor: boolean // show the hardware monitor button
 }
 
 const KEY = "shelf:prefs"
-const defaults: Prefs = { gamepad: true, sounds: true, volume: 80, logWindow: false, logHeight: 280 }
+const defaults: Prefs = { gamepad: true, sounds: true, volume: 80, logWindow: false, logHeight: 280, hardwareMonitor: false }
 
 function load(): Prefs {
 	try {
@@ -30,6 +31,8 @@ function load(): Prefs {
 					typeof saved.logHeight === "number"
 						? Math.min(900, Math.max(120, saved.logHeight))
 						: defaults.logHeight,
+				hardwareMonitor:
+					typeof saved.hardwareMonitor === "boolean" ? saved.hardwareMonitor : defaults.hardwareMonitor,
 			}
 		}
 	} catch {

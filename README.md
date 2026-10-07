@@ -52,6 +52,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 - Controller navigation with soft interface sounds, drawn with the buttons of your controller (Xbox, PlayStation or Nintendo)
 - One **Integrations** page with a tab per store
+- An optional **hardware monitor** with live CPU, memory, disk, network and GPU graphs (see [Hardware monitor](#hardware-monitor))
 - A download queue, a disk usage view, and a log window
 - Frameless glass UI, dark only
 
@@ -152,6 +153,18 @@ Shelf tells which kind of controller you have, by its USB vendor id, and shows t
 | Scroll | Right stick | Right stick | Right stick |
 
 The sounds are Steam's own Deck UI sounds, played from your Steam install (nothing is copied or bundled). Without Steam, Shelf uses a small built-in set instead. Navigation, sounds and volume are under **Settings, Controller**. Dialogs and menus trap the focus, so the controller never wanders behind them.
+
+## Hardware monitor
+
+A task-manager-style page for seeing what your machine is doing while you play. It's off by default: turn on **Hardware monitor** under **Settings, Advanced**, which adds a button to the header (and `P` opens it). Nothing is sampled while the page is closed.
+
+- **CPU:** utilization over the last minute, overall or per logical processor, with clock speed, temperature, processes, threads, load average and uptime
+- **Memory:** usage, what is cached and could be reclaimed, free memory and swap
+- **Disks:** active time, read and write speed, temperature and the space left on each mount
+- **Network:** send and receive speed per adapter, with its link speed and addresses. Only real adapters are listed, not bridges or containers
+- **GPUs:** utilization, video memory, temperature, power and clock for AMD (read from the kernel) and NVIDIA (through `nvidia-smi`). Intel shows its clock. A card that has powered itself down to save energy is shown as such and isn't woken to take a reading. An NVIDIA card that is awake stays awake while the page is open
+
+Everything is read from `/proc` and `/sys`, once a second, so it needs no extra tools. Temperatures appear when the kernel has a sensor for them.
 
 ## Log window
 

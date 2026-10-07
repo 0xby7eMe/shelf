@@ -4,6 +4,7 @@ import {epic} from '../models';
 import {library} from '../models';
 import {applog} from '../models';
 import {main} from '../models';
+import {sysmon} from '../models';
 
 export function ClearLogs():Promise<void>;
 
@@ -86,6 +87,14 @@ export function GetUbisoftSetup():Promise<epic.UbisoftSetupState>;
 export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
 
 export function Greet(arg1:string):Promise<string>;
+
+export function HardwareHistory():Promise<Array<sysmon.Sample>>;
+
+export function HardwareInfo():Promise<sysmon.Info>;
+
+export function HardwareStart():Promise<void>;
+
+export function HardwareStop():Promise<void>;
 
 export function InstallBattlEyeRuntime():Promise<void>;
 

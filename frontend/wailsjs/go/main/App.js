@@ -166,6 +166,22 @@ export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
 }
 
+export function HardwareHistory() {
+  return window['go']['main']['App']['HardwareHistory']();
+}
+
+export function HardwareInfo() {
+  return window['go']['main']['App']['HardwareInfo']();
+}
+
+export function HardwareStart() {
+  return window['go']['main']['App']['HardwareStart']();
+}
+
+export function HardwareStop() {
+  return window['go']['main']['App']['HardwareStop']();
+}
+
 export function InstallBattlEyeRuntime() {
   return window['go']['main']['App']['InstallBattlEyeRuntime']();
 }

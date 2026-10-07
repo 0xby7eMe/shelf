@@ -15,6 +15,7 @@ import (
 	"shelf/internal/applog"
 	"shelf/internal/epic"
 	"shelf/internal/library"
+	"shelf/internal/sysmon"
 )
 
 type App struct {
@@ -24,6 +25,8 @@ type App struct {
 	monitor *library.Monitor
 	hist    *library.History
 	epic    *epic.Manager
+	sys     *sysmon.Sampler
+	hw      *sysmon.Monitor
 
 	mu    sync.RWMutex
 	paths map[string]string
@@ -34,6 +37,7 @@ func NewApp() *App {
 	ep := epic.New(hist, nil)
 	monitor := library.NewMonitor()
 	monitor.Extra = ep.Running
+	sys := sysmon.New()
 
 	return &App{
 		lib:     library.New(library.NewSteam(), ep.Provider(), ep.UbisoftProvider()),
@@ -41,6 +45,7 @@ func NewApp() *App {
 		monitor: monitor,
 		hist:    hist,
 		epic:    ep,
+		sys:     sys,
 	}
 }
 
@@ -89,6 +94,32 @@ func (a *App) startup(ctx context.Context) {
 		})
 	})
 }
+
+// --- hardware monitor ---
+
+func (a *App) hardware() *sysmon.Monitor {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if a.hw == nil {
+		a.hw = sysmon.NewMonitor(a.sys, func(s sysmon.Sample) {
+			runtime.EventsEmit(a.ctx, "hardware:sample", s)
+		})
+	}
+	return a.hw
+}
+
+// HardwareInfo is what doesn't change: names, sizes and capabilities.
+func (a *App) HardwareInfo() sysmon.Info { return a.sys.Info() }
+
+// HardwareStart starts the samples that arrive as "hardware:sample" events, and
+// keeps them coming. The view calls it again every few seconds; if it stops
+// calling, so do the samples.
+func (a *App) HardwareStart() { a.hardware().Start() }
+
+func (a *App) HardwareStop() { a.hardware().Stop() }
+
+// HardwareHistory is the samples taken so far, oldest first.
+func (a *App) HardwareHistory() []sysmon.Sample { return a.hardware().History() }
 
 func (a *App) GetNowPlaying() []library.Session {
 	return a.monitor.Snapshot()

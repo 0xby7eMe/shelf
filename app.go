@@ -36,7 +36,7 @@ func NewApp() *App {
 	monitor.Extra = ep.Running
 
 	return &App{
-		lib:     library.New(library.NewSteam(), ep.Provider()),
+		lib:     library.New(library.NewSteam(), ep.Provider(), ep.UbisoftProvider()),
 		favs:    library.NewFavorites(),
 		monitor: monitor,
 		hist:    hist,
@@ -145,6 +145,12 @@ func (a *App) OpenStorePage(id string) error {
 			return err
 		}
 		return library.OpenURL(u)
+	case library.SourceUbisoft:
+		u, err := a.epic.UbisoftStoreURL(ext)
+		if err != nil {
+			return err
+		}
+		return library.OpenURL(u)
 	}
 	return fmt.Errorf("unknown game")
 }
@@ -168,9 +174,27 @@ func (a *App) Launch(id string) error {
 		return library.Launch(ext)
 	case library.SourceEpic:
 		return a.epic.Launch(ext)
+	case library.SourceUbisoft:
+		return a.epic.UbisoftLaunch(ext)
 	}
 	return fmt.Errorf("unknown game")
 }
+
+func (a *App) UbisoftSync() error { return a.epic.UbisoftSync() }
+
+func (a *App) GetUbisoftStatus() epic.UbisoftStatus { return a.epic.UbisoftStatus() }
+
+func (a *App) GetUbisoftSetup() epic.UbisoftSetupState { return a.epic.UbisoftSetupState() }
+
+func (a *App) UbisoftSetup() error { return a.epic.UbisoftSetup() }
+
+func (a *App) UbisoftOpenConnect() error { return a.epic.UbisoftOpenConnect() }
+
+func (a *App) UbisoftCloseConnect() error { return a.epic.UbisoftCloseConnect() }
+
+func (a *App) UbisoftReset() error { return a.epic.UbisoftReset() }
+
+func (a *App) UbisoftInstall(id string) error { return a.epic.UbisoftInstall(id) }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 
@@ -264,6 +288,10 @@ func (a *App) OpenLogsFolder() error {
 	}
 	return library.OpenFolder(dir)
 }
+
+func (a *App) InstallProtonGE() error { return a.epic.InstallProtonGE() }
+
+func (a *App) GetProtonInstall() epic.ProtonInstallState { return a.epic.ProtonInstallState() }
 
 func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 

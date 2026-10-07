@@ -1,4 +1,4 @@
-import { ArrowLeft, Download, HardDrive, Gamepad2, SlidersHorizontal, Store } from "lucide-react"
+import { ArrowLeft, Download, HardDrive, Gamepad2, Shield, SlidersHorizontal, Store } from "lucide-react"
 
 import { epic, library } from "../../../wailsjs/go/models"
 import { WindowControls } from "@/components/window-controls"
@@ -6,13 +6,15 @@ import { AdvancedSection } from "@/components/settings/advanced-section"
 import { ControllerSection } from "@/components/settings/controller-section"
 import { DownloadsSection } from "@/components/settings/downloads-section"
 import { EpicSection } from "@/components/settings/epic-section"
+import { UbisoftSection } from "@/components/settings/ubisoft-section"
 import { StorageSection } from "@/components/settings/storage-section"
 import { cn } from "@/lib/utils"
 
-export type SettingsSection = "epic" | "downloads" | "storage" | "controller" | "advanced"
+export type SettingsSection = "epic" | "ubisoft" | "downloads" | "storage" | "controller" | "advanced"
 
 export const SECTIONS: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
 	{ id: "epic", label: "Epic Games", icon: Store },
+	{ id: "ubisoft", label: "Ubisoft", icon: Shield },
 	{ id: "downloads", label: "Downloads", icon: Download },
 	{ id: "storage", label: "Storage", icon: HardDrive },
 	{ id: "controller", label: "Controller", icon: Gamepad2 },
@@ -87,6 +89,7 @@ export function SettingsPage({
 
 				<main key={section} className="min-w-0 max-w-2xl flex-1 animate-in duration-300 fade-in slide-in-from-bottom-2">
 					{section === "epic" && <EpicSection account={account} onAccountChange={onAccountChange} />}
+					{section === "ubisoft" && <UbisoftSection />}
 					{section === "downloads" && <DownloadsSection queue={queue} games={games} />}
 					{section === "storage" && <StorageSection games={games} onSelect={onSelectGame} />}
 					{section === "controller" && <ControllerSection />}

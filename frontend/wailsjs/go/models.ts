@@ -165,6 +165,26 @@ export namespace epic {
 	        this.path = source["path"];
 	    }
 	}
+	export class ProtonInstallState {
+	    state: string;
+	    percent: number;
+	    message: string;
+	    name?: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProtonInstallState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.percent = source["percent"];
+	        this.message = source["message"];
+	        this.name = source["name"];
+	        this.error = source["error"];
+	    }
+	}
 	export class QueueState {
 	    jobs: Progress[];
 	    paused: boolean;
@@ -203,6 +223,7 @@ export namespace epic {
 	    autoCheckUpdates: boolean;
 	    autoUpdate: boolean;
 	    cloudSaves: boolean;
+	    ubisoftSoftwareRendering: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -215,6 +236,7 @@ export namespace epic {
 	        this.autoCheckUpdates = source["autoCheckUpdates"];
 	        this.autoUpdate = source["autoUpdate"];
 	        this.cloudSaves = source["cloudSaves"];
+	        this.ubisoftSoftwareRendering = source["ubisoftSoftwareRendering"];
 	    }
 	}
 	export class Tools {
@@ -229,6 +251,48 @@ export namespace epic {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.mangoHud = source["mangoHud"];
 	        this.gameMode = source["gameMode"];
+	    }
+	}
+	export class UbisoftSetupState {
+	    state: string;
+	    percent: number;
+	    message: string;
+	    error?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UbisoftSetupState(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.state = source["state"];
+	        this.percent = source["percent"];
+	        this.message = source["message"];
+	        this.error = source["error"];
+	    }
+	}
+	export class UbisoftStatus {
+	    connectInstalled: boolean;
+	    proton: string;
+	    protonIsGE: boolean;
+	    running: boolean;
+	    signedIn: boolean;
+	    account: string;
+	    games: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new UbisoftStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.connectInstalled = source["connectInstalled"];
+	        this.proton = source["proton"];
+	        this.protonIsGE = source["protonIsGE"];
+	        this.running = source["running"];
+	        this.signedIn = source["signedIn"];
+	        this.account = source["account"];
+	        this.games = source["games"];
 	    }
 	}
 	export class UpdateInfo {

@@ -134,6 +134,10 @@ export function GetProtonBuilds() {
   return window['go']['main']['App']['GetProtonBuilds']();
 }
 
+export function GetProtonInstall() {
+  return window['go']['main']['App']['GetProtonInstall']();
+}
+
 export function GetStats(arg1) {
   return window['go']['main']['App']['GetStats'](arg1);
 }
@@ -142,8 +146,20 @@ export function GetStorage() {
   return window['go']['main']['App']['GetStorage']();
 }
 
+export function GetUbisoftSetup() {
+  return window['go']['main']['App']['GetUbisoftSetup']();
+}
+
+export function GetUbisoftStatus() {
+  return window['go']['main']['App']['GetUbisoftStatus']();
+}
+
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
+}
+
+export function InstallProtonGE() {
+  return window['go']['main']['App']['InstallProtonGE']();
 }
 
 export function Launch(arg1) {
@@ -172,4 +188,28 @@ export function SetEpicSettings(arg1) {
 
 export function ToggleFavorite(arg1) {
   return window['go']['main']['App']['ToggleFavorite'](arg1);
+}
+
+export function UbisoftCloseConnect() {
+  return window['go']['main']['App']['UbisoftCloseConnect']();
+}
+
+export function UbisoftInstall(arg1) {
+  return window['go']['main']['App']['UbisoftInstall'](arg1);
+}
+
+export function UbisoftOpenConnect() {
+  return window['go']['main']['App']['UbisoftOpenConnect']();
+}
+
+export function UbisoftReset() {
+  return window['go']['main']['App']['UbisoftReset']();
+}
+
+export function UbisoftSetup() {
+  return window['go']['main']['App']['UbisoftSetup']();
+}
+
+export function UbisoftSync() {
+  return window['go']['main']['App']['UbisoftSync']();
 }

@@ -30,6 +30,7 @@ import { LiveDot } from "@/components/live-dot"
 // What the sheet can ask the app to do with an Epic game.
 export interface EpicActions {
 	install: (game: library.Game) => void
+	installUbisoft: (game: library.Game) => void // asks Ubisoft Connect to install it
 	cancel: (game: library.Game) => void
 	uninstall: (game: library.Game) => void
 	update: (game: library.Game) => void
@@ -138,6 +139,8 @@ function Body({
 	const [heroFailed, setHeroFailed] = useState(false)
 	const [armed, setArmed] = useState(false)
 	const isEpic = game.source === "epic"
+	const isUbisoft = game.source === "ubisoft"
+	const needsInstall = (isEpic || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
 
@@ -219,7 +222,7 @@ function Body({
 								<X className="size-4" />
 							</button>
 						</div>
-					) : isEpic && !game.installed && game.thirdParty ? (
+					) : (isEpic || isUbisoft) && !game.installed && game.thirdParty ? (
 						<div className="space-y-3">
 							<button
 								disabled
@@ -229,14 +232,17 @@ function Body({
 								Can't be installed here
 							</button>
 							<p className="rounded-xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/55 ring-1 ring-white/[0.06]">
-								{game.name} has to be installed through {game.thirdParty}. Epic doesn't let other
-								launchers download it, so Shelf can't install it for you.
+								{isUbisoft
+									? `${game.name} belongs to ${game.thirdParty}, so it has to be installed and started there. Shelf lists it because it's in your Ubisoft library.`
+									: `${game.name} has to be installed through ${game.thirdParty}. Epic doesn't let other launchers download it, so Shelf can't install it for you.`}
 							</p>
 						</div>
 					) : (
 						<div className="flex gap-2">
 							<button
-								onClick={() => (isEpic && !game.installed ? epicActions.install(game) : onPlay(game))}
+								onClick={() =>
+									needsInstall ? (isUbisoft ? epicActions.installUbisoft(game) : epicActions.install(game)) : onPlay(game)
+								}
 								disabled={running}
 								className={cn(
 									"flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
@@ -250,7 +256,7 @@ function Body({
 										<LiveDot />
 										Running
 									</>
-								) : isEpic && !game.installed ? (
+								) : needsInstall ? (
 									<>
 										<Download className="size-3.5" />
 										Install

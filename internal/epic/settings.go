@@ -20,6 +20,9 @@ type Settings struct {
 	AutoUpdate bool `json:"autoUpdate"`
 	// CloudSaves syncs saves before a game starts and after it closes, unless a game opts out.
 	CloudSaves bool `json:"cloudSaves"`
+	// UbisoftSoftwareRendering draws Ubisoft Connect's own window in software.
+	// On some GPUs its window stays black otherwise. Games are never affected.
+	UbisoftSoftwareRendering bool `json:"ubisoftSoftwareRendering"`
 }
 
 type settingsStore struct {
@@ -56,7 +59,7 @@ func defaultInstallDir() string {
 }
 
 func newSettingsStore() *settingsStore {
-	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir(), AutoCheckUpdates: true}}
+	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir(), AutoCheckUpdates: true, UbisoftSoftwareRendering: true}}
 	if dir := configDir(); dir != "" {
 		s.path = filepath.Join(dir, "epic.json")
 	}

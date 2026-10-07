@@ -71,11 +71,19 @@ export function GetNowPlaying():Promise<Array<library.Session>>;
 
 export function GetProtonBuilds():Promise<Array<epic.ProtonBuild>>;
 
+export function GetProtonInstall():Promise<epic.ProtonInstallState>;
+
 export function GetStats(arg1:number):Promise<library.Stats>;
 
 export function GetStorage():Promise<main.Storage>;
 
+export function GetUbisoftSetup():Promise<epic.UbisoftSetupState>;
+
+export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
+
 export function Greet(arg1:string):Promise<string>;
+
+export function InstallProtonGE():Promise<void>;
 
 export function Launch(arg1:string):Promise<void>;
 
@@ -90,3 +98,15 @@ export function SetEpicGameSettings(arg1:string,arg2:epic.GameSettings):Promise<
 export function SetEpicSettings(arg1:epic.Settings):Promise<void>;
 
 export function ToggleFavorite(arg1:string):Promise<Array<string>>;
+
+export function UbisoftCloseConnect():Promise<void>;
+
+export function UbisoftInstall(arg1:string):Promise<void>;
+
+export function UbisoftOpenConnect():Promise<void>;
+
+export function UbisoftReset():Promise<void>;
+
+export function UbisoftSetup():Promise<void>;
+
+export function UbisoftSync():Promise<void>;

@@ -43,6 +43,15 @@ type Manager struct {
 	active   *installJob   // the running queued job, if any
 	paused   bool
 
+	// Ubisoft Connect: the launcher in its prefix, and what it has recorded.
+	ubiMu         sync.Mutex
+	ubiCache      *ubiLocalCache
+	ubiSetup      UbisoftSetupState
+	protonInstall ProtonInstallState
+	connect       *exec.Cmd
+	watching      bool
+	reg           *regCache
+
 	announcedUpdates map[string]string // app -> version already shown to the user
 	announcedImport  bool
 }

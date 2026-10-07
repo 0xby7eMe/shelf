@@ -6,6 +6,7 @@ import {
 	EpicUninstall,
 	EpicUpdate,
 	EpicVerify,
+	UbisoftInstall,
 	GetFavorites,
 	GetGames,
 	GetNowPlaying,
@@ -49,7 +50,7 @@ import { useStableHover } from "@/lib/hover"
 
 type SortKey = "name" | "playtime" | "recent"
 type Filter = "all" | "installed" | "favorites"
-type SourceFilter = "all" | "steam" | "epic"
+type SourceFilter = "all" | "steam" | "epic" | "ubisoft"
 
 const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 	name: (a, b) => a.name.localeCompare(b.name),
@@ -257,8 +258,8 @@ function App() {
 	const showShelves = showHero && filter === "all"
 
 	function play(game: library.Game) {
-		// Epic games have to be installed through Shelf first.
-		if (game.source === "epic" && !game.installed) {
+		// Epic and Ubisoft games have to be installed through Shelf first.
+		if ((game.source === "epic" || game.source === "ubisoft") && !game.installed) {
 			setSelected(game)
 			return
 		}
@@ -272,6 +273,11 @@ function App() {
 
 	const epicActions: EpicActions = {
 		install: (g) => epicTask(g, "install", () => EpicInstall(g.externalId)),
+		installUbisoft: (g) =>
+			epicTask(g, "install", async () => {
+				await UbisoftInstall(g.externalId)
+				toast.info(`Installing ${g.name}`, { description: "Ubisoft Connect is downloading it. Shelf will notice when it's done." })
+			}),
 		cancel: (g) => EpicCancelInstall(g.externalId),
 		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
 		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
@@ -410,6 +416,7 @@ function App() {
 						<SelectItem value="all">All stores</SelectItem>
 						<SelectItem value="steam">Steam</SelectItem>
 						<SelectItem value="epic">Epic</SelectItem>
+						<SelectItem value="ubisoft">Ubisoft</SelectItem>
 					</SelectContent>
 				</Select>
 

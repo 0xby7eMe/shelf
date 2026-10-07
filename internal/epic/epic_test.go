@@ -77,22 +77,22 @@ func TestAppNameRe(t *testing.T) {
 	}
 }
 
-func TestLaunchedApp(t *testing.T) {
+func TestEpicAppArg(t *testing.T) {
 	cases := []struct {
 		args []string
 		want string
 		ok   bool
 	}{
-		{[]string{"/usr/bin/legendary", "launch", "Sugar", "--no-wine"}, "Sugar", true},
-		{[]string{"/usr/bin/python", "/usr/bin/legendary", "launch", "abc123"}, "abc123", true},
-		{[]string{"legendary", "list", "--json"}, "", false},
-		{[]string{"vim", "launch", "Sugar"}, "", false},
-		{[]string{"legendary", "launch", "--help"}, "", false},
+		{[]string{"python3", "/x/proton", "run", "/g/PCBS.exe", "-AUTH_TYPE=exchangecode", "-epicapp=ab277c0995e945d2b2c50c46883627f1", "-epicenv=Prod"}, "ab277c0995e945d2b2c50c46883627f1", true},
+		{[]string{"game.exe", "-epicapp=Sugar"}, "Sugar", true},
+		{[]string{"game.exe", "-epicenv=Prod"}, "", false},
+		{[]string{"game.exe", "-epicapp="}, "", false},
+		{[]string{"game.exe", "-epicapp=../x"}, "", false},
 	}
 	for _, c := range cases {
-		got, ok := launchedApp(c.args)
+		got, ok := epicAppArg(c.args)
 		if got != c.want || ok != c.ok {
-			t.Errorf("launchedApp(%v) = %q, %v", c.args, got, ok)
+			t.Errorf("epicAppArg(%v) = %q, %v", c.args, got, ok)
 		}
 	}
 }

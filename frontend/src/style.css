@@ -193,3 +193,8 @@
 .shelf::-webkit-scrollbar {
 	display: none;
 }
+
+/* Set by App while the page scrolls, so cards don't flicker through hover states. */
+[data-scrolling] .group {
+	pointer-events: none;
+}

@@ -74,12 +74,11 @@ func (m *Manager) Launch(appName string) error {
 		return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
 	}
 
-	m.mu.Lock()
-	if _, busy := m.running[appName]; busy {
-		m.mu.Unlock()
-		return fmt.Errorf("already running")
+	for _, name := range m.Running() {
+		if name == appName {
+			return fmt.Errorf("already running")
+		}
 	}
-	m.mu.Unlock()
 
 	prefix := prefixDir(appName)
 	if err := os.MkdirAll(prefix, 0o755); err != nil {
@@ -131,18 +130,22 @@ func (m *Manager) Launch(appName string) error {
 	return nil
 }
 
-// launchedApp returns the app name if args are a `legendary launch <app>` command line.
-func launchedApp(args []string) (string, bool) {
-	for i := 0; i+2 < len(args); i++ {
-		if filepath.Base(args[i]) == "legendary" && args[i+1] == "launch" && appNameRe.MatchString(args[i+2]) {
-			return args[i+2], true
+// epicAppArg returns the app name from the -epicapp=<name> argument that
+// legendary passes to every game it launches. Legendary itself exits right
+// after starting the game, so this marker on the game's own process (the Proton
+// launcher, wine's steam.exe and the game exe all carry it) is what shows the
+// game is still running.
+func epicAppArg(args []string) (string, bool) {
+	for _, a := range args {
+		if name, ok := strings.CutPrefix(a, "-epicapp="); ok && appNameRe.MatchString(name) {
+			return name, true
 		}
 	}
 	return "", false
 }
 
-// scanRunning finds legendary launches by process, which also catches games
-// that outlived a previous Shelf session.
+// scanRunning finds running Epic games by process, so it also catches games
+// that Shelf did not start or that outlived a previous Shelf session.
 func scanRunning() []string {
 	entries, err := os.ReadDir("/proc")
 	if err != nil {
@@ -154,11 +157,11 @@ func scanRunning() []string {
 			continue
 		}
 		data, err := os.ReadFile("/proc/" + e.Name() + "/cmdline")
-		if err != nil || !bytes.Contains(data, []byte("launch")) {
+		if err != nil || !bytes.Contains(data, []byte("-epicapp=")) {
 			continue
 		}
 		args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
-		if name, ok := launchedApp(args); ok {
+		if name, ok := epicAppArg(args); ok {
 			out = append(out, name)
 		}
 	}

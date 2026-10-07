@@ -27,10 +27,12 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Gamepad2, RefreshCw, Search, Shuffle, X } from "lucide-react"
+import { Activity, Gamepad2, RefreshCw, Search, Shuffle } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
 import { useEpic } from "@/lib/use-epic"
+import { toast } from "@/lib/toast"
+import { Toaster } from "@/components/toaster"
 import { EpicDialog } from "@/components/epic-dialog"
 
 type SortKey = "name" | "playtime" | "recent"
@@ -44,6 +46,18 @@ const sorters: Record<SortKey, (a: library.Game, b: library.Game) => number> = {
 }
 
 const NO_GAMES: library.Game[] = []
+
+// While scrolling, cards slide under a still cursor and each one would play its
+// hover lift for a moment. Hover is switched off until the scroll settles.
+const scrollTimers = new WeakMap<HTMLElement, number>()
+function suspendHover(el: HTMLElement) {
+	el.dataset.scrolling = "true"
+	window.clearTimeout(scrollTimers.get(el))
+	scrollTimers.set(
+		el,
+		window.setTimeout(() => delete el.dataset.scrolling, 150)
+	)
+}
 
 function App() {
 	const [games, setGames] = useState<library.Game[] | null>(null)
@@ -59,7 +73,7 @@ function App() {
 	const [activityOpen, setActivityOpen] = useState(false)
 	const [epicOpen, setEpicOpen] = useState(false)
 	const [source, setSource] = useState<SourceFilter>("all")
-	const { account, installs, notice, setNotice, reloadAccount } = useEpic()
+	const { account, installs, reloadAccount } = useEpic(games)
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -216,21 +230,28 @@ function App() {
 			setSelected(game)
 			return
 		}
-		Launch(game.id).catch((e: any) => setNotice(String(e)))
+		Launch(game.id).catch((e: any) => toast.error(`Couldn't start ${game.name}`, { description: String(e) }))
 	}
 
 	function installEpic(game: library.Game) {
-		EpicInstall(game.externalId).catch((e: any) => setNotice(String(e)))
+		EpicInstall(game.externalId).catch((e: any) =>
+			toast.error(`Couldn't install ${game.name}`, { description: String(e) })
+		)
 	}
 
 	function uninstallEpic(game: library.Game) {
 		if (!window.confirm(`Uninstall ${game.name}? Saves and the Proton prefix are kept.`)) return
-		EpicUninstall(game.externalId).catch((e: any) => setNotice(String(e)))
+		EpicUninstall(game.externalId)
+			.then(() => toast.success(`${game.name} uninstalled`))
+			.catch((e: any) => toast.error(`Couldn't uninstall ${game.name}`, { description: String(e) }))
 	}
 
 	return (
 		<div
-			onScroll={(e) => setScrolled(e.currentTarget.scrollTop > 24)}
+			onScroll={(e) => {
+				setScrolled(e.currentTarget.scrollTop > 24)
+				suspendHover(e.currentTarget)
+			}}
 			className="relative h-screen overflow-y-auto bg-background text-foreground"
 		>
 			<header
@@ -445,21 +466,7 @@ function App() {
 				onAccountChange={reloadAccount}
 			/>
 
-			{notice && (
-				<div
-					role="alert"
-					className="fixed right-6 bottom-6 z-50 flex max-w-md items-start gap-3 rounded-xl bg-black/70 px-4 py-3 text-sm text-white/90 ring-1 ring-white/10 backdrop-blur-xl"
-				>
-					<span className="min-w-0 break-words">{notice}</span>
-					<button
-						onClick={() => setNotice("")}
-						aria-label="Dismiss"
-						className="shrink-0 text-white/50 transition hover:text-white"
-					>
-						<X className="size-4" />
-					</button>
-				</div>
-			)}
+			<Toaster />
 
 			<ActivityDialog
 				open={activityOpen}

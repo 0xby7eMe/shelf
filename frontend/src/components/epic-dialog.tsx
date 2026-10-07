@@ -18,6 +18,13 @@ import {
 	DialogTitle,
 } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
+import {
+	Select,
+	SelectContent,
+	SelectItem,
+	SelectTrigger,
+	SelectValue,
+} from "@/components/ui/select"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -26,6 +33,9 @@ interface Props {
 	onOpenChange: (open: boolean) => void
 	onAccountChange: () => void
 }
+
+// Select items can't have an empty value, so "automatic" gets a sentinel.
+const AUTO = "auto"
 
 const pill =
 	"inline-flex h-10 items-center justify-center gap-2 rounded-full px-5 text-xs ring-1 ring-white/10 transition disabled:pointer-events-none disabled:opacity-40"
@@ -169,22 +179,26 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 									<span className="text-[11px] tracking-wide text-white/45 uppercase">
 										Proton version
 									</span>
-									<select
-										value={settings.protonPath}
-										onChange={(e) =>
-											save(new epic.Settings({ ...settings, protonPath: e.target.value }))
+									<Select
+										value={settings.protonPath || AUTO}
+										onValueChange={(v) =>
+											save(new epic.Settings({ ...settings, protonPath: v === AUTO ? "" : v }))
 										}
-										className="h-10 w-full rounded-full border-0 bg-white/5 px-4 text-sm ring-1 ring-white/5 outline-none"
 									>
-										<option value="" className="bg-neutral-900">
-											{builds.length ? `Automatic (${builds[0].name})` : "None found"}
-										</option>
-										{builds.map((b) => (
-											<option key={b.path} value={b.path} className="bg-neutral-900">
-												{b.name}
-											</option>
-										))}
-									</select>
+										<SelectTrigger className="h-10 w-full rounded-full border-0 bg-white/5 px-4 text-sm shadow-none ring-1 ring-white/5">
+											<SelectValue />
+										</SelectTrigger>
+										<SelectContent className="border-white/10 bg-popover/80 backdrop-blur-xl">
+											<SelectItem value={AUTO}>
+												{builds.length ? `Automatic (${builds[0].name})` : "None found"}
+											</SelectItem>
+											{builds.map((b) => (
+												<SelectItem key={b.path} value={b.path}>
+													{b.name}
+												</SelectItem>
+											))}
+										</SelectContent>
+									</Select>
 									{builds.length === 0 && (
 										<span className="block text-xs text-white/40">
 											Install Proton through Steam or ProtonUp-Qt to run Epic games.

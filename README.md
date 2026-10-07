@@ -161,6 +161,17 @@ sudo pacman -S legendary
 
 Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
 
+### AppImage
+
+`shelf-linux-x86_64.AppImage` runs on most distros, including Ubuntu 22.04 and later, with GTK and WebKitGTK bundled, so nothing else needs installing:
+
+```bash
+chmod +x shelf-linux-x86_64.AppImage
+./shelf-linux-x86_64.AppImage
+```
+
+For Epic Games you still need `legendary` and a Proton build on the system.
+
 ### From source
 
 Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:

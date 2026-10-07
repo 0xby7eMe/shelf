@@ -19,6 +19,8 @@ var assets embed.FS
 var icon []byte
 
 func main() {
+	library.EnterAppImage()
+
 	app := NewApp()
 
 	covers, err := library.NewCovers()

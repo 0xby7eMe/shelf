@@ -138,7 +138,7 @@ func (m *Manager) command(ctx context.Context, args ...string) (*exec.Cmd, error
 		return nil, err
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
-	cmd.Env = append(os.Environ(), "LEGENDARY_CONFIG_PATH="+m.cfgDir)
+	cmd.Env = append(library.ChildEnv(), "LEGENDARY_CONFIG_PATH="+m.cfgDir)
 	return cmd, nil
 }
 

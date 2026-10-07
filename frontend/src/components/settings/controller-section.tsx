@@ -2,7 +2,7 @@ import { Gamepad2 } from "lucide-react"
 
 import { padLabel, usePadName } from "@/lib/gamepad"
 import { setPrefs, usePrefs } from "@/lib/prefs"
-import { sfx } from "@/lib/sfx"
+import { sfx, useSoundSource } from "@/lib/sfx"
 import { ToggleRow } from "@/components/toggle-row"
 import { Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 
@@ -21,6 +21,7 @@ export const PAD_HINTS: [string, string][] = [
 export function ControllerSection() {
 	const prefs = usePrefs()
 	const pad = usePadName()
+	const soundSource = useSoundSource()
 
 	function test() {
 		// A few steps, then select and back.
@@ -56,7 +57,13 @@ export function ControllerSection() {
 				/>
 				<ToggleRow
 					label="Interface sounds"
-					hint="Soft clicks while you navigate"
+					hint={
+						soundSource === "steam"
+							? "Steam's own Deck sounds, played from your Steam install"
+							: soundSource === "loading"
+								? "Looking for Steam's sounds…"
+								: "Built-in sounds. Steam's Deck sounds weren't found."
+					}
 					checked={prefs.sounds}
 					onChange={(v) => setPrefs({ sounds: v })}
 				/>

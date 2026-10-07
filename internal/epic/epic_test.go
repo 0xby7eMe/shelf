@@ -76,3 +76,23 @@ func TestAppNameRe(t *testing.T) {
 		}
 	}
 }
+
+func TestLaunchedApp(t *testing.T) {
+	cases := []struct {
+		args []string
+		want string
+		ok   bool
+	}{
+		{[]string{"/usr/bin/legendary", "launch", "Sugar", "--no-wine"}, "Sugar", true},
+		{[]string{"/usr/bin/python", "/usr/bin/legendary", "launch", "abc123"}, "abc123", true},
+		{[]string{"legendary", "list", "--json"}, "", false},
+		{[]string{"vim", "launch", "Sugar"}, "", false},
+		{[]string{"legendary", "launch", "--help"}, "", false},
+	}
+	for _, c := range cases {
+		got, ok := launchedApp(c.args)
+		if got != c.want || ok != c.ok {
+			t.Errorf("launchedApp(%v) = %q, %v", c.args, got, ok)
+		}
+	}
+}

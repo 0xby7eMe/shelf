@@ -1,6 +1,7 @@
 package epic
 
 import (
+	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -130,12 +131,59 @@ func (m *Manager) Launch(appName string) error {
 	return nil
 }
 
-// Running lists the app names Shelf started that are still alive.
+// launchedApp returns the app name if args are a `legendary launch <app>` command line.
+func launchedApp(args []string) (string, bool) {
+	for i := 0; i+2 < len(args); i++ {
+		if filepath.Base(args[i]) == "legendary" && args[i+1] == "launch" && appNameRe.MatchString(args[i+2]) {
+			return args[i+2], true
+		}
+	}
+	return "", false
+}
+
+// scanRunning finds legendary launches by process, which also catches games
+// that outlived a previous Shelf session.
+func scanRunning() []string {
+	entries, err := os.ReadDir("/proc")
+	if err != nil {
+		return nil
+	}
+	var out []string
+	for _, e := range entries {
+		if n := e.Name(); n == "" || n[0] < '0' || n[0] > '9' {
+			continue
+		}
+		data, err := os.ReadFile("/proc/" + e.Name() + "/cmdline")
+		if err != nil || !bytes.Contains(data, []byte("launch")) {
+			continue
+		}
+		args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+		if name, ok := launchedApp(args); ok {
+			out = append(out, name)
+		}
+	}
+	return out
+}
+
+// Running lists the app names that are currently running, whether Shelf
+// started them or not.
 func (m *Manager) Running() []string {
+	seen := map[string]bool{}
 	m.mu.Lock()
-	defer m.mu.Unlock()
-	out := make([]string, 0, len(m.running))
 	for name := range m.running {
+		seen[name] = true
+	}
+	m.mu.Unlock()
+
+	installed := m.readInstalled()
+	for _, name := range scanRunning() {
+		if _, ok := installed[name]; ok {
+			seen[name] = true
+		}
+	}
+
+	out := make([]string, 0, len(seen))
+	for name := range seen {
 		out = append(out, name)
 	}
 	sort.Strings(out)

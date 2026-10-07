@@ -147,6 +147,10 @@ func (m *Manager) Launch(appName string) error {
 	if err != nil {
 		return err
 	}
+	beEnv, err := battleyeEnvFor(game.InstallPath, game.Title)
+	if err != nil {
+		return err
+	}
 
 	prefix := prefixDir(appName)
 	if err := os.MkdirAll(prefix, 0o755); err != nil {
@@ -174,6 +178,7 @@ func (m *Manager) Launch(appName string) error {
 		return err
 	}
 	cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
+	cmd.Env = append(cmd.Env, beEnv...)
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 

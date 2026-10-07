@@ -35,6 +35,7 @@ import { Shelf } from "@/components/shelf"
 import { Activity, Download, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
+import { setIntegrationTab, type Integration } from "@/lib/integrations"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
 import { confirm } from "@/lib/confirm"
@@ -77,9 +78,14 @@ function App() {
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
 	settingsRef.current = settings
+	// Opens settings on one store's tab.
+	const openIntegration = useCallback((tab: Integration) => {
+		setIntegrationTab(tab)
+		setSettings("integrations")
+	}, [])
 	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
 	const [source, setSource] = useState<SourceFilter>("all")
-	const { account, installs, queue, reloadAccount } = useEpic(games, () => setSettings("epic"))
+	const { account, installs, queue, reloadAccount } = useEpic(games, () => openIntegration("epic"))
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -213,7 +219,7 @@ function App() {
 				setFilter((f) => filters[(filters.indexOf(f) + dir + filters.length) % filters.length])
 			}
 		},
-		onMenu: () => setSettings((s) => (s ? null : "epic")),
+		onMenu: () => setSettings((s) => (s ? null : "integrations")),
 		onRandom: () => !settingsRef.current && randomRef.current(),
 		onSearch: () => !settingsRef.current && searchRef.current?.focus(),
 	})
@@ -463,7 +469,7 @@ function App() {
 				)}
 
 				<button
-					onClick={() => setSettings("epic")}
+					onClick={() => setSettings("integrations")}
 					title="Settings"
 					aria-label="Settings"
 					className="grid size-9 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white"
@@ -537,7 +543,7 @@ function App() {
 						))}
 					</Grid>
 				) : visible.length === 0 && source === "ubisoft" && !games.some((g) => g.source === "ubisoft") ? (
-					<UbisoftHint onSettings={() => setSettings("ubisoft")} />
+					<UbisoftHint onSettings={() => openIntegration("ubisoft")} />
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0

@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strings"
 	"sync"
 	"syscall"
 	"time"
@@ -20,6 +21,9 @@ type PrefixUsage struct {
 	Bytes   int64  `json:"bytes"`
 	// Installed is false for prefixes left behind by uninstalled games.
 	Installed bool `json:"installed"`
+	// Shared marks a prefix several games live inside, such as Ubisoft Connect's.
+	// Its Bytes leave out those games, which are counted on their own.
+	Shared bool `json:"shared,omitempty"`
 }
 
 // diskUsage sums the space files really occupy, like du, without following symlinks.
@@ -86,7 +90,11 @@ func (m *Manager) Prefixes() []PrefixUsage {
 			title = name
 		}
 		_, isInstalled := installed[name]
-		out[i] = PrefixUsage{AppName: name, Title: title, Path: filepath.Join(prefixRoot(), name), Installed: isInstalled}
+		shared := name == ubisoftPrefixName
+		if shared {
+			title, isInstalled = "Ubisoft Connect", connectInstalled()
+		}
+		out[i] = PrefixUsage{AppName: name, Title: title, Path: filepath.Join(prefixRoot(), name), Installed: isInstalled, Shared: shared}
 
 		wg.Add(1)
 		go func() {
@@ -94,6 +102,9 @@ func (m *Manager) Prefixes() []PrefixUsage {
 			sem <- struct{}{}
 			defer func() { <-sem }()
 			out[i].Bytes = diskUsage(ctx, out[i].Path)
+			if out[i].Shared {
+				out[i].Bytes = m.withoutUbisoftGames(ctx, out[i].Path, out[i].Bytes)
+			}
 		}()
 	}
 	wg.Wait()
@@ -101,6 +112,23 @@ func (m *Manager) Prefixes() []PrefixUsage {
 	out = out[:n]
 	sort.Slice(out, func(i, j int) bool { return out[i].Bytes > out[j].Bytes })
 	return out
+}
+
+// withoutUbisoftGames takes the games installed inside Connect's prefix off its
+// size, so the prefix shows what Connect itself takes and the games show their own.
+func (m *Manager) withoutUbisoftGames(ctx context.Context, prefix string, total int64) int64 {
+	complete, partial := m.ubisoftRegistry()
+	for _, set := range []map[string]string{complete, partial} {
+		for _, dir := range set {
+			if strings.HasPrefix(dir, prefix+string(filepath.Separator)) {
+				total -= m.ubiInstallSizeNow(ctx, dir)
+			}
+		}
+	}
+	if total < 0 {
+		total = 0
+	}
+	return total
 }
 
 // InstallRoots lists folders that hold Epic data, for free space reporting.

@@ -255,7 +255,7 @@ func TestParseUbiOwnership(t *testing.T) {
 // --- Connect: setup and playing, against a fake Proton ---
 
 const fakeProton = `#!/bin/sh
-echo "proton $* [prefix=$STEAM_COMPAT_DATA_PATH] d3d11=$PROTON_NO_D3D11 xalia=$PROTON_USE_XALIA" >> "$GAMES/proton.log"
+echo "proton $* [prefix=$STEAM_COMPAT_DATA_PATH] d3d11=$PROTON_NO_D3D11 xalia=$PROTON_USE_XALIA be=$PROTON_BATTLEYE_RUNTIME" >> "$GAMES/proton.log"
 case "$*" in
 *uplay://launch*)
   if [ -n "$FAIL_LAUNCH" ]; then echo "wine: boom, no such file"; exit 3; fi
@@ -711,5 +711,85 @@ func TestUbisoftLaunchFailureIsReported(t *testing.T) {
 	if msg["appName"] != "uplay-5487" || !strings.Contains(msg["message"], "Riders Republic didn't start") ||
 		!strings.Contains(msg["message"], "boom") || !strings.Contains(msg["message"], ".log") {
 		t.Errorf("launch error: %v", msg)
+	}
+}
+
+// --- storage ---
+
+func ubiGameSize(m *Manager, key string) int64 {
+	g, _ := m.UbisoftProvider().Scan()
+	for _, x := range g {
+		if x.ExternalID == key {
+			return x.SizeBytes
+		}
+	}
+	return -1
+}
+
+func TestUbisoftInstallSizeIsMeasuredInTheBackground(t *testing.T) {
+	m, ev, _, gameDir := installedEnv(t, true)
+	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 2<<20), 0o644)
+
+	// The first look never waits for the measuring.
+	if got := ubiGameSize(m, "uplay-5487"); got != 0 {
+		t.Errorf("first scan: %d, want 0 until measured", got)
+	}
+	ev.wait(t, "library:changed") // the library is told once the size is known
+
+	var got int64
+	for i := 0; i < 100 && got < 2<<20; i++ {
+		got = ubiGameSize(m, "uplay-5487")
+		time.Sleep(10 * time.Millisecond)
+	}
+	if got < 2<<20 {
+		t.Errorf("size %d, want at least 2 MiB", got)
+	}
+}
+
+func TestPrefixesCountUbisoftGamesOnTheirOwn(t *testing.T) {
+	m, _, _, gameDir := installedEnv(t, true)
+	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 8<<20), 0o644)
+	// Something of Connect's own, outside the game.
+	os.WriteFile(filepath.Join(connectDir(), "upc.exe"), make([]byte, 1<<20), 0o644)
+
+	var shared *PrefixUsage
+	for _, p := range m.Prefixes() {
+		if p.AppName == ubisoftPrefixName {
+			p := p
+			shared = &p
+		}
+	}
+	if shared == nil {
+		t.Fatal("the Ubisoft prefix isn't listed")
+	}
+	if !shared.Shared || shared.Title != "Ubisoft Connect" || !shared.Installed {
+		t.Errorf("it is a shared prefix, not a leftover: %+v", shared)
+	}
+	if shared.Bytes >= 8<<20 {
+		t.Errorf("the game's 8 MiB must not be counted again in the prefix: %d", shared.Bytes)
+	}
+	if shared.Bytes < 1<<20 {
+		t.Errorf("Connect's own files should still count: %d", shared.Bytes)
+	}
+}
+
+func TestUbisoftReset(t *testing.T) {
+	m, _, _, _ := installedEnv(t, true)
+	fakeConnect(t)
+	if len(prefixProcesses(ubisoftPrefix())) == 0 {
+		t.Fatal("test setup: Connect should look open")
+	}
+
+	if err := m.UbisoftReset(); err != nil {
+		t.Fatal(err)
+	}
+	if _, err := os.Stat(ubisoftPrefix()); !os.IsNotExist(err) {
+		t.Error("the prefix should be gone")
+	}
+	if n := len(prefixProcesses(ubisoftPrefix())); n != 0 {
+		t.Errorf("Connect should have been closed first, %d processes left", n)
+	}
+	if g, _ := m.UbisoftProvider().Scan(); len(g) != 0 {
+		t.Errorf("no prefix, no library: %v", g)
 	}
 }

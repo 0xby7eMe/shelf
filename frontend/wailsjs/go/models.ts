@@ -41,6 +41,22 @@ export namespace epic {
 	        this.name = source["name"];
 	    }
 	}
+	export class BattlEyeRuntime {
+	    installed: boolean;
+	    source: string;
+	    path: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new BattlEyeRuntime(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.installed = source["installed"];
+	        this.source = source["source"];
+	        this.path = source["path"];
+	    }
+	}
 	export class GameSettings {
 	    protonPath: string;
 	    launchArgs: string;
@@ -109,6 +125,7 @@ export namespace epic {
 	    path: string;
 	    bytes: number;
 	    installed: boolean;
+	    shared?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new PrefixUsage(source);
@@ -121,6 +138,7 @@ export namespace epic {
 	        this.path = source["path"];
 	        this.bytes = source["bytes"];
 	        this.installed = source["installed"];
+	        this.shared = source["shared"];
 	    }
 	}
 	export class Progress {
@@ -362,6 +380,7 @@ export namespace library {
 	    thirdParty?: string;
 	    version?: string;
 	    updateAvailable?: boolean;
+	    antiCheat?: string;
 	    cloudSaves?: boolean;
 	    hero?: string;
 	
@@ -384,6 +403,7 @@ export namespace library {
 	        this.thirdParty = source["thirdParty"];
 	        this.version = source["version"];
 	        this.updateAvailable = source["updateAvailable"];
+	        this.antiCheat = source["antiCheat"];
 	        this.cloudSaves = source["cloudSaves"];
 	        this.hero = source["hero"];
 	    }

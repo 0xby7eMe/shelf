@@ -98,6 +98,14 @@ export function EpicVerify(arg1) {
   return window['go']['main']['App']['EpicVerify'](arg1);
 }
 
+export function GetBattlEyeInstall() {
+  return window['go']['main']['App']['GetBattlEyeInstall']();
+}
+
+export function GetBattlEyeRuntime() {
+  return window['go']['main']['App']['GetBattlEyeRuntime']();
+}
+
 export function GetEpicAccount() {
   return window['go']['main']['App']['GetEpicAccount']();
 }
@@ -156,6 +164,10 @@ export function GetUbisoftStatus() {
 
 export function Greet(arg1) {
   return window['go']['main']['App']['Greet'](arg1);
+}
+
+export function InstallBattlEyeRuntime() {
+  return window['go']['main']['App']['InstallBattlEyeRuntime']();
 }
 
 export function InstallProtonGE() {

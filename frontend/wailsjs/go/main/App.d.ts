@@ -53,6 +53,10 @@ export function EpicUpdates():Promise<Array<epic.UpdateInfo>>;
 
 export function EpicVerify(arg1:string):Promise<void>;
 
+export function GetBattlEyeInstall():Promise<epic.ProtonInstallState>;
+
+export function GetBattlEyeRuntime():Promise<epic.BattlEyeRuntime>;
+
 export function GetEpicAccount():Promise<epic.Account>;
 
 export function GetEpicGameSettings(arg1:string):Promise<epic.GameSettings>;
@@ -82,6 +86,8 @@ export function GetUbisoftSetup():Promise<epic.UbisoftSetupState>;
 export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
 
 export function Greet(arg1:string):Promise<string>;
+
+export function InstallBattlEyeRuntime():Promise<void>;
 
 export function InstallProtonGE():Promise<void>;
 

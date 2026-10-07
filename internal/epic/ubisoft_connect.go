@@ -281,6 +281,18 @@ func (m *Manager) runLogged(cmd *exec.Cmd, source, app string) error {
 // UbisoftReset deletes the Ubisoft Connect prefix: the login, and every game
 // installed inside it. Epic and cloud data are untouched.
 func (m *Manager) UbisoftReset() error {
+	if len(m.runningUbisoft()) > 0 {
+		return fmt.Errorf("a Ubisoft game is running; close it first")
+	}
+	// Connect itself may be open, and would write into a prefix being deleted.
+	stopPrefixProcesses(ubisoftPrefix())
+	m.mu.Lock()
+	m.connect, m.reg = nil, nil
+	m.mu.Unlock()
+	m.ubiMu.Lock()
+	m.ubiCache, m.ubiSizes, m.ubiPending = nil, nil, nil
+	m.ubiMu.Unlock()
+
 	if err := m.DeletePrefix(ubisoftPrefixName); err != nil {
 		return err
 	}
@@ -292,7 +304,7 @@ func (m *Manager) UbisoftReset() error {
 
 func (m *Manager) ubisoftBuild() (ProtonBuild, error) {
 	if !connectInstalled() {
-		return ProtonBuild{}, fmt.Errorf("set up Ubisoft Connect first (Settings, Ubisoft Connect)")
+		return ProtonBuild{}, fmt.Errorf("set up Ubisoft Connect first (Settings, Integrations, Ubisoft)")
 	}
 	build, ok := resolveProton(m.settings.get().ProtonPath)
 	if !ok {
@@ -488,7 +500,7 @@ func (m *Manager) UbisoftCloseConnect() error {
 
 // hand gives a uplay:// address to Connect through `proton run start`, which
 // passes it to Windows and so to the launcher, starting it if need be.
-func (m *Manager) hand(build ProtonBuild, uri, installDir string, gs GameSettings, app string) (*exec.Cmd, error) {
+func (m *Manager) hand(build ProtonBuild, uri, installDir string, extra []string, gs GameSettings, app string) (*exec.Cmd, error) {
 	wrapper, err := wrapperParts(gs, build)
 	if err != nil {
 		return nil, err
@@ -513,6 +525,7 @@ func (m *Manager) hand(build ProtonBuild, uri, installDir string, gs GameSetting
 	args := append(wrapper[1:], "start", uri)
 	cmd := exec.Command(wrapper[0], args...)
 	cmd.Env = append(library.ChildEnv(), connectEnv(build, installDir, false)...)
+	cmd.Env = append(cmd.Env, extra...)
 	cmd.Env = append(cmd.Env, env...)
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 	m.logf("launch", app, "proton: %s, prefix: %s", build.Name, ubisoftPrefix())
@@ -608,13 +621,20 @@ func (m *Manager) UbisoftLaunch(key string) error {
 	}
 
 	uri := "uplay://launch/" + strconv.Itoa(g.LaunchID) + "/0"
+	// BattlEye games need the runtime in the environment of the game, which
+	// is whatever Connect was started with.
+	beEnv, err := battleyeEnvFor(dir, g.Name)
+	if err != nil {
+		return err
+	}
+
 	// Connect may be downloading, and it was started with software rendering,
 	// which a game would inherit. Restarting it would end the download.
-	if len(m.ubisoftInstalling()) > 0 && m.settings.get().UbisoftSoftwareRendering {
+	if len(m.ubisoftInstalling()) > 0 && (m.settings.get().UbisoftSoftwareRendering || len(beEnv) > 0) {
 		return fmt.Errorf("Ubisoft Connect is still downloading a game. Wait for it to finish before playing")
 	}
 
-	cmd, err := m.hand(build, uri, dir, m.games.get(key), key)
+	cmd, err := m.hand(build, uri, dir, beEnv, m.games.get(key), key)
 	if err != nil {
 		return err
 	}

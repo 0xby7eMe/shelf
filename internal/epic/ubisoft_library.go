@@ -1,6 +1,7 @@
 package epic
 
 import (
+	"context"
 	"encoding/binary"
 	"fmt"
 	"net/url"
@@ -10,6 +11,7 @@ import (
 	"sort"
 	"strconv"
 	"strings"
+	"time"
 
 	"shelf/internal/library"
 )
@@ -429,11 +431,78 @@ func (p ubiProvider) Scan() ([]library.Game, error) {
 		if dir, ok := installs[strconv.Itoa(o.InstallID)]; ok && o.Platform == "" {
 			g.Installed = true
 			g.InstallPath = dir
+			g.AntiCheat = antiCheatOf(dir)
+			g.SizeBytes = m.ubiInstallSize(dir)
 		}
 		g.PlaytimeMinutes, g.LastPlayed = m.hist.Totals(key)
 		games = append(games, g)
 	}
 	return games, nil
+}
+
+// --- install sizes ---
+
+type ubiSizeEntry struct {
+	bytes int64
+	at    time.Time
+}
+
+// sizeTTL is how long a measured install size is trusted. Measuring walks the
+// whole game folder, so it is done in the background and not on every refresh.
+const sizeTTL = 5 * time.Minute
+
+// ubiInstallSize returns the space a game's folder takes, as last measured.
+// It never waits: a size that is missing or stale is measured in the
+// background, and the library refreshes when the number changes.
+func (m *Manager) ubiInstallSize(dir string) int64 {
+	m.ubiMu.Lock()
+	defer m.ubiMu.Unlock()
+	e, known := m.ubiSizes[dir]
+	if (!known || time.Since(e.at) > sizeTTL) && !m.ubiSizing[dir] {
+		if m.ubiSizing == nil {
+			m.ubiSizing = map[string]bool{}
+		}
+		m.ubiSizing[dir] = true
+		go func() {
+			ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
+			defer cancel()
+			bytes := diskUsage(ctx, dir)
+			m.ubiMu.Lock()
+			if m.ubiSizes == nil {
+				m.ubiSizes = map[string]ubiSizeEntry{}
+			}
+			prev, had := m.ubiSizes[dir]
+			m.ubiSizes[dir] = ubiSizeEntry{bytes: bytes, at: time.Now()}
+			delete(m.ubiSizing, dir)
+			m.ubiMu.Unlock()
+			if !had || prev.bytes != bytes {
+				m.send("library:changed", nil)
+			}
+		}()
+	}
+	return e.bytes
+}
+
+// ubiInstallSizeNow is ubiInstallSize for callers that can wait, such as the
+// storage view, which wants the real number.
+func (m *Manager) ubiInstallSizeNow(ctx context.Context, dir string) int64 {
+	m.ubiMu.Lock()
+	e, known := m.ubiSizes[dir]
+	m.ubiMu.Unlock()
+	if known && time.Since(e.at) <= sizeTTL {
+		return e.bytes
+	}
+	bytes := diskUsage(ctx, dir)
+	if ctx.Err() != nil {
+		return bytes
+	}
+	m.ubiMu.Lock()
+	if m.ubiSizes == nil {
+		m.ubiSizes = map[string]ubiSizeEntry{}
+	}
+	m.ubiSizes[dir] = ubiSizeEntry{bytes: bytes, at: time.Now()}
+	m.ubiMu.Unlock()
+	return bytes
 }
 
 // UbisoftStoreURL returns Ubisoft's store search for a game.

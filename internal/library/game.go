@@ -22,6 +22,7 @@ type Game struct {
 	ThirdParty      string `json:"thirdParty,omitempty"` // store that must install the game, e.g. "Ubisoft Connect"
 	Version         string `json:"version,omitempty"`
 	UpdateAvailable bool   `json:"updateAvailable,omitempty"`
+	AntiCheat       string `json:"antiCheat,omitempty"`  // anti-cheat the game ships with, e.g. "BattlEye"
 	CloudSaves      bool   `json:"cloudSaves,omitempty"` // the game supports cloud saves
 	Hero            string `json:"hero,omitempty"`       // wide banner; empty means derive it from Cover
 }

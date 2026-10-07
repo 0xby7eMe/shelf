@@ -25,6 +25,8 @@ import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "
 import { heroSrc } from "@/lib/cover"
 import { jobLabel } from "@/lib/use-epic"
 import { cn } from "@/lib/utils"
+import { BattlEyeNotice, needsBattlEyeNotice } from "@/components/battleye-notice"
+import { useBattlEyeRuntime } from "@/lib/use-battleye"
 import { LiveDot } from "@/components/live-dot"
 
 // What the sheet can ask the app to do with an Epic game.
@@ -140,6 +142,7 @@ function Body({
 	const [armed, setArmed] = useState(false)
 	const isEpic = game.source === "epic"
 	const isUbisoft = game.source === "ubisoft"
+	const battleye = useBattlEyeRuntime()
 	const needsInstall = (isEpic || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
@@ -286,6 +289,12 @@ function Body({
 						</div>
 					)}
 				</Reveal>
+
+				{needsBattlEyeNotice(game, battleye) && (
+					<Reveal i={3}>
+						<BattlEyeNotice game={game} be={battleye} />
+					</Reveal>
+				)}
 
 				<Reveal i={3} className="grid grid-cols-2 gap-3">
 					<Stat label="Playtime" value={formatPlaytime(game.playtimeMinutes)} />

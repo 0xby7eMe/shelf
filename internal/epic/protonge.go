@@ -8,6 +8,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"hash"
 	"io"
 	"net/http"
 	"os"
@@ -194,7 +195,7 @@ func (m *Manager) installProtonGE(ctx context.Context, report func(float64, stri
 	report(0, "Downloading "+rel.Tag)
 	archive := filepath.Join(root, "."+rel.Tag+".tar.gz.part")
 	defer os.Remove(archive)
-	if err := downloadVerified(ctx, tarURL, archive, want, func(f float64) { report(f*80, "Downloading "+rel.Tag) }); err != nil {
+	if err := downloadVerified(ctx, tarURL, archive, sha512.New(), want, func(f float64) { report(f*80, "Downloading "+rel.Tag) }); err != nil {
 		return "", err
 	}
 
@@ -226,8 +227,9 @@ func (m *Manager) installProtonGE(ctx context.Context, report func(float64, stri
 	return rel.Tag, nil
 }
 
-// downloadVerified saves url to dest and checks its SHA-512.
-func downloadVerified(ctx context.Context, url, dest, wantSum string, progress func(float64)) error {
+// downloadVerified saves url to dest and checks its digest, computed with h,
+// against the hex string wantSum.
+func downloadVerified(ctx context.Context, url, dest string, h hash.Hash, wantSum string, progress func(float64)) error {
 	resp, err := httpGet(ctx, url)
 	if err != nil {
 		return fmt.Errorf("couldn't download it: %w", err)
@@ -239,7 +241,6 @@ func downloadVerified(ctx context.Context, url, dest, wantSum string, progress f
 	}
 	defer f.Close()
 
-	h := sha512.New()
 	var done int64
 	buf := make([]byte, 256*1024)
 	last := time.Now()
@@ -270,7 +271,7 @@ func downloadVerified(ctx context.Context, url, dest, wantSum string, progress f
 	return nil
 }
 
-// extractTarGz unpacks an archive into dest, refusing anything that would
+// extractTarGz unpacks a .tar.gz into dest, refusing anything that would
 // land outside it.
 func extractTarGz(archive, dest string) error {
 	f, err := os.Open(archive)
@@ -283,6 +284,12 @@ func extractTarGz(archive, dest string) error {
 		return err
 	}
 	defer gz.Close()
+	return extractTar(gz, dest)
+}
+
+// extractTar unpacks a tar stream into dest, refusing anything that would
+// land outside it.
+func extractTar(r io.Reader, dest string) error {
 	if err := os.MkdirAll(dest, 0o755); err != nil {
 		return err
 	}
@@ -291,7 +298,7 @@ func extractTarGz(archive, dest string) error {
 		return err
 	}
 
-	tr := tar.NewReader(gz)
+	tr := tar.NewReader(r)
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {

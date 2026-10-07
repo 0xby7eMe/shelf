@@ -293,6 +293,12 @@ func (a *App) OpenLogsFolder() error {
 	return library.OpenFolder(dir)
 }
 
+func (a *App) GetBattlEyeRuntime() epic.BattlEyeRuntime { return a.epic.BattlEyeRuntime() }
+
+func (a *App) InstallBattlEyeRuntime() error { return a.epic.InstallBattlEyeRuntime() }
+
+func (a *App) GetBattlEyeInstall() epic.ProtonInstallState { return a.epic.BattlEyeInstallState() }
+
 func (a *App) InstallProtonGE() error { return a.epic.InstallProtonGE() }
 
 func (a *App) GetProtonInstall() epic.ProtonInstallState { return a.epic.ProtonInstallState() }

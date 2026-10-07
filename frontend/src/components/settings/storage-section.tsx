@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { RefreshCw, Trash2 } from "lucide-react"
 
-import { EpicDeletePrefix, GetStorage } from "../../../wailsjs/go/main/App"
+import { EpicDeletePrefix, GetStorage, UbisoftReset } from "../../../wailsjs/go/main/App"
 import { library, main } from "../../../wailsjs/go/models"
 import { Bar, IconButton, Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { formatBytes } from "@/lib/format"
@@ -14,7 +14,7 @@ interface Props {
 	onSelect: (game: library.Game) => void
 }
 
-type Store = "all" | "steam" | "epic"
+type Store = "all" | "steam" | "epic" | "ubisoft"
 
 const sizeOf = (g: library.Game) => g.sizeBytes ?? 0
 
@@ -50,7 +50,10 @@ export function StorageSection({ games, onSelect }: Props) {
 	const sum = (src: string) =>
 		games.filter((g) => g.installed && g.source === src).reduce((n, g) => n + sizeOf(g), 0)
 	const prefixTotal = (storage?.prefixes ?? []).reduce((n, p) => n + p.bytes, 0)
-	const leftovers = (storage?.prefixes ?? []).filter((p) => !p.installed)
+	// Ubisoft's games all live inside one prefix, shown on its own: deleting it
+	// removes every one of them, so it is never offered as a leftover.
+	const shared = (storage?.prefixes ?? []).find((p) => p.shared)
+	const leftovers = (storage?.prefixes ?? []).filter((p) => !p.installed && !p.shared)
 
 	async function removePrefix(appName: string, title: string, installed: boolean, cover?: string) {
 		const ok = await confirm({
@@ -72,13 +75,32 @@ export function StorageSection({ games, onSelect }: Props) {
 		}
 	}
 
+	async function resetUbisoft() {
+		const ok = await confirm({
+			title: "Reset Ubisoft Connect?",
+			description:
+				"This deletes Ubisoft Connect's Proton prefix: its login and every Ubisoft game installed inside it, which means downloading them again. Your Ubisoft account and your library in Shelf are not affected.",
+			confirmLabel: "Reset and delete games",
+			destructive: true,
+		})
+		if (!ok) return
+		try {
+			await UbisoftReset()
+			toast.success("Ubisoft Connect was reset")
+			load()
+		} catch (e) {
+			toast.error("Couldn't reset Ubisoft Connect", { description: String(e) })
+		}
+	}
+
 	return (
 		<div className="space-y-6">
 			<SectionHeading title="Storage" hint="What your installed games and their Proton prefixes take up." />
 
-			<div className="grid grid-cols-3 gap-3">
+			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
 				<Stat label="Steam games" value={formatBytes(sum("steam"))} />
 				<Stat label="Epic games" value={formatBytes(sum("epic"))} />
+				<Stat label="Ubisoft games" value={formatBytes(sum("ubisoft"))} />
 				<Stat label="Proton prefixes" value={formatBytes(prefixTotal)} />
 			</div>
 
@@ -107,7 +129,7 @@ export function StorageSection({ games, onSelect }: Props) {
 
 			<div className="flex items-center justify-between">
 				<div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5">
-					{(["all", "steam", "epic"] as const).map((s) => (
+					{(["all", "steam", "epic", "ubisoft"] as const).map((s) => (
 						<button
 							key={s}
 							onClick={() => setStore(s)}
@@ -164,6 +186,27 @@ export function StorageSection({ games, onSelect }: Props) {
 						</li>
 					))}
 				</ul>
+			)}
+
+			{shared && (
+				<Panel>
+					<div className="flex items-center justify-between gap-3">
+						<div className="min-w-0">
+							<Label>Ubisoft Connect</Label>
+							<p className="mt-1 text-sm">
+								<span className="font-medium tabular-nums">{formatBytes(shared.bytes)}</span>
+								<span className="text-white/45"> for Connect and its Proton prefix</span>
+							</p>
+							<p className="mt-1 text-xs text-white/40">
+								Ubisoft's games are installed inside this prefix and are counted on their own above. Resetting it
+								deletes them too.
+							</p>
+						</div>
+						<PillButton variant="danger" className="h-8 shrink-0 px-3.5" onClick={resetUbisoft}>
+							Reset
+						</PillButton>
+					</div>
+				</Panel>
 			)}
 
 			{leftovers.length > 0 && (

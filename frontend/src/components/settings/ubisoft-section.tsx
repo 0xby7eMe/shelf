@@ -17,6 +17,7 @@ import {
 import { epic } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { ToggleRow } from "@/components/toggle-row"
+import { BattlEyePanel } from "@/components/settings/battleye-panel"
 import { IconButton, Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { confirm } from "@/lib/confirm"
 import { toast } from "@/lib/toast"
@@ -207,6 +208,8 @@ export function UbisoftSection() {
 					</PillButton>
 				</div>
 			</Panel>
+
+			<BattlEyePanel />
 
 			<Panel>
 				<ToggleRow

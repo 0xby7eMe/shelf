@@ -1,6 +1,7 @@
 package epic
 
 import (
+	"bufio"
 	"bytes"
 	"context"
 	"fmt"
@@ -8,6 +9,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+	"sync"
 	"syscall"
 	"time"
 
@@ -159,15 +161,35 @@ func (m *Manager) Launch(appName string) error {
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
-	logf, err := openLog(appName)
-	if err == nil {
+	// The game keeps writing to this pipe long after legendary itself has
+	// exited, until the game closes. It ends up in the log file and the log window.
+	logf, _ := openLog(appName)
+	out := &gameOutput{done: make(chan struct{})}
+	pr, pw, perr := os.Pipe()
+	if perr == nil {
+		cmd.Stdout, cmd.Stderr = pw, pw
+	} else if logf != nil {
 		cmd.Stdout, cmd.Stderr = logf, logf
 	}
+
+	m.logf("launch", appName, "$ %s", commandLine(args))
+	m.logf("launch", appName, "proton: %s, prefix: %s", build.Name, prefix)
 	if err := cmd.Start(); err != nil {
+		if perr == nil {
+			pr.Close()
+			pw.Close()
+		}
 		if logf != nil {
 			logf.Close()
 		}
+		m.logf("launch", appName, "ERROR: %v", err)
 		return err
+	}
+	if perr == nil {
+		pw.Close() // the child holds its own copy
+		go m.pumpGameOutput(appName, pr, logf, out)
+	} else {
+		close(out.done)
 	}
 
 	started := time.Now()
@@ -177,17 +199,19 @@ func (m *Manager) Launch(appName string) error {
 
 	go func() {
 		waitErr := cmd.Wait()
-		if logf != nil {
-			logf.Close()
-		}
 		m.mu.Lock()
 		delete(m.running, appName)
 		m.mu.Unlock()
 
 		if waitErr != nil && time.Since(started) < quickExit {
+			// If the launcher failed, nothing holds the pipe open, so this ends quickly.
+			select {
+			case <-out.done:
+			case <-time.After(2 * time.Second):
+			}
 			m.send("epic:launch-error", map[string]string{
 				"appName": appName,
-				"message": launchFailure(appName, waitErr),
+				"message": launchFailure(appName, waitErr, out.last()),
 			})
 		}
 	}()
@@ -269,13 +293,51 @@ func openLog(appName string) (*os.File, error) {
 	return os.Create(p)
 }
 
-func launchFailure(appName string, err error) string {
-	msg := err.Error()
-	if data, rerr := os.ReadFile(logPath(appName)); rerr == nil {
-		lines := strings.Split(strings.TrimSpace(string(data)), "\n")
-		if n := len(lines); n > 0 && lines[n-1] != "" {
-			msg = lines[n-1]
+// gameOutput remembers the end of a game's output for error messages.
+type gameOutput struct {
+	mu   sync.Mutex
+	line string
+	done chan struct{}
+}
+
+func (g *gameOutput) last() string {
+	g.mu.Lock()
+	defer g.mu.Unlock()
+	return g.line
+}
+
+// pumpGameOutput copies everything the game prints into the log file and the log window.
+func (m *Manager) pumpGameOutput(appName string, r *os.File, file *os.File, out *gameOutput) {
+	defer close(out.done)
+	defer r.Close()
+	if file != nil {
+		defer file.Close()
+	}
+	sc := bufio.NewScanner(r)
+	sc.Buffer(make([]byte, 64*1024), 1024*1024)
+	for sc.Scan() {
+		line := sc.Text()
+		if file != nil {
+			fmt.Fprintln(file, line)
 		}
+		if strings.TrimSpace(line) == "" {
+			continue
+		}
+		out.mu.Lock()
+		out.line = line
+		out.mu.Unlock()
+		m.log.Add("launch", appName, line)
+	}
+	m.logf("launch", appName, "process output closed")
+}
+
+// LogsDir is where per-game launch logs are written.
+func LogsDir() string { return filepath.Join(dataDir(), "logs") }
+
+func launchFailure(appName string, err error, last string) string {
+	msg := err.Error()
+	if last != "" {
+		msg = last
 	}
 	return fmt.Sprintf("Launch failed: %s (log: %s)", tail(msg, 200), logPath(appName))
 }

@@ -1,20 +1,22 @@
-import { ArrowLeft, Download, HardDrive, Gamepad2, Store } from "lucide-react"
+import { ArrowLeft, Download, HardDrive, Gamepad2, SlidersHorizontal, Store } from "lucide-react"
 
 import { epic, library } from "../../../wailsjs/go/models"
 import { WindowControls } from "@/components/window-controls"
+import { AdvancedSection } from "@/components/settings/advanced-section"
 import { ControllerSection } from "@/components/settings/controller-section"
 import { DownloadsSection } from "@/components/settings/downloads-section"
 import { EpicSection } from "@/components/settings/epic-section"
 import { StorageSection } from "@/components/settings/storage-section"
 import { cn } from "@/lib/utils"
 
-export type SettingsSection = "epic" | "downloads" | "storage" | "controller"
+export type SettingsSection = "epic" | "downloads" | "storage" | "controller" | "advanced"
 
 export const SECTIONS: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
 	{ id: "epic", label: "Epic Games", icon: Store },
 	{ id: "downloads", label: "Downloads", icon: Download },
 	{ id: "storage", label: "Storage", icon: HardDrive },
 	{ id: "controller", label: "Controller", icon: Gamepad2 },
+	{ id: "advanced", label: "Advanced", icon: SlidersHorizontal },
 ]
 
 interface Props {
@@ -88,6 +90,7 @@ export function SettingsPage({
 					{section === "downloads" && <DownloadsSection queue={queue} games={games} />}
 					{section === "storage" && <StorageSection games={games} onSelect={onSelectGame} />}
 					{section === "controller" && <ControllerSection />}
+					{section === "advanced" && <AdvancedSection />}
 				</main>
 			</div>
 		</div>

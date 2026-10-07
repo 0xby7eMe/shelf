@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"os"
 	"path/filepath"
 	"strings"
 	"sync"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"shelf/internal/applog"
 	"shelf/internal/epic"
 	"shelf/internal/library"
 )
@@ -46,6 +48,9 @@ func (a *App) startup(ctx context.Context) {
 	a.ctx = ctx
 	a.epic.SetEmitter(func(event string, data any) {
 		runtime.EventsEmit(ctx, event, data)
+	})
+	a.epic.Log().SetEmitter(func(lines []applog.Line) {
+		runtime.EventsEmit(ctx, "log:lines", lines)
 	})
 
 	a.epic.Start(ctx)
@@ -247,6 +252,18 @@ func (a *App) GetStorage() Storage {
 }
 
 func (a *App) EpicDeletePrefix(appName string) error { return a.epic.DeletePrefix(appName) }
+
+func (a *App) GetLogs() []applog.Line { return a.epic.Log().Snapshot() }
+
+func (a *App) ClearLogs() { a.epic.Log().Clear() }
+
+func (a *App) OpenLogsFolder() error {
+	dir := epic.LogsDir()
+	if err := os.MkdirAll(dir, 0o755); err != nil {
+		return err
+	}
+	return library.OpenFolder(dir)
+}
 
 func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 

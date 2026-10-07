@@ -14,6 +14,7 @@ import (
 	"strings"
 	"sync"
 
+	"shelf/internal/applog"
 	"shelf/internal/library"
 )
 
@@ -29,6 +30,7 @@ type Manager struct {
 	games    *gameSettingsStore
 	hist     *library.History
 	emit     func(event string, data any)
+	log      *applog.Log
 
 	// legendary keeps its own config, kept apart from a user's existing legendary/Heroic login.
 	cfgDir string
@@ -55,6 +57,7 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 		games:    newGameSettingsStore(),
 		hist:     hist,
 		emit:     emit,
+		log:      applog.New(3000),
 		installs: map[string]*installJob{},
 		running:  map[string]*exec.Cmd{},
 
@@ -64,6 +67,26 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 		m.cfgDir = filepath.Join(dir, "legendary")
 	}
 	return m
+}
+
+// Log returns the log shown in the log window.
+func (m *Manager) Log() *applog.Log { return m.log }
+
+// logf records a line for the log window.
+func (m *Manager) logf(source, app, format string, args ...any) {
+	m.log.Add(source, app, fmt.Sprintf(format, args...))
+}
+
+// commandLine renders legendary arguments the way a person would type them.
+func commandLine(args []string) string {
+	parts := make([]string, len(args))
+	for i, a := range args {
+		if strings.ContainsAny(a, " \t'\"") {
+			a = shellQuote(a)
+		}
+		parts[i] = a
+	}
+	return "legendary " + strings.Join(parts, " ")
 }
 
 // SetEmitter replaces the event publisher, for use once the app context exists.
@@ -128,6 +151,8 @@ func (m *Manager) run(ctx context.Context, args ...string) ([]byte, error) {
 	var stdout, stderr bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &stdout, &stderr
 	if err := cmd.Run(); err != nil {
+		m.logf("legendary", "", "$ %s", commandLine(args))
+		m.log.AddLines("legendary", "", stderr.String())
 		return nil, fmt.Errorf("legendary %s: %w: %s", args[0], err, tail(stderr.String(), 400))
 	}
 	return stdout.Bytes(), nil
@@ -141,7 +166,12 @@ func (m *Manager) runAll(ctx context.Context, args ...string) (string, error) {
 	}
 	var out bytes.Buffer
 	cmd.Stdout, cmd.Stderr = &out, &out
-	if err := cmd.Run(); err != nil {
+	err = cmd.Run()
+	if err != nil {
+		m.logf("legendary", "", "$ %s", commandLine(args))
+	}
+	if err != nil {
+		m.log.AddLines("legendary", "", out.String())
 		return "", fmt.Errorf("legendary %s: %w: %s", args[0], err, tail(out.String(), 400))
 	}
 	return out.String(), nil

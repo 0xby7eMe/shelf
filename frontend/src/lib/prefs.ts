@@ -6,10 +6,12 @@ export interface Prefs {
 	gamepad: boolean
 	sounds: boolean
 	volume: number // 0-100
+	logWindow: boolean // show the log window button
+	logHeight: number // px
 }
 
 const KEY = "shelf:prefs"
-const defaults: Prefs = { gamepad: true, sounds: true, volume: 80 }
+const defaults: Prefs = { gamepad: true, sounds: true, volume: 80, logWindow: false, logHeight: 280 }
 
 function load(): Prefs {
 	try {
@@ -23,6 +25,11 @@ function load(): Prefs {
 					typeof saved.volume === "number"
 						? Math.min(100, Math.max(0, saved.volume))
 						: defaults.volume,
+				logWindow: typeof saved.logWindow === "boolean" ? saved.logWindow : defaults.logWindow,
+				logHeight:
+					typeof saved.logHeight === "number"
+						? Math.min(900, Math.max(120, saved.logHeight))
+						: defaults.logHeight,
 			}
 		}
 	} catch {

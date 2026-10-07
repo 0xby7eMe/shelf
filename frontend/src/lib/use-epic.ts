@@ -3,6 +3,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { EpicQueue, EpicRepair, GetEpicAccount, Launch } from "../../wailsjs/go/main/App"
 import { epic, library } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
+import { setLogOpen } from "@/lib/logs"
+import { getPrefs } from "@/lib/prefs"
 import { toast } from "@/lib/toast"
 
 // Payloads of backend events that aren't part of the generated bindings.
@@ -116,9 +118,10 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 			}
 		})
 
-		const offLaunch = EventsOn("epic:launch-error", (e: { message: string }) =>
+		const offLaunch = EventsOn("epic:launch-error", (e: { message: string }) => {
 			toast.error("Game failed to start", { description: e.message })
-		)
+			if (getPrefs().logWindow) setLogOpen(true)
+		})
 
 		const offSaves = EventsOn("epic:saves", (e: SaveEvent) => {
 			const title = titleOf(e.appName)

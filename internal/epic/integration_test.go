@@ -23,6 +23,7 @@ install)
   ;;
 launch)
   { echo "ARGS: $*"; env | grep -E '^(STEAM_COMPAT|LEGENDARY)'; } > "$GAMES/launch.out"
+  echo "game says hi"
   ;;
 esac
 `
@@ -106,6 +107,19 @@ func TestFakeLegendaryFlow(t *testing.T) {
 		if !strings.Contains(string(out), want) {
 			t.Errorf("launch output missing %q:\n%s", want, out)
 		}
+	}
+
+	// What the game prints reaches the log window.
+	logged := false
+	for end := time.Now().Add(3 * time.Second); time.Now().Before(end) && !logged; time.Sleep(20 * time.Millisecond) {
+		for _, l := range m.Log().Snapshot() {
+			if l.Source == "launch" && l.App == "Sugar" && l.Text == "game says hi" {
+				logged = true
+			}
+		}
+	}
+	if !logged {
+		t.Error("game output missing from the log")
 	}
 
 	// Per-game options end up on the command line and in the environment.

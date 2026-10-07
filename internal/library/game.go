@@ -18,6 +18,7 @@ type Game struct {
 	InstallPath     string `json:"installPath,omitempty"`
 	Cover           string `json:"cover,omitempty"` 
 	SizeBytes       int64  `json:"sizeBytes,omitempty"` // space the install takes on disk
+	ThirdParty      string `json:"thirdParty,omitempty"` // store that must install the game, e.g. "Ubisoft Connect"
 	Version         string `json:"version,omitempty"`
 	UpdateAvailable bool   `json:"updateAvailable,omitempty"`
 	CloudSaves      bool   `json:"cloudSaves,omitempty"` // the game supports cloud saves

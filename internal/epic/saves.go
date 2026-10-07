@@ -17,6 +17,19 @@ type SaveEvent struct {
 	Error   string `json:"error,omitempty"`
 }
 
+// thirdPartyStoreOf names the launcher an owned game must be installed through, or "".
+func (m *Manager) thirdPartyStoreOf(appName string) string {
+	m.mu.Lock()
+	owned := m.owned
+	m.mu.Unlock()
+	for _, o := range owned {
+		if o.AppName == appName {
+			return o.thirdPartyStore()
+		}
+	}
+	return ""
+}
+
 func (m *Manager) supportsCloudSaves(appName string) bool {
 	m.mu.Lock()
 	owned := m.owned
@@ -128,7 +141,12 @@ func (m *Manager) syncSaves(appName, direction string) (state string, err error)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Minute)
 	defer cancel()
+	m.logf("saves", appName, "$ %s", commandLine(args))
 	out, err := m.runAll(ctx, args...)
+	m.log.AddLines("saves", appName, out)
+	if err != nil {
+		m.logf("saves", appName, "ERROR: %v", err)
+	}
 	switch {
 	case err != nil:
 		return "", err

@@ -1,3 +1,28 @@
+export namespace applog {
+	
+	export class Line {
+	    time: number;
+	    source: string;
+	    app?: string;
+	    level: string;
+	    text: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Line(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.time = source["time"];
+	        this.source = source["source"];
+	        this.app = source["app"];
+	        this.level = source["level"];
+	        this.text = source["text"];
+	    }
+	}
+
+}
+
 export namespace epic {
 	
 	export class Account {
@@ -254,6 +279,7 @@ export namespace library {
 	    installPath?: string;
 	    cover?: string;
 	    sizeBytes?: number;
+	    thirdParty?: string;
 	    version?: string;
 	    updateAvailable?: boolean;
 	    cloudSaves?: boolean;
@@ -275,6 +301,7 @@ export namespace library {
 	        this.installPath = source["installPath"];
 	        this.cover = source["cover"];
 	        this.sizeBytes = source["sizeBytes"];
+	        this.thirdParty = source["thirdParty"];
 	        this.version = source["version"];
 	        this.updateAvailable = source["updateAvailable"];
 	        this.cloudSaves = source["cloudSaves"];

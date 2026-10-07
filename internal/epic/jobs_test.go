@@ -14,6 +14,9 @@ import (
 const fakeLegendary2 = `#!/bin/sh
 echo "$@" >> "$GAMES/calls.log"
 case "$*" in
+*"install Ghost"*)
+  echo "[cli] ERROR: The selected title has to be installed via a third-party store: UbisoftConnect"
+  ;;
 *verify*)
   printf 'Verification progress: 1/2 (50.0%%) [1.0 MiB/s]\r'
   echo "[cli] ERROR: Verification failed, 1 file(s) corrupted, 2 file(s) are missing."
@@ -100,8 +103,36 @@ func TestJobsAndSaves(t *testing.T) {
 
 	// Update flagged on the game.
 	list, _ := m.Provider().Scan()
-	if len(list) != 1 || !list[0].UpdateAvailable || !list[0].CloudSaves || list[0].Version != "1" {
+	if len(list) < 1 || !list[0].UpdateAvailable || !list[0].CloudSaves || list[0].Version != "1" {
 		t.Fatalf("scan: %+v", list)
+	}
+
+	// Games that must be installed through another launcher are refused up front...
+	m.owned = append(m.owned, ownedGame{AppName: "Ubi", AppTitle: "Ubi Game"})
+	m.owned[1].Metadata.CustomAttributes = map[string]struct {
+		Value string `json:"value"`
+	}{"ThirdPartyManagedProvider": {Value: "UbisoftConnect"}}
+	if err := m.Install("Ubi"); err == nil || !strings.Contains(err.Error(), "Ubisoft Connect") {
+		t.Errorf("third-party game: %v", err)
+	}
+	if g, _ := m.Provider().Scan(); len(g) != 2 || g[1].ThirdParty != "Ubisoft Connect" {
+		t.Errorf("third party not reported: %+v", g)
+	}
+	// ...and when legendary refuses but exits 0, that is a failure, not a success.
+	if err := m.Install("Ghost"); err != nil {
+		t.Fatal(err)
+	}
+	if e := rec.waitFinal(t, KindInstall); e.State != StateFailed || !strings.Contains(e.Error, "Ubisoft Connect") {
+		t.Fatalf("silent refusal: %+v", e)
+	}
+	var found bool
+	for _, l := range m.Log().Snapshot() {
+		if l.Source == KindInstall && l.App == "Ghost" && strings.Contains(l.Text, "third-party store") {
+			found = true
+		}
+	}
+	if !found {
+		t.Error("legendary's output didn't reach the log")
 	}
 
 	// An outdated game refuses to launch, unless allowed.

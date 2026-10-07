@@ -80,11 +80,15 @@ func (m *Manager) CheckUpdates() ([]UpdateInfo, error) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 3*time.Minute)
 	defer cancel()
+	m.logf("updates", "", "checking for updates")
 	if _, err := m.run(ctx, "list-installed", "--check-updates", "--csv"); err != nil {
+		m.logf("updates", "", "ERROR: %v", err)
 		return nil, err
 	}
 	m.send("library:changed", nil)
-	return m.Updates(), nil
+	found := m.Updates()
+	m.logf("updates", "", "%d update(s) available", len(found))
+	return found, nil
 }
 
 // updateRequired is true when launching would be refused for an outdated game.

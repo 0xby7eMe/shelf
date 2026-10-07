@@ -252,6 +252,7 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 		job.p.State = StateInstalling
 		job.mu.Unlock()
 		m.send("epic:install", job.snapshot())
+		m.logf(kind, appName, "$ %s", commandLine(args))
 
 		var lines []string
 		var lastEmit time.Time
@@ -267,6 +268,7 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 				lines = lines[1:]
 			}
 			lines = append(lines, line)
+			m.log.Add(kind, appName, line)
 
 			job.mu.Lock()
 			changed := parseProgress(line, &job.p)
@@ -287,6 +289,10 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 			m.finishJob(job, state, msg, damaged)
 		case runErr != nil:
 			m.finishJob(job, StateFailed, failureLine(lines), false)
+		case kind != KindRepair && !m.isInstalled(appName):
+			// Legendary exits 0 even when it refused, e.g. for games that
+			// have to be installed through another launcher.
+			m.finishJob(job, StateFailed, refusalReason(lines), false)
 		default:
 			m.finishJob(job, StateDone, "", false)
 		}
@@ -312,6 +318,27 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 	}
 	m.broadcastQueue()
 	return nil
+}
+
+func (m *Manager) isInstalled(appName string) bool {
+	_, ok := m.readInstalled()[appName]
+	return ok
+}
+
+// refusalReason explains a "successful" run that installed nothing.
+func refusalReason(lines []string) string {
+	for _, l := range lines {
+		if i := strings.Index(l, "has to be installed via a third-party store: "); i >= 0 {
+			store := storeName(strings.TrimSpace(l[i+len("has to be installed via a third-party store: "):]))
+			return fmt.Sprintf("This game has to be installed through %s, which Shelf can't do.", store)
+		}
+	}
+	for i := len(lines) - 1; i >= 0; i-- {
+		if strings.Contains(lines[i], "ERROR") || strings.Contains(lines[i], "CRITICAL") {
+			return tail(lines[i], 300)
+		}
+	}
+	return "Legendary finished without installing the game. See the log for details."
 }
 
 // verifyVerdict reads legendary's verdict from its output rather than its
@@ -364,6 +391,15 @@ func (m *Manager) finishJob(job *installJob, state, msg string, damaged bool) {
 	}
 	m.mu.Unlock()
 
+	switch final.State {
+	case StateDone:
+		m.logf(final.Kind, final.AppName, "finished")
+	case StateCancelled:
+		m.logf(final.Kind, final.AppName, "cancelled")
+	case StateFailed:
+		m.logf(final.Kind, final.AppName, "ERROR: %s", final.Error)
+	}
+
 	m.send("epic:install", final)
 	m.send("library:changed", nil)
 	m.pump()
@@ -391,6 +427,9 @@ func (m *Manager) Install(appName string) error {
 	}
 	if _, ok := m.readInstalled()[appName]; ok {
 		return fmt.Errorf("already installed")
+	}
+	if store := m.thirdPartyStoreOf(appName); store != "" {
+		return fmt.Errorf("this game has to be installed through %s, which Shelf can't do", store)
 	}
 	base := m.settings.get().InstallDir
 	if err := os.MkdirAll(base, 0o755); err != nil {

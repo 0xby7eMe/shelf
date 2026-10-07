@@ -30,7 +30,7 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, RefreshCw, Search, Settings, Shuffle } from "lucide-react"
+import { Activity, Download, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
 import { useEpic } from "@/lib/use-epic"
@@ -39,7 +39,10 @@ import { confirm } from "@/lib/confirm"
 import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
+import { LogPanel } from "@/components/log-panel"
 import { PadHints } from "@/components/pad-hints"
+import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
+import { usePrefs } from "@/lib/prefs"
 import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
 import { useGamepad } from "@/lib/gamepad"
 import { useStableHover } from "@/lib/hover"
@@ -191,6 +194,10 @@ function App() {
 	})
 
 	useStableHover()
+
+	const prefs = usePrefs()
+	const logOpen = useLogOpen()
+	useEffect(() => startLogs(), [])
 
 	const filters: Filter[] = ["all", "installed", "favorites"]
 	useGamepad({
@@ -421,6 +428,21 @@ function App() {
 					</button>
 				)}
 
+				{prefs.logWindow && (
+					<button
+						onClick={() => setLogOpen(!logOpen)}
+						title="Log window"
+						aria-label="Log window"
+						aria-pressed={logOpen}
+						className={cn(
+							"grid size-9 place-items-center rounded-full ring-1 ring-white/5 backdrop-blur-md transition hover:bg-white/10 hover:text-white",
+							logOpen ? "bg-white/15 text-white" : "bg-white/5 text-white/70"
+						)}
+					>
+						<Terminal className="size-3.5" />
+					</button>
+				)}
+
 				<button
 					onClick={() => setSettings("epic")}
 					title="Settings"
@@ -546,6 +568,7 @@ function App() {
 			/>
 		</div>
 
+		{prefs.logWindow && <LogPanel games={games ?? NO_GAMES} />}
 		<ConfirmDialog />
 		<Toaster />
 		<PadHints inSettings={settings !== null} />

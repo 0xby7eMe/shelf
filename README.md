@@ -54,6 +54,10 @@ Beyond install and play:
 
 Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Launch logs are in `~/.local/share/shelf/logs`. Play time for Epic games is recorded while Shelf is running.
 
+## Log window
+
+Settings, Advanced turns on a log window: a console along the bottom of the window with live output from downloads, updates, game launches and cloud saves, filterable and copyable. It opens by itself when a game fails to start. Each game's launch output is also written to `~/.local/share/shelf/logs`.
+
 ## Controller
 
 Plug in a gamepad and press any button (the window needs focus). The D-pad or left stick moves, **A** selects, **B** goes back or closes, **X** favorites, **Y** picks a random game, **LB/RB** switch tabs, **Start** opens settings and the right stick scrolls. Sounds and navigation can be turned off under Settings, Controller.

@@ -43,6 +43,28 @@ type installedGame struct {
 	Platform    string `json:"platform"`
 }
 
+// thirdPartyStore is the launcher a game has to be installed through, if any.
+// Epic only hands out an activation for those; legendary can't download them.
+func (o ownedGame) thirdPartyStore() string {
+	attrs := o.Metadata.CustomAttributes
+	if v := attrs["ThirdPartyManagedApp"].Value; v != "" {
+		return storeName(v)
+	}
+	return storeName(attrs["ThirdPartyManagedProvider"].Value)
+}
+
+func storeName(raw string) string {
+	switch strings.ToLower(raw) {
+	case "":
+		return ""
+	case "ubisoftconnect":
+		return "Ubisoft Connect"
+	case "origin", "the ea app":
+		return "the EA app"
+	}
+	return raw
+}
+
 // supportsCloudSaves reports whether Epic gave the game a cloud save folder.
 func (o ownedGame) supportsCloudSaves() bool {
 	return o.Metadata.CustomAttributes["CloudSaveFolder"].Value != ""
@@ -209,6 +231,7 @@ func (p provider) Scan() ([]library.Game, error) {
 			Hero:       pickImage(o.Metadata.KeyImages, "DieselGameBox", "OfferImageWide", "DieselStoreFrontWide"),
 		}
 		g.CloudSaves = o.supportsCloudSaves()
+		g.ThirdParty = o.thirdPartyStore()
 		if in, ok := installed[o.AppName]; ok {
 			g.Installed = true
 			g.InstallPath = in.InstallPath

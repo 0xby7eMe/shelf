@@ -219,6 +219,20 @@ function Body({
 								<X className="size-4" />
 							</button>
 						</div>
+					) : isEpic && !game.installed && game.thirdParty ? (
+						<div className="space-y-3">
+							<button
+								disabled
+								className="flex h-11 w-full items-center justify-center gap-2 rounded-full bg-white/10 text-sm font-medium text-white/50 ring-1 ring-white/10"
+							>
+								<Download className="size-3.5" />
+								Can't be installed here
+							</button>
+							<p className="rounded-xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/55 ring-1 ring-white/[0.06]">
+								{game.name} has to be installed through {game.thirdParty}. Epic doesn't let other
+								launchers download it, so Shelf can't install it for you.
+							</p>
+						</div>
 					) : (
 						<div className="flex gap-2">
 							<button

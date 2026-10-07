@@ -16,6 +16,54 @@ export namespace epic {
 	        this.name = source["name"];
 	    }
 	}
+	export class GameSettings {
+	    protonPath: string;
+	    launchArgs: string;
+	    env: string;
+	    mangoHud: boolean;
+	    gameMode: boolean;
+	    offline: boolean;
+	    skipUpdateCheck: boolean;
+	    cloudSaves: string;
+	    autoUpdate: string;
+	    savePath: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameSettings(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.protonPath = source["protonPath"];
+	        this.launchArgs = source["launchArgs"];
+	        this.env = source["env"];
+	        this.mangoHud = source["mangoHud"];
+	        this.gameMode = source["gameMode"];
+	        this.offline = source["offline"];
+	        this.skipUpdateCheck = source["skipUpdateCheck"];
+	        this.cloudSaves = source["cloudSaves"];
+	        this.autoUpdate = source["autoUpdate"];
+	        this.savePath = source["savePath"];
+	    }
+	}
+	export class Importable {
+	    appName: string;
+	    title: string;
+	    path: string;
+	    source: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Importable(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appName = source["appName"];
+	        this.title = source["title"];
+	        this.path = source["path"];
+	        this.source = source["source"];
+	    }
+	}
 	export class LaunchInfo {
 	    proton: string;
 	    prefix: string;
@@ -32,11 +80,13 @@ export namespace epic {
 	}
 	export class Progress {
 	    appName: string;
+	    kind: string;
 	    state: string;
 	    percent: number;
 	    eta?: string;
 	    speed?: string;
 	    error?: string;
+	    damaged?: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Progress(source);
@@ -45,11 +95,13 @@ export namespace epic {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.appName = source["appName"];
+	        this.kind = source["kind"];
 	        this.state = source["state"];
 	        this.percent = source["percent"];
 	        this.eta = source["eta"];
 	        this.speed = source["speed"];
 	        this.error = source["error"];
+	        this.damaged = source["damaged"];
 	    }
 	}
 	export class ProtonBuild {
@@ -69,6 +121,9 @@ export namespace epic {
 	export class Settings {
 	    installDir: string;
 	    protonPath: string;
+	    autoCheckUpdates: boolean;
+	    autoUpdate: boolean;
+	    cloudSaves: boolean;
 	
 	    static createFrom(source: any = {}) {
 	        return new Settings(source);
@@ -78,6 +133,41 @@ export namespace epic {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.installDir = source["installDir"];
 	        this.protonPath = source["protonPath"];
+	        this.autoCheckUpdates = source["autoCheckUpdates"];
+	        this.autoUpdate = source["autoUpdate"];
+	        this.cloudSaves = source["cloudSaves"];
+	    }
+	}
+	export class Tools {
+	    mangoHud: boolean;
+	    gameMode: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Tools(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.mangoHud = source["mangoHud"];
+	        this.gameMode = source["gameMode"];
+	    }
+	}
+	export class UpdateInfo {
+	    appName: string;
+	    title: string;
+	    installed: string;
+	    latest: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new UpdateInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appName = source["appName"];
+	        this.title = source["title"];
+	        this.installed = source["installed"];
+	        this.latest = source["latest"];
 	    }
 	}
 
@@ -109,6 +199,9 @@ export namespace library {
 	    lastPlayed: number;
 	    installPath?: string;
 	    cover?: string;
+	    version?: string;
+	    updateAvailable?: boolean;
+	    cloudSaves?: boolean;
 	    hero?: string;
 	
 	    static createFrom(source: any = {}) {
@@ -126,6 +219,9 @@ export namespace library {
 	        this.lastPlayed = source["lastPlayed"];
 	        this.installPath = source["installPath"];
 	        this.cover = source["cover"];
+	        this.version = source["version"];
+	        this.updateAvailable = source["updateAvailable"];
+	        this.cloudSaves = source["cloudSaves"];
 	        this.hero = source["hero"];
 	    }
 	}

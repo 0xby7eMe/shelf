@@ -1,8 +1,9 @@
 import { useState } from "react"
-import { Heart } from "lucide-react"
+import { ArrowUpCircle, Heart } from "lucide-react"
 
-import { library } from "../../wailsjs/go/models"
+import { epic, library } from "../../wailsjs/go/models"
 import { formatPlaytime } from "@/lib/format"
+import { jobLabel } from "@/lib/use-epic"
 import { cn } from "@/lib/utils"
 import { LiveDot } from "@/components/live-dot"
 
@@ -13,10 +14,10 @@ interface Props {
 	onSelect: (game: library.Game) => void
 	onToggleFavorite: (game: library.Game) => void
 	playing?: boolean
-	installing?: number // percent, while an install is running
+	job?: epic.Progress // a running install, update or similar
 }
 
-export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, playing, installing }: Props) {
+export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, playing, job }: Props) {
 	const [failed, setFailed] = useState(false)
 	const cover = game.cover && !failed ? game.cover : null
 
@@ -31,7 +32,7 @@ export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, pl
 			style={{ animationDelay: `${Math.min(index, 24) * 25}ms` }}
 			className={cn(
 				"group relative animate-in duration-500 [animation-fill-mode:backwards] fade-in slide-in-from-bottom-2",
-				!game.installed && installing === undefined && "opacity-50 saturate-0 transition hover:opacity-100 hover:saturate-100"
+				!game.installed && !job && "opacity-50 saturate-0 transition hover:opacity-100 hover:saturate-100"
 			)}
 		>
 			<button
@@ -94,10 +95,18 @@ export function GameCard({ game, index, favorite, onSelect, onToggleFavorite, pl
 				<Heart className={cn("size-3.5", favorite && "fill-current")} />
 			</button>
 
-			{installing !== undefined && (
+			{job ? (
 				<span className="absolute bottom-10 left-2 z-10 rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium tabular-nums text-white ring-1 ring-white/10 backdrop-blur-md">
-					Installing {Math.floor(installing)}%
+					{jobLabel(job)}
+					{job.state === "installing" && job.percent > 0 && ` ${Math.floor(job.percent)}%`}
 				</span>
+			) : (
+				game.updateAvailable && (
+					<span className="absolute bottom-10 left-2 z-10 flex items-center gap-1 rounded-full bg-black/60 px-2 py-1 text-[10px] font-medium text-white ring-1 ring-white/10 backdrop-blur-md">
+						<ArrowUpCircle className="size-3" />
+						Update
+					</span>
+				)
 			)}
 
 			{playing && (

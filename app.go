@@ -47,6 +47,8 @@ func (a *App) startup(ctx context.Context) {
 		runtime.EventsEmit(ctx, event, data)
 	})
 
+	a.epic.Start(ctx)
+
 	go func() {
 		err := library.Watch(ctx, func() {
 			runtime.EventsEmit(ctx, "library:changed")
@@ -65,6 +67,7 @@ func (a *App) startup(ctx context.Context) {
 		end := time.Now().UnixMilli()
 		recorded := false
 		for _, s := range stopped {
+			a.epic.GameStopped(s.AppID)
 			ok, err := a.hist.Add(s.AppID, s.Since, end)
 			if err != nil {
 				log.Printf("history: %v", err)
@@ -190,6 +193,34 @@ func (a *App) EpicLaunchInfo(appName string) (epic.LaunchInfo, error) {
 func (a *App) GetEpicSettings() epic.Settings { return a.epic.Settings() }
 
 func (a *App) SetEpicSettings(s epic.Settings) error { return a.epic.SetSettings(s) }
+
+func (a *App) EpicUpdate(appName string) error { return a.epic.Update(appName) }
+
+func (a *App) EpicVerify(appName string) error { return a.epic.Verify(appName) }
+
+func (a *App) EpicRepair(appName string) error { return a.epic.Repair(appName) }
+
+func (a *App) EpicUpdates() []epic.UpdateInfo { return a.epic.Updates() }
+
+func (a *App) EpicCheckUpdates() ([]epic.UpdateInfo, error) { return a.epic.CheckUpdates() }
+
+func (a *App) EpicSyncSaves(appName string) error { return a.epic.SyncSaves(appName) }
+
+func (a *App) GetEpicGameSettings(appName string) (epic.GameSettings, error) {
+	return a.epic.GameSettings(appName)
+}
+
+func (a *App) SetEpicGameSettings(appName string, s epic.GameSettings) error {
+	return a.epic.SetGameSettings(appName, s)
+}
+
+func (a *App) GetEpicTools() epic.Tools { return a.epic.Tools() }
+
+func (a *App) EpicFindImportable() ([]epic.Importable, error) { return a.epic.FindImportable() }
+
+func (a *App) EpicImport(appName, path string) error { return a.epic.Import(appName, path) }
+
+func (a *App) EpicImportAll() (int, error) { return a.epic.ImportAll() }
 
 func (a *App) GetProtonBuilds() []epic.ProtonBuild { return epic.FindProton() }
 

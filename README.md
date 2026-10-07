@@ -42,6 +42,14 @@ Shelf drives [legendary](https://github.com/derrod/legendary), the same CLI Hero
 2. Your Epic games appear in the library. Open one and press **Install**.
 3. **Play** runs the game with Proton, using one found in Steam, `compatibilitytools.d` (GE-Proton) or Heroic. Pick a specific version in the Epic dialog; by default the newest GE-Proton wins, then Proton Experimental.
 
+Beyond install and play:
+
+- **Updates:** Shelf checks for new versions at startup and every few hours, marks games that are behind, and can install updates by itself. Both are switches in the Epic dialog, and each game can opt in or out. Epic refuses to start an outdated game, so a game can also be allowed to launch outdated.
+- **Verify and repair:** check a game's files against Epic's manifest from its sheet, and repair anything damaged.
+- **Cloud saves:** newer saves are downloaded before a game starts and uploaded after it closes. Shelf finds the save folder inside the game's Proton prefix. A game has to be started once before its saves can sync.
+- **Per-game settings:** Proton version, launch arguments, environment variables, MangoHud, GameMode, offline mode, update and cloud save behavior.
+- **Existing installs:** games already installed by Heroic, legendary or the Epic Games Launcher are found and imported in place, with no download.
+
 Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Launch logs are in `~/.local/share/shelf/logs`. Play time for Epic games is recorded while Shelf is running.
 
 ## Keyboard

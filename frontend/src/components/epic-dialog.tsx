@@ -1,7 +1,14 @@
-import { useEffect, useState } from "react"
+import { useCallback, useEffect, useState } from "react"
 import { ExternalLink, LogOut, RefreshCw } from "lucide-react"
 
+import { ToggleRow } from "@/components/toggle-row"
+import { toast } from "@/lib/toast"
+
 import {
+	EpicCheckUpdates,
+	EpicFindImportable,
+	EpicImport,
+	EpicImportAll,
 	EpicLogin,
 	EpicLogout,
 	EpicOpenLogin,
@@ -46,6 +53,7 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 	const [error, setError] = useState("")
 	const [settings, setSettings] = useState<epic.Settings | null>(null)
 	const [builds, setBuilds] = useState<epic.ProtonBuild[]>([])
+	const [importable, setImportable] = useState<epic.Importable[] | null>(null)
 
 	useEffect(() => {
 		if (!open) return
@@ -53,6 +61,55 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 		GetEpicSettings().then(setSettings).catch(() => {})
 		GetProtonBuilds().then((b) => setBuilds(b ?? [])).catch(() => {})
 	}, [open])
+
+	const loggedIn = !!account?.loggedIn
+	const scan = useCallback(
+		() =>
+			EpicFindImportable()
+				.then((list) => setImportable(list ?? []))
+				.catch((e) => setError(String(e))),
+		[]
+	)
+
+	// Look for installed games whenever the dialog opens.
+	useEffect(() => {
+		if (open && loggedIn) scan()
+	}, [open, loggedIn, scan])
+
+	async function checkUpdates() {
+		setBusy(true)
+		try {
+			const found = (await EpicCheckUpdates()) ?? []
+			if (found.length === 0) toast.success("All your Epic games are up to date")
+			else
+				toast.info(found.length === 1 ? "1 game update available" : `${found.length} game updates available`, {
+					description: found.map((u) => u.title).join(", "),
+				})
+		} catch (e) {
+			setError(String(e))
+		} finally {
+			setBusy(false)
+		}
+	}
+
+	async function importOne(g: epic.Importable) {
+		try {
+			await EpicImport(g.appName, g.path)
+			setImportable((list) => (list ?? []).filter((x) => x.appName !== g.appName))
+		} catch (e) {
+			setError(String(e))
+		}
+	}
+
+	async function importAll() {
+		try {
+			await EpicImportAll()
+			setImportable([])
+		} catch (e) {
+			setError(String(e))
+			scan()
+		}
+	}
 
 	async function run(task: () => Promise<unknown>) {
 		setBusy(true)
@@ -80,7 +137,7 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 					WebkitBackdropFilter: "blur(30px)",
 					backgroundColor: "rgba(10, 10, 10, 0.6)",
 				}}
-				className="gap-6 border-white/10 p-6 sm:max-w-lg"
+				className="max-h-[88vh] gap-6 overflow-y-auto border-white/10 p-6 sm:max-w-lg"
 			>
 				<div>
 					<DialogTitle className="text-[11px] font-medium tracking-[0.25em] text-muted-foreground uppercase">
@@ -182,7 +239,7 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 									<Select
 										value={settings.protonPath || AUTO}
 										onValueChange={(v) =>
-											save(new epic.Settings({ ...settings, protonPath: v === AUTO ? "" : v }))
+											save(new epic.Settings({ ...settings, protonPath: !v || v === AUTO ? "" : v }))
 										}
 									>
 										<SelectTrigger className="h-10 w-full rounded-full border-0 bg-white/5 px-4 text-sm shadow-none ring-1 ring-white/5">
@@ -205,8 +262,94 @@ export function EpicDialog({ open, account, onOpenChange, onAccountChange }: Pro
 										</span>
 									)}
 								</label>
+
+								<div className="space-y-4 pt-1">
+									<ToggleRow
+										label="Check for updates automatically"
+										hint="At startup and every few hours"
+										checked={settings.autoCheckUpdates}
+										onChange={(v) =>
+											save(new epic.Settings({ ...settings, autoCheckUpdates: v, autoUpdate: v && settings.autoUpdate }))
+										}
+									/>
+									<ToggleRow
+										label="Install updates automatically"
+										hint="Games you're playing are skipped. Individual games can opt out."
+										checked={settings.autoUpdate}
+										disabled={!settings.autoCheckUpdates}
+										onChange={(v) => save(new epic.Settings({ ...settings, autoUpdate: v }))}
+									/>
+									<ToggleRow
+										label="Sync cloud saves"
+										hint="Download newer saves before a game starts and upload after it closes"
+										checked={settings.cloudSaves}
+										onChange={(v) => save(new epic.Settings({ ...settings, cloudSaves: v }))}
+									/>
+									<button
+										disabled={busy}
+										onClick={checkUpdates}
+										className={cn(pill, "bg-white/5 text-white/80 hover:bg-white/10 hover:text-white")}
+									>
+										<RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
+										Check for updates now
+									</button>
+								</div>
 							</div>
 						)}
+
+						<div className="space-y-3">
+							<div className="flex items-center justify-between">
+								<p className="text-[11px] tracking-wide text-white/45 uppercase">
+									Already installed
+								</p>
+								<button
+									onClick={scan}
+									className="text-xs text-white/50 transition hover:text-white"
+								>
+									Scan again
+								</button>
+							</div>
+							{importable === null ? (
+								<p className="text-xs text-white/40">Looking for installed games…</p>
+							) : importable.length === 0 ? (
+								<p className="text-xs text-white/40">
+									No other installs found. Shelf checks Heroic, legendary and the Epic launcher's
+									folders.
+								</p>
+							) : (
+								<>
+									<ul className="space-y-2">
+										{importable.map((g) => (
+											<li
+												key={g.appName}
+												className="flex items-center justify-between gap-3 rounded-xl bg-white/5 px-4 py-3 ring-1 ring-white/[0.06]"
+											>
+												<div className="min-w-0">
+													<p className="truncate text-sm">{g.title}</p>
+													<p className="truncate text-[11px] text-white/35">
+														{g.source} · {g.path}
+													</p>
+												</div>
+												<button
+													onClick={() => importOne(g)}
+													className="shrink-0 rounded-full bg-white/10 px-3.5 py-1.5 text-xs ring-1 ring-white/10 transition hover:bg-white/15"
+												>
+													Import
+												</button>
+											</li>
+										))}
+									</ul>
+									{importable.length > 1 && (
+										<button
+											onClick={importAll}
+											className={cn(pill, "w-full bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]")}
+										>
+											Import all {importable.length}
+										</button>
+									)}
+								</>
+							)}
+						</div>
 					</>
 				)}
 

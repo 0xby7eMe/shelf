@@ -49,15 +49,44 @@ type LaunchInfo struct {
 	Prefix string `json:"prefix"`
 }
 
+// protonFor picks the Proton build for a game: its own choice, else the global one.
+func (m *Manager) protonFor(gs GameSettings) (ProtonBuild, bool) {
+	if gs.ProtonPath != "" {
+		if b, ok := resolveProtonExact(gs.ProtonPath); ok {
+			return b, true
+		}
+	}
+	return resolveProton(m.settings.get().ProtonPath)
+}
+
 func (m *Manager) LaunchInfo(appName string) (LaunchInfo, error) {
 	if !appNameRe.MatchString(appName) {
 		return LaunchInfo{}, fmt.Errorf("invalid game id")
 	}
-	build, ok := resolveProton(m.settings.get().ProtonPath)
+	build, ok := m.protonFor(m.games.get(appName))
 	if !ok {
 		return LaunchInfo{}, fmt.Errorf("no Proton found")
 	}
 	return LaunchInfo{Proton: build.Name, Prefix: prefixDir(appName)}, nil
+}
+
+// wrapperFor builds legendary's --wrapper value: optional tools, then Proton.
+func wrapperFor(gs GameSettings, build ProtonBuild) (string, error) {
+	var parts []string
+	if gs.MangoHud {
+		if !hasBinary("mangohud") {
+			return "", fmt.Errorf("MangoHud is turned on for this game but isn't installed")
+		}
+		parts = append(parts, "mangohud")
+	}
+	if gs.GameMode {
+		if !hasBinary("gamemoderun") {
+			return "", fmt.Errorf("GameMode is turned on for this game but isn't installed")
+		}
+		parts = append(parts, "gamemoderun")
+	}
+	parts = append(parts, shellQuote(filepath.Join(build.Path, "proton")), "run")
+	return strings.Join(parts, " "), nil
 }
 
 // Launch starts an installed game through Proton and returns once it is running.
@@ -69,15 +98,36 @@ func (m *Manager) Launch(appName string) error {
 	if !ok {
 		return fmt.Errorf("game is not installed")
 	}
-	build, ok := resolveProton(m.settings.get().ProtonPath)
+	gs := m.games.get(appName)
+
+	build, ok := m.protonFor(gs)
 	if !ok {
 		return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
 	}
+	if m.isRunningGame(appName) {
+		return fmt.Errorf("already running")
+	}
+	m.mu.Lock()
+	_, working := m.installs[appName]
+	m.mu.Unlock()
+	if working {
+		return fmt.Errorf("wait for the current download to finish")
+	}
+	if u, outdated := m.updateRequired(appName, gs); outdated {
+		return fmt.Errorf("%s needs an update (%s to %s) before it can start. Update it, or allow outdated launches in its settings", u.Title, u.Installed, u.Latest)
+	}
 
-	for _, name := range m.Running() {
-		if name == appName {
-			return fmt.Errorf("already running")
-		}
+	wrapper, err := wrapperFor(gs, build)
+	if err != nil {
+		return err
+	}
+	env, err := parseEnv(gs.Env)
+	if err != nil {
+		return err
+	}
+	extra, err := splitArgs(gs.LaunchArgs)
+	if err != nil {
+		return err
 	}
 
 	prefix := prefixDir(appName)
@@ -85,14 +135,28 @@ func (m *Manager) Launch(appName string) error {
 		return err
 	}
 
+	// Cloud saves first, but never block the game on them.
+	if m.cloudSavesEnabled(appName) {
+		state, serr := m.syncSaves(appName, dirDown)
+		m.reportSaves(appName, "before", state, serr, false)
+	}
+
 	// --no-wine stops legendary from using Wine itself; the wrapper becomes
 	// the command prefix, giving `proton run <game.exe> …`.
-	wrapper := shellQuote(filepath.Join(build.Path, "proton")) + " run"
-	cmd, err := m.command(context.Background(), "launch", appName, "--no-wine", "--wrapper", wrapper)
+	args := []string{"launch", appName, "--no-wine", "--wrapper", wrapper}
+	if gs.Offline {
+		args = append(args, "--offline")
+	} else if gs.SkipUpdateCheck {
+		args = append(args, "--skip-version-check")
+	}
+	args = append(args, extra...)
+
+	cmd, err := m.command(context.Background(), args...)
 	if err != nil {
 		return err
 	}
 	cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
+	cmd.Env = append(cmd.Env, env...) // the user's variables win
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
 
 	logf, err := openLog(appName)

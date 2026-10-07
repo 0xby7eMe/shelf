@@ -17,5 +17,8 @@ type Game struct {
 	LastPlayed      int64  `json:"lastPlayed"` 
 	InstallPath     string `json:"installPath,omitempty"`
 	Cover           string `json:"cover,omitempty"` 
+	Version         string `json:"version,omitempty"`
+	UpdateAvailable bool   `json:"updateAvailable,omitempty"`
+	CloudSaves      bool   `json:"cloudSaves,omitempty"` // the game supports cloud saves
 	Hero            string `json:"hero,omitempty"`  // wide banner; empty means derive it from Cover
 }

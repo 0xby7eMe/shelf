@@ -5,6 +5,14 @@ import {library} from '../models';
 
 export function EpicCancelInstall(arg1:string):Promise<void>;
 
+export function EpicCheckUpdates():Promise<Array<epic.UpdateInfo>>;
+
+export function EpicFindImportable():Promise<Array<epic.Importable>>;
+
+export function EpicImport(arg1:string,arg2:string):Promise<void>;
+
+export function EpicImportAll():Promise<number>;
+
 export function EpicInstall(arg1:string):Promise<void>;
 
 export function EpicInstallStates():Promise<Array<epic.Progress>>;
@@ -19,13 +27,27 @@ export function EpicLogout():Promise<void>;
 
 export function EpicOpenLogin():Promise<void>;
 
+export function EpicRepair(arg1:string):Promise<void>;
+
 export function EpicSync():Promise<void>;
+
+export function EpicSyncSaves(arg1:string):Promise<void>;
 
 export function EpicUninstall(arg1:string):Promise<void>;
 
+export function EpicUpdate(arg1:string):Promise<void>;
+
+export function EpicUpdates():Promise<Array<epic.UpdateInfo>>;
+
+export function EpicVerify(arg1:string):Promise<void>;
+
 export function GetEpicAccount():Promise<epic.Account>;
 
+export function GetEpicGameSettings(arg1:string):Promise<epic.GameSettings>;
+
 export function GetEpicSettings():Promise<epic.Settings>;
+
+export function GetEpicTools():Promise<epic.Tools>;
 
 export function GetFavorites():Promise<Array<string>>;
 
@@ -44,6 +66,8 @@ export function Launch(arg1:string):Promise<void>;
 export function OpenInstallFolder(arg1:string):Promise<void>;
 
 export function OpenStorePage(arg1:string):Promise<void>;
+
+export function SetEpicGameSettings(arg1:string,arg2:epic.GameSettings):Promise<void>;
 
 export function SetEpicSettings(arg1:epic.Settings):Promise<void>;
 

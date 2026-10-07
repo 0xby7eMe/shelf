@@ -14,6 +14,12 @@ type Settings struct {
 	InstallDir string `json:"installDir"`
 	// ProtonPath is the Proton directory to run games with. Empty picks the best one found.
 	ProtonPath string `json:"protonPath"`
+	// AutoCheckUpdates looks for game updates at startup and every few hours.
+	AutoCheckUpdates bool `json:"autoCheckUpdates"`
+	// AutoUpdate installs found updates by itself, unless a game opts out.
+	AutoUpdate bool `json:"autoUpdate"`
+	// CloudSaves syncs saves before a game starts and after it closes, unless a game opts out.
+	CloudSaves bool `json:"cloudSaves"`
 }
 
 type settingsStore struct {
@@ -50,7 +56,7 @@ func defaultInstallDir() string {
 }
 
 func newSettingsStore() *settingsStore {
-	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir()}}
+	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir(), AutoCheckUpdates: true}}
 	if dir := configDir(); dir != "" {
 		s.path = filepath.Join(dir, "epic.json")
 	}
@@ -61,12 +67,13 @@ func newSettingsStore() *settingsStore {
 	if err != nil {
 		return s
 	}
-	var saved Settings
+	// Unmarshal over the defaults so settings missing from older files keep them.
+	saved := s.cur
 	if json.Unmarshal(data, &saved) == nil {
-		if saved.InstallDir != "" {
-			s.cur.InstallDir = saved.InstallDir
+		if saved.InstallDir == "" {
+			saved.InstallDir = s.cur.InstallDir
 		}
-		s.cur.ProtonPath = saved.ProtonPath
+		s.cur = saved
 	}
 	return s
 }
@@ -86,21 +93,26 @@ func (s *settingsStore) set(next Settings) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.cur = next
-	if s.path == "" {
+	return writeJSON(s.path, next)
+}
+
+// writeJSON saves v atomically. An empty path means "keep in memory only".
+func writeJSON(path string, v any) error {
+	if path == "" {
 		return nil
 	}
-	if err := os.MkdirAll(filepath.Dir(s.path), 0o755); err != nil {
+	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
 		return err
 	}
-	data, err := json.Marshal(next)
+	data, err := json.Marshal(v)
 	if err != nil {
 		return err
 	}
-	tmp := s.path + ".tmp"
+	tmp := path + ".tmp"
 	if err := os.WriteFile(tmp, data, 0o644); err != nil {
 		return err
 	}
-	return os.Rename(tmp, s.path)
+	return os.Rename(tmp, path)
 }
 
 // Settings returns the current preferences.

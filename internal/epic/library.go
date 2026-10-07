@@ -22,7 +22,10 @@ type ownedGame struct {
 	AppName  string `json:"app_name"`
 	AppTitle string `json:"app_title"`
 	Metadata struct {
-		KeyImages []keyImage `json:"keyImages"`
+		KeyImages        []keyImage `json:"keyImages"`
+		CustomAttributes map[string]struct {
+			Value string `json:"value"`
+		} `json:"customAttributes"`
 	} `json:"metadata"`
 }
 
@@ -34,6 +37,13 @@ type installedGame struct {
 	Executable  string `json:"executable"`
 	LaunchParam string `json:"launch_parameters"`
 	IsDLC       bool   `json:"is_dlc"`
+	Version     string `json:"version"`
+	Platform    string `json:"platform"`
+}
+
+// supportsCloudSaves reports whether Epic gave the game a cloud save folder.
+func (o ownedGame) supportsCloudSaves() bool {
+	return o.Metadata.CustomAttributes["CloudSaveFolder"].Value != ""
 }
 
 func (m *Manager) ownedCachePath() string {
@@ -169,6 +179,7 @@ func (p provider) Scan() ([]library.Game, error) {
 		return nil, err
 	}
 	installed := m.readInstalled()
+	updates := m.pendingUpdates(installed)
 
 	games := make([]library.Game, 0, len(owned))
 	seen := map[string]bool{}
@@ -186,9 +197,12 @@ func (p provider) Scan() ([]library.Game, error) {
 			Cover:      pickImage(o.Metadata.KeyImages, "DieselGameBoxTall", "OfferImageTall", "Thumbnail"),
 			Hero:       pickImage(o.Metadata.KeyImages, "DieselGameBox", "OfferImageWide", "DieselStoreFrontWide"),
 		}
+		g.CloudSaves = o.supportsCloudSaves()
 		if in, ok := installed[o.AppName]; ok {
 			g.Installed = true
 			g.InstallPath = in.InstallPath
+			g.Version = in.Version
+			_, g.UpdateAvailable = updates[o.AppName]
 		}
 		g.PlaytimeMinutes, g.LastPlayed = m.hist.Totals(o.AppName)
 		games = append(games, g)

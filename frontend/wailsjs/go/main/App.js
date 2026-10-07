@@ -6,6 +6,22 @@ export function EpicCancelInstall(arg1) {
   return window['go']['main']['App']['EpicCancelInstall'](arg1);
 }
 
+export function EpicCheckUpdates() {
+  return window['go']['main']['App']['EpicCheckUpdates']();
+}
+
+export function EpicFindImportable() {
+  return window['go']['main']['App']['EpicFindImportable']();
+}
+
+export function EpicImport(arg1, arg2) {
+  return window['go']['main']['App']['EpicImport'](arg1, arg2);
+}
+
+export function EpicImportAll() {
+  return window['go']['main']['App']['EpicImportAll']();
+}
+
 export function EpicInstall(arg1) {
   return window['go']['main']['App']['EpicInstall'](arg1);
 }
@@ -34,20 +50,48 @@ export function EpicOpenLogin() {
   return window['go']['main']['App']['EpicOpenLogin']();
 }
 
+export function EpicRepair(arg1) {
+  return window['go']['main']['App']['EpicRepair'](arg1);
+}
+
 export function EpicSync() {
   return window['go']['main']['App']['EpicSync']();
+}
+
+export function EpicSyncSaves(arg1) {
+  return window['go']['main']['App']['EpicSyncSaves'](arg1);
 }
 
 export function EpicUninstall(arg1) {
   return window['go']['main']['App']['EpicUninstall'](arg1);
 }
 
+export function EpicUpdate(arg1) {
+  return window['go']['main']['App']['EpicUpdate'](arg1);
+}
+
+export function EpicUpdates() {
+  return window['go']['main']['App']['EpicUpdates']();
+}
+
+export function EpicVerify(arg1) {
+  return window['go']['main']['App']['EpicVerify'](arg1);
+}
+
 export function GetEpicAccount() {
   return window['go']['main']['App']['GetEpicAccount']();
 }
 
+export function GetEpicGameSettings(arg1) {
+  return window['go']['main']['App']['GetEpicGameSettings'](arg1);
+}
+
 export function GetEpicSettings() {
   return window['go']['main']['App']['GetEpicSettings']();
+}
+
+export function GetEpicTools() {
+  return window['go']['main']['App']['GetEpicTools']();
 }
 
 export function GetFavorites() {
@@ -84,6 +128,10 @@ export function OpenInstallFolder(arg1) {
 
 export function OpenStorePage(arg1) {
   return window['go']['main']['App']['OpenStorePage'](arg1);
+}
+
+export function SetEpicGameSettings(arg1, arg2) {
+  return window['go']['main']['App']['SetEpicGameSettings'](arg1, arg2);
 }
 
 export function SetEpicSettings(arg1) {

@@ -107,4 +107,35 @@ func TestFakeLegendaryFlow(t *testing.T) {
 			t.Errorf("launch output missing %q:\n%s", want, out)
 		}
 	}
+
+	// Per-game options end up on the command line and in the environment.
+	gs := defaultGameSettings()
+	gs.LaunchArgs = `-windowed -name "A B"`
+	gs.Env = "DXVK_HUD=fps\nFOO=bar"
+	gs.Offline = true
+	if err := m.SetGameSettings("Sugar", gs); err != nil {
+		t.Fatal(err)
+	}
+	os.Remove(filepath.Join(games, "launch.out"))
+	if err := m.Launch("Sugar"); err != nil {
+		t.Fatal(err)
+	}
+	deadline = time.Now().Add(5 * time.Second)
+	var out2 []byte
+	for time.Now().Before(deadline) {
+		if out2, _ = os.ReadFile(filepath.Join(games, "launch.out")); len(out2) > 0 {
+			break
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+	for _, want := range []string{"--offline -windowed -name A B"} {
+		if !strings.Contains(string(out2), want) {
+			t.Errorf("launch output missing %q:\n%s", want, out2)
+		}
+	}
+	// A bad setting is refused before it can be saved.
+	gs.Env = "broken"
+	if m.SetGameSettings("Sugar", gs) == nil {
+		t.Error("invalid environment accepted")
+	}
 }

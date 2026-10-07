@@ -26,6 +26,7 @@ var ErrNoLegendary = fmt.Errorf("legendary is not installed. Install it with you
 
 type Manager struct {
 	settings *settingsStore
+	games    *gameSettingsStore
 	hist     *library.History
 	emit     func(event string, data any)
 
@@ -36,6 +37,10 @@ type Manager struct {
 	installs map[string]*installJob
 	running  map[string]*exec.Cmd
 	owned    []ownedGame // nil until loaded
+	jobSlot  chan struct{}
+
+	announcedUpdates map[string]string // app -> version already shown to the user
+	announcedImport  bool
 }
 
 // New creates a Manager. emit publishes frontend events and may be nil.
@@ -45,10 +50,14 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 	}
 	m := &Manager{
 		settings: newSettingsStore(),
+		games:    newGameSettingsStore(),
 		hist:     hist,
 		emit:     emit,
 		installs: map[string]*installJob{},
 		running:  map[string]*exec.Cmd{},
+		jobSlot:  make(chan struct{}, 1),
+
+		announcedUpdates: map[string]string{},
 	}
 	if dir := configDir(); dir != "" {
 		m.cfgDir = filepath.Join(dir, "legendary")
@@ -68,6 +77,11 @@ func (m *Manager) send(event string, data any) {
 	emit := m.emit
 	m.mu.Unlock()
 	emit(event, data)
+}
+
+func hasBinary(name string) bool {
+	_, err := exec.LookPath(name)
+	return err == nil
 }
 
 func findLegendary() (string, error) {
@@ -116,6 +130,20 @@ func (m *Manager) run(ctx context.Context, args ...string) ([]byte, error) {
 		return nil, fmt.Errorf("legendary %s: %w: %s", args[0], err, tail(stderr.String(), 400))
 	}
 	return stdout.Bytes(), nil
+}
+
+// runAll is run for commands whose useful output goes to stderr too.
+func (m *Manager) runAll(ctx context.Context, args ...string) (string, error) {
+	cmd, err := m.command(ctx, args...)
+	if err != nil {
+		return "", err
+	}
+	var out bytes.Buffer
+	cmd.Stdout, cmd.Stderr = &out, &out
+	if err := cmd.Run(); err != nil {
+		return "", fmt.Errorf("legendary %s: %w: %s", args[0], err, tail(out.String(), 400))
+	}
+	return out.String(), nil
 }
 
 func tail(s string, n int) string {

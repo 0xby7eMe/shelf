@@ -2,7 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
 	EpicCancelInstall,
 	EpicInstall,
+	EpicSyncSaves,
 	EpicUninstall,
+	EpicUpdate,
+	EpicVerify,
 	GetFavorites,
 	GetGames,
 	GetNowPlaying,
@@ -12,7 +15,7 @@ import {
 import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
-import { GameSheet } from "@/components/game-sheet"
+import { GameSheet, type EpicActions } from "@/components/game-sheet"
 import { Hero } from "@/components/hero"
 import { Input } from "@/components/ui/input"
 import {
@@ -33,6 +36,7 @@ import { useStats } from "@/lib/use-stats"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
 import { Toaster } from "@/components/toaster"
+import { EpicGameSettings } from "@/components/epic-game-settings"
 import { EpicDialog } from "@/components/epic-dialog"
 
 type SortKey = "name" | "playtime" | "recent"
@@ -72,8 +76,9 @@ function App() {
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
 	const [epicOpen, setEpicOpen] = useState(false)
+	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
 	const [source, setSource] = useState<SourceFilter>("all")
-	const { account, installs, reloadAccount } = useEpic(games)
+	const { account, installs, reloadAccount } = useEpic(games, () => setEpicOpen(true))
   	const stats = useStats()
 	const reqRef = useRef(0)
 	const randomRef = useRef<() => void>(() => {})
@@ -233,17 +238,27 @@ function App() {
 		Launch(game.id).catch((e: any) => toast.error(`Couldn't start ${game.name}`, { description: String(e) }))
 	}
 
-	function installEpic(game: library.Game) {
-		EpicInstall(game.externalId).catch((e: any) =>
-			toast.error(`Couldn't install ${game.name}`, { description: String(e) })
-		)
+	// Run an Epic action, turning a refusal into a toast.
+	function epicTask(game: library.Game, what: string, task: () => Promise<unknown>) {
+		task().catch((e: any) => toast.error(`Couldn't ${what} ${game.name}`, { description: String(e) }))
 	}
 
-	function uninstallEpic(game: library.Game) {
-		if (!window.confirm(`Uninstall ${game.name}? Saves and the Proton prefix are kept.`)) return
-		EpicUninstall(game.externalId)
-			.then(() => toast.success(`${game.name} uninstalled`))
-			.catch((e: any) => toast.error(`Couldn't uninstall ${game.name}`, { description: String(e) }))
+	const epicActions: EpicActions = {
+		install: (g) => epicTask(g, "install", () => EpicInstall(g.externalId)),
+		cancel: (g) => EpicCancelInstall(g.externalId),
+		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
+		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
+		syncSaves: (g) =>
+			epicTask(g, "sync saves for", async () => {
+				await EpicSyncSaves(g.externalId)
+			}),
+		openSettings: setSettingsGame,
+		uninstall: (g) => {
+			if (!window.confirm(`Uninstall ${g.name}? Saves and the Proton prefix are kept.`)) return
+			EpicUninstall(g.externalId)
+				.then(() => toast.success(`${g.name} uninstalled`))
+				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
+		},
 	}
 
 	return (
@@ -437,7 +452,7 @@ function App() {
 								onSelect={setSelected}
 								onToggleFavorite={toggleFavorite}
 								playing={playingIds.has(g.externalId)}
-								installing={installs[g.externalId]?.percent}
+								job={installs[g.externalId]}
 							/>
 						))}
 					</Grid>
@@ -453,11 +468,11 @@ function App() {
 				running={selected ? playingIds.has(selected.externalId) : false}
 				onPlay={play}
 				activity={selected ? stats?.games.find((g) => g.appId === selected.externalId) : undefined}
-				install={selected ? installs[selected.externalId] : undefined}
-				onInstall={installEpic}
-				onCancelInstall={(g) => EpicCancelInstall(g.externalId)}
-				onUninstall={uninstallEpic}
+				job={selected ? installs[selected.externalId] : undefined}
+				epicActions={epicActions}
 			/>
+
+			<EpicGameSettings game={settingsGame} onClose={() => setSettingsGame(null)} />
 
 			<EpicDialog
 				open={epicOpen}

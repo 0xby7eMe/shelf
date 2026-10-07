@@ -1,5 +1,17 @@
 import { useEffect, useState } from "react"
-import { Download, ExternalLink, FolderOpen, Heart, Play, Trash2, X } from "lucide-react"
+import {
+	ArrowUpCircle,
+	CloudUpload,
+	Download,
+	ExternalLink,
+	FolderOpen,
+	Heart,
+	Play,
+	ShieldCheck,
+	SlidersHorizontal,
+	Trash2,
+	X,
+} from "lucide-react"
 
 import { EpicLaunchInfo, OpenInstallFolder, OpenStorePage } from "../../wailsjs/go/main/App"
 import { epic, library } from "../../wailsjs/go/models"
@@ -11,8 +23,20 @@ import {
 } from "@/components/ui/sheet"
 import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "@/lib/format"
 import { heroSrc } from "@/lib/cover"
+import { jobLabel } from "@/lib/use-epic"
 import { cn } from "@/lib/utils"
 import { LiveDot } from "@/components/live-dot"
+
+// What the sheet can ask the app to do with an Epic game.
+export interface EpicActions {
+	install: (game: library.Game) => void
+	cancel: (game: library.Game) => void
+	uninstall: (game: library.Game) => void
+	update: (game: library.Game) => void
+	verify: (game: library.Game) => void
+	syncSaves: (game: library.Game) => void
+	openSettings: (game: library.Game) => void
+}
 
 interface Props {
 	game: library.Game | null
@@ -23,10 +47,8 @@ interface Props {
 	onPlay: (game: library.Game) => void
 	running: boolean
 	activity?: library.GameStat
-	install?: epic.Progress
-	onInstall: (game: library.Game) => void
-	onCancelInstall: (game: library.Game) => void
-	onUninstall: (game: library.Game) => void
+	job?: epic.Progress
+	epicActions: EpicActions
 }
 
 export function GameSheet({
@@ -38,10 +60,8 @@ export function GameSheet({
 	onPlay,
 	running,
 	activity,
-	install,
-	onInstall,
-	onCancelInstall,
-	onUninstall,
+	job,
+	epicActions,
 }: Props) {
 	return (
 		<Sheet open={game !== null} onOpenChange={(open) => !open && onClose()}>
@@ -63,10 +83,8 @@ export function GameSheet({
 						onPlay={onPlay}
 						running={running}
 						activity={activity}
-						install={install}
-						onInstall={onInstall}
-						onCancelInstall={onCancelInstall}
-						onUninstall={onUninstall}
+						job={job}
+						epicActions={epicActions}
 					/>
 				)}
 			</SheetContent>
@@ -104,10 +122,8 @@ function Body({
 	onPlay,
 	running,
 	activity,
-	install,
-	onInstall,
-	onCancelInstall,
-	onUninstall,
+	job,
+	epicActions,
 }: {
 	game: library.Game
 	totalMinutes: number
@@ -116,10 +132,8 @@ function Body({
 	onPlay: (game: library.Game) => void
 	running: boolean
 	activity?: library.GameStat
-	install?: epic.Progress
-	onInstall: (game: library.Game) => void
-	onCancelInstall: (game: library.Game) => void
-	onUninstall: (game: library.Game) => void
+	job?: epic.Progress
+	epicActions: EpicActions
 }) {
 	const [heroFailed, setHeroFailed] = useState(false)
 	const [armed, setArmed] = useState(false)
@@ -182,56 +196,69 @@ function Body({
 
 			<div className="space-y-6 px-6 pt-6 pb-8">
 				<Reveal i={2}>
-					{install ? (
+					{job ? (
 						<div className="flex items-center gap-2">
 							<div className="relative h-11 flex-1 overflow-hidden rounded-full bg-white/10 ring-1 ring-white/10">
 								<div
 									className="absolute inset-y-0 left-0 bg-white/25 transition-[width] duration-300"
-									style={{ width: `${install.percent}%` }}
+									style={{ width: `${job.percent}%` }}
 								/>
 								<span className="relative flex h-full items-center justify-center gap-2 text-sm tabular-nums">
-									Installing {Math.floor(install.percent)}%
-									{install.speed && <span className="text-white/50">{install.speed}</span>}
-									{install.eta && <span className="text-white/50">ETA {install.eta}</span>}
+									{jobLabel(job)}
+									{job.state === "installing" && job.percent > 0 && ` ${Math.floor(job.percent)}%`}
+									{job.speed && <span className="text-white/50">{job.speed}</span>}
+									{job.eta && <span className="text-white/50">ETA {job.eta}</span>}
 								</span>
 							</div>
 							<button
-								onClick={() => onCancelInstall(game)}
-								aria-label="Cancel install"
-								title="Cancel install"
+								onClick={() => epicActions.cancel(game)}
+								aria-label="Cancel"
+								title="Cancel"
 								className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
 							>
 								<X className="size-4" />
 							</button>
 						</div>
 					) : (
-						<button
-							onClick={() => (isEpic && !game.installed ? onInstall(game) : onPlay(game))}
-							disabled={running}
-							className={cn(
-								"flex h-11 w-full items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
-								running
-									? "bg-white/10 text-white/80 ring-1 ring-white/10"
-									: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+						<div className="flex gap-2">
+							<button
+								onClick={() => (isEpic && !game.installed ? epicActions.install(game) : onPlay(game))}
+								disabled={running}
+								className={cn(
+									"flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
+									running
+										? "bg-white/10 text-white/80 ring-1 ring-white/10"
+										: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+								)}
+							>
+								{running ? (
+									<>
+										<LiveDot />
+										Running
+									</>
+								) : isEpic && !game.installed ? (
+									<>
+										<Download className="size-3.5" />
+										Install
+									</>
+								) : (
+									<>
+										<Play className="size-3.5 fill-current" />
+										{game.installed ? "Play" : "Install in Steam"}
+									</>
+								)}
+							</button>
+							{isEpic && game.installed && game.updateAvailable && (
+								<button
+									onClick={() => epicActions.update(game)}
+									disabled={running}
+									className="flex h-11 items-center gap-2 rounded-full bg-white/10 px-5 text-sm font-medium ring-1 ring-white/15 transition hover:bg-white/15 disabled:pointer-events-none disabled:opacity-40"
+								>
+									<ArrowUpCircle className="size-4" />
+									Update
+								</button>
 							)}
-						>
-							{running ? (
-								<>
-									<LiveDot />
-									Running
-								</>
-							) : isEpic && !game.installed ? (
-								<>
-									<Download className="size-3.5" />
-									Install
-								</>
-							) : (
-								<>
-									<Play className="size-3.5 fill-current" />
-									{game.installed ? "Play" : "Install in Steam"}
-								</>
-							)}
-						</button>
+						</div>
 					)}
 				</Reveal>
 
@@ -274,7 +301,7 @@ function Body({
 						Folder
 					</Action>
 					{isEpic && game.installed && (
-						<Action icon={Trash2} disabled={running} onClick={() => onUninstall(game)}>
+						<Action icon={Trash2} disabled={running || !!job} onClick={() => epicActions.uninstall(game)}>
 							Uninstall
 						</Action>
 					)}
@@ -299,9 +326,37 @@ function Body({
 					)}
 				</Reveal>
 
-				{isEpic && game.installed && proton && (
+				{isEpic && game.installed && (
+					<Reveal i={6} className="flex gap-2">
+						<Action
+							icon={ShieldCheck}
+							disabled={running || !!job}
+							onClick={() => epicActions.verify(game)}
+						>
+							Verify
+						</Action>
+						{game.cloudSaves && (
+							<Action
+								icon={CloudUpload}
+								disabled={running || !!job}
+								onClick={() => epicActions.syncSaves(game)}
+							>
+								Sync saves
+							</Action>
+						)}
+						<Action icon={SlidersHorizontal} onClick={() => epicActions.openSettings(game)}>
+							Settings
+						</Action>
+					</Reveal>
+				)}
+
+				{isEpic && game.installed && (proton || game.version) && (
 					<Reveal i={6}>
-						<p className="text-[11px] text-white/30">Runs with {proton}</p>
+						<p className="text-[11px] text-white/30">
+							{[game.version && `Version ${game.version}`, proton && `Runs with ${proton}`]
+								.filter(Boolean)
+								.join(" · ")}
+						</p>
 					</Reveal>
 				)}
 

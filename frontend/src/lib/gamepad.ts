@@ -287,7 +287,7 @@ export function useGamepad(handlers: PadHandlers) {
 		}
 
 		const step = (dir: Dir) => {
-			if (move(dir)) sfx.move()
+			if (move(dir)) sfx.move(dir)
 			else sfx.blocked()
 		}
 

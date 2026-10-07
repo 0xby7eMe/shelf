@@ -35,6 +35,8 @@ import { ActivityDialog } from "@/components/activity-dialog"
 import { useStats } from "@/lib/use-stats"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
+import { confirm } from "@/lib/confirm"
+import { ConfirmDialog } from "@/components/confirm-dialog"
 import { Toaster } from "@/components/toaster"
 import { EpicGameSettings } from "@/components/epic-game-settings"
 import { PadHints } from "@/components/pad-hints"
@@ -271,8 +273,16 @@ function App() {
 				await EpicSyncSaves(g.externalId)
 			}),
 		openSettings: setSettingsGame,
-		uninstall: (g) => {
-			if (!window.confirm(`Uninstall ${g.name}? Saves and the Proton prefix are kept.`)) return
+		uninstall: async (g) => {
+			const ok = await confirm({
+				title: "Uninstall this game?",
+				description:
+					"The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+				confirmLabel: "Uninstall",
+				destructive: true,
+				game: { name: g.name, cover: g.cover },
+			})
+			if (!ok) return
 			EpicUninstall(g.externalId)
 				.then(() => toast.success(`${g.name} uninstalled`))
 				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
@@ -536,6 +546,7 @@ function App() {
 			/>
 		</div>
 
+		<ConfirmDialog />
 		<Toaster />
 		<PadHints inSettings={settings !== null} />
 		</>

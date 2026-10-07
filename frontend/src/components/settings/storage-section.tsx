@@ -5,6 +5,7 @@ import { EpicDeletePrefix, GetStorage } from "../../../wailsjs/go/main/App"
 import { library, main } from "../../../wailsjs/go/models"
 import { Bar, IconButton, Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { formatBytes } from "@/lib/format"
+import { confirm } from "@/lib/confirm"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
@@ -51,14 +52,20 @@ export function StorageSection({ games, onSelect }: Props) {
 	const prefixTotal = (storage?.prefixes ?? []).reduce((n, p) => n + p.bytes, 0)
 	const leftovers = (storage?.prefixes ?? []).filter((p) => !p.installed)
 
-	async function removePrefix(appName: string, title: string, installed: boolean) {
-		const msg = installed
-			? `Reset the Proton prefix of ${title}? Windows settings and any saves stored only there are lost. Cloud saves are not affected.`
-			: `Delete the leftover Proton prefix of ${title}?`
-		if (!window.confirm(msg)) return
+	async function removePrefix(appName: string, title: string, installed: boolean, cover?: string) {
+		const ok = await confirm({
+			title: installed ? "Reset the Proton prefix?" : "Delete the leftover prefix?",
+			description: installed
+				? "Windows settings and any saves stored only inside the prefix are lost. Cloud saves are not affected, and the game rebuilds the prefix on its next start."
+				: "This game is no longer installed, so nothing uses this prefix. Deleting it frees the space.",
+			confirmLabel: installed ? "Reset prefix" : "Delete",
+			destructive: true,
+			game: { name: title, cover },
+		})
+		if (!ok) return
 		try {
 			await EpicDeletePrefix(appName)
-			toast.success("Prefix deleted", { description: title })
+			toast.success(installed ? "Prefix reset" : "Prefix deleted", { description: title })
 			load()
 		} catch (e) {
 			toast.error("Couldn't delete the prefix", { description: String(e) })
@@ -149,7 +156,7 @@ export function StorageSection({ games, onSelect }: Props) {
 									{prefix > 0 && <p className="text-[11px] text-white/40">+ {formatBytes(prefix)} prefix</p>}
 								</div>
 								{prefix > 0 && (
-									<IconButton label="Reset prefix" onClick={() => removePrefix(game.externalId, game.name, true)}>
+									<IconButton label="Reset prefix" onClick={() => removePrefix(game.externalId, game.name, true, game.cover)}>
 										<Trash2 className="size-3.5" />
 									</IconButton>
 								)}

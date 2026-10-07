@@ -23,9 +23,12 @@ export function ControllerSection() {
 	const pad = usePadName()
 
 	function test() {
-		sfx.move()
-		setTimeout(sfx.confirm, 220)
-		setTimeout(sfx.back, 560)
+		// A few steps along the scale, then select and back.
+		sfx.move("right")
+		setTimeout(() => sfx.move("right"), 140)
+		setTimeout(() => sfx.move("right"), 280)
+		setTimeout(sfx.confirm, 560)
+		setTimeout(sfx.back, 960)
 	}
 
 	return (
@@ -70,7 +73,7 @@ export function ControllerSection() {
 						value={prefs.volume}
 						disabled={!prefs.sounds}
 						onChange={(e) => setPrefs({ volume: Number(e.target.value) })}
-						onPointerUp={sfx.move}
+						onPointerUp={() => sfx.move()}
 						aria-label="Volume"
 						className="h-1.5 w-full cursor-pointer appearance-none rounded-full bg-white/10 accent-white disabled:opacity-40"
 					/>

@@ -9,7 +9,7 @@ export interface Prefs {
 }
 
 const KEY = "shelf:prefs"
-const defaults: Prefs = { gamepad: true, sounds: true, volume: 60 }
+const defaults: Prefs = { gamepad: true, sounds: true, volume: 80 }
 
 function load(): Prefs {
 	try {

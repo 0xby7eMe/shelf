@@ -35,6 +35,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
+- **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
 
 **Epic Games**
 
@@ -141,6 +142,22 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
 Open a game and use **Collections** and **Tags** in its sheet. A game can be in any number of collections (press **New collection** to make one on the spot) and carry any number of tags; type a tag and press Enter or a comma. The **Collections** button in the header narrows the library to one collection or tag, and works together with the store filter, search and the Favorites tab. **Settings, Collections** renames and deletes collections and removes a tag from every game.
 
 Everything is saved in `~/.config/shelf/organizer.json`, separate from your favorites. Games are filed by store and id (`steam:620`, `epic:Fortnite`), so the same title on two stores can be filed differently.
+
+## Friends
+
+**More, Friends** lists your friends by what they are doing: playing, online, away, and offline (folded away). A friend's game is matched against your library, so you can open it straight away if you own it. The list refreshes every minute while the window is open and never in the background.
+
+| Launcher | Friends | Why |
+| --- | --- | --- |
+| Steam | Yes | Through Steam's Web API |
+| Epic Games | No | Epic only shares who is online over a private channel that other apps can't use |
+| Ubisoft | No | Ubisoft Connect has no way for other apps to read your friends |
+
+Epic and Ubisoft are listed in the window with the reason, so you know why they are empty.
+
+**Steam setup.** Get a free [Web API key](https://steamcommunity.com/dev/apikey) (any domain name works, for example `localhost`), paste it in the Steam card in the Friends window and press Save. Shelf finds your account from the one Steam is signed in with on this computer. Your friends list has to be visible to you in Steam's privacy settings, which it is by default. The key is kept in `~/.config/shelf/friends.json`, readable only by you, and is only ever sent to Steam.
+
+New launchers plug in by implementing one small `Provider` interface in `internal/friends`; the window draws their setup form from the fields they declare.
 
 ## Desktop integration
 
@@ -288,6 +305,7 @@ Finished sessions of every store feed the activity heatmap.
 | --- | --- |
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
+| Friends settings (Steam API key) | `~/.config/shelf/friends.json` |
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
 | Epic login and metadata | `~/.config/shelf/legendary` |
 | Proton prefixes (Ubisoft's is `ubisoft-connect`) | `~/.local/share/shelf/prefixes` |

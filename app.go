@@ -15,6 +15,7 @@ import (
 	"shelf/internal/applog"
 	"shelf/internal/desktop"
 	"shelf/internal/epic"
+	"shelf/internal/friends"
 	"shelf/internal/library"
 	"shelf/internal/sysmon"
 )
@@ -29,6 +30,7 @@ type App struct {
 	epic    *epic.Manager
 	sys     *sysmon.Sampler
 	hw      *sysmon.Monitor
+	friends *friends.Hub
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -58,6 +60,12 @@ func NewApp() *App {
 		hist:    hist,
 		epic:    ep,
 		sys:     sys,
+
+		friends: friends.NewHub(friends.NewStore(),
+			friends.NewSteam(),
+			friends.NewUnsupported("epic", "Epic Games", "Epic only shares who is online over a private channel that other apps can't use, and legendary has no friends feature."),
+			friends.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no way for other apps to read your friends."),
+		),
 
 		desk:  desktop.NewStore(),
 		known: map[string]library.Game{},
@@ -168,6 +176,28 @@ func (a *App) SetGameTags(gameID string, tags []string) (library.Organization, e
 
 // DeleteTag removes a tag from every game.
 func (a *App) DeleteTag(tag string) (library.Organization, error) { return a.org.DeleteTag(tag) }
+
+// GetFriends is who is online and what they play, from every launcher that can
+// say. Results are cached for a short while unless force is set.
+func (a *App) GetFriends(force bool) friends.Snapshot {
+	return a.friends.Snapshot(a.ctx, force)
+}
+
+// SetFriendsConfig saves what the user entered for a launcher, such as an API key.
+func (a *App) SetFriendsConfig(source string, values map[string]string) (friends.Snapshot, error) {
+	if err := a.friends.Configure(source, values); err != nil {
+		return friends.Snapshot{}, err
+	}
+	return a.friends.Snapshot(a.ctx, true), nil
+}
+
+// DisconnectFriends forgets what was saved for a launcher.
+func (a *App) DisconnectFriends(source string) (friends.Snapshot, error) {
+	if err := a.friends.Disconnect(source); err != nil {
+		return friends.Snapshot{}, err
+	}
+	return a.friends.Snapshot(a.ctx, true), nil
+}
 
 func (a *App) GetFavorites() []string { return a.favs.List() }
 

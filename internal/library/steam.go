@@ -189,3 +189,42 @@ func SteamRoot() (string, error) { return findSteamRoot() }
 
 // SteamLibraryDirs lists every Steam library folder, root included.
 func SteamLibraryDirs(root string) []string { return libraryDirs(root) }
+
+// SteamUserID is the 64-bit id of the account Steam last signed in with.
+func SteamUserID() (string, error) {
+	root, err := findSteamRoot()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(filepath.Join(root, "config", "loginusers.vdf"))
+	if err != nil {
+		return "", err
+	}
+	return parseLastSteamUser(data)
+}
+
+// parseLastSteamUser picks the account marked as the most recent one, or else
+// the one that signed in last.
+func parseLastSteamUser(data []byte) (string, error) {
+	doc, err := parseVDF(data)
+	if err != nil {
+		return "", err
+	}
+	best, bestTime := "", int64(-1)
+	for id, v := range doc.obj("users") {
+		u, ok := v.(vdfNode)
+		if !ok {
+			continue
+		}
+		if u.str("MostRecent") == "1" {
+			return id, nil
+		}
+		if t, _ := strconv.ParseInt(u.str("Timestamp"), 10, 64); t > bestTime {
+			best, bestTime = id, t
+		}
+	}
+	if best == "" {
+		return "", fmt.Errorf("no Steam account is signed in")
+	}
+	return best, nil
+}

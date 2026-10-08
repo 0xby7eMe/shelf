@@ -18,6 +18,10 @@ export function DeleteTag(arg1) {
   return window['go']['main']['App']['DeleteTag'](arg1);
 }
 
+export function DisconnectFriends(arg1) {
+  return window['go']['main']['App']['DisconnectFriends'](arg1);
+}
+
 export function EpicCancelInstall(arg1) {
   return window['go']['main']['App']['EpicCancelInstall'](arg1);
 }
@@ -142,6 +146,10 @@ export function GetFavorites() {
   return window['go']['main']['App']['GetFavorites']();
 }
 
+export function GetFriends(arg1) {
+  return window['go']['main']['App']['GetFriends'](arg1);
+}
+
 export function GetGames() {
   return window['go']['main']['App']['GetGames']();
 }
@@ -240,6 +248,10 @@ export function SetEpicGameSettings(arg1, arg2) {
 
 export function SetEpicSettings(arg1) {
   return window['go']['main']['App']['SetEpicSettings'](arg1);
+}
+
+export function SetFriendsConfig(arg1, arg2) {
+  return window['go']['main']['App']['SetFriendsConfig'](arg1, arg2);
 }
 
 export function SetGameCollections(arg1, arg2) {

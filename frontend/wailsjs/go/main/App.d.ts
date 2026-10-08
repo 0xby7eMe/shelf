@@ -65,6 +65,8 @@ export function GetBattlEyeInstall():Promise<epic.ProtonInstallState>;
 
 export function GetBattlEyeRuntime():Promise<epic.BattlEyeRuntime>;
 
+export function GetCardCover(arg1:string):Promise<string>;
+
 export function GetDesktopStatus():Promise<main.DesktopStatus>;
 
 export function GetEpicAccount():Promise<epic.Account>;
@@ -120,6 +122,8 @@ export function OpenLogsFolder():Promise<void>;
 export function OpenStorePage(arg1:string):Promise<void>;
 
 export function RenameCollection(arg1:string,arg2:string):Promise<library.Organization>;
+
+export function SaveShareCard(arg1:string):Promise<string>;
 
 export function SetDesktopSettings(arg1:desktop.Settings):Promise<main.DesktopStatus>;
 

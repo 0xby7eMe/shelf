@@ -29,6 +29,7 @@ type App struct {
 	epic    *epic.Manager
 	sys     *sysmon.Sampler
 	hw      *sysmon.Monitor
+	covers  *library.Covers
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -168,6 +169,45 @@ func (a *App) SetGameTags(gameID string, tags []string) (library.Organization, e
 
 // DeleteTag removes a tag from every game.
 func (a *App) DeleteTag(tag string) (library.Organization, error) { return a.org.DeleteTag(tag) }
+
+// GetCardCover is a game's cover as a data URL, for drawing the share card.
+// It is empty when the game has none.
+func (a *App) GetCardCover(id string) string {
+	_, ext := splitID(id)
+	g, ok := a.gameByExternalID(ext)
+	if !ok || a.covers == nil {
+		return ""
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 20*time.Second)
+	defer cancel()
+	url, err := a.covers.DataURL(ctx, g)
+	if err != nil {
+		log.Printf("share card: %v", err)
+		return ""
+	}
+	return url
+}
+
+// SaveShareCard asks where to put the finished card and writes it there. It
+// returns the path, or "" if the dialog was cancelled.
+func (a *App) SaveShareCard(dataURL string) (string, error) {
+	data, err := library.DecodePNGDataURL(dataURL)
+	if err != nil {
+		return "", err
+	}
+	path, err := runtime.SaveFileDialog(a.ctx, runtime.SaveDialogOptions{
+		Title:           "Save your Shelf card",
+		DefaultFilename: "shelf-card.png",
+		Filters:         []runtime.FileFilter{{DisplayName: "PNG image", Pattern: "*.png"}},
+	})
+	if err != nil || path == "" {
+		return "", err
+	}
+	if !strings.HasSuffix(strings.ToLower(path), ".png") {
+		path += ".png"
+	}
+	return path, os.WriteFile(path, data, 0o644)
+}
 
 func (a *App) GetFavorites() []string { return a.favs.List() }
 

@@ -25,8 +25,9 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, Gauge, RefreshCw, Search, Settings, Shuffle, Terminal } from "lucide-react"
+import { Activity, Download, Gauge, RefreshCw, Search, Settings, Share2, Shuffle, Terminal } from "lucide-react"
 import { ActivityDialog } from "@/components/activity-dialog"
+import { ShareCardDialog } from "@/components/share-card-dialog"
 import { useStats } from "@/lib/use-stats"
 import { setIntegrationTab, type Integration } from "@/lib/integrations"
 import { useEpic } from "@/lib/use-epic"
@@ -70,6 +71,7 @@ function App() {
 	const [refreshing, setRefreshing] = useState(false)
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
+	const [shareOpen, setShareOpen] = useState(false)
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
 	settingsRef.current = settings
@@ -356,6 +358,7 @@ function App() {
 			onSelect: () => refresh(),
 		},
 		{ id: "activity", label: "Activity", icon: <Activity className="size-3.5" />, onSelect: () => setActivityOpen(true) },
+		{ id: "share", label: "Share card", icon: <Share2 className="size-3.5" />, onSelect: () => setShareOpen(true) },
 		...(prefs.hardwareMonitor
 			? [{ id: "performance", label: "Performance", icon: <Gauge className="size-3.5" />, hint: "P", onSelect: () => setMonitorOpen(true) }]
 			: []),
@@ -591,6 +594,13 @@ function App() {
 				stats={stats}
 				games={games ?? NO_GAMES}
 				onSelect={setSelected}
+			/>
+
+			<ShareCardDialog
+				open={shareOpen}
+				onOpenChange={setShareOpen}
+				games={games ?? NO_GAMES}
+				favorites={favorites}
 			/>
 		</div>
 

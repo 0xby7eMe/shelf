@@ -157,20 +157,25 @@ func TestOnlyReadyProvidersAreAskedAndOtherGamesIgnored(t *testing.T) {
 }
 
 func TestPrivateDataStopsThatLauncherAndSaysSo(t *testing.T) {
-	f := &fake{source: "a", ready: true, err: map[string]error{"1": ErrPrivate}, data: map[string]Progress{"2": {Total: 3}}}
-	h := NewHub("", nil, f)
+	// Every lookup says private. A worker's second job always sees that the
+	// launcher was stopped, because its own first call is what stopped it, so
+	// there can be at most one call per worker however quickly they run.
 	ids := make([]string, 40)
+	errs := map[string]error{}
 	for i := range ids {
 		ids[i] = fmt.Sprint(i + 1)
+		errs[ids[i]] = ErrPrivate
 	}
+	f := &fake{source: "a", ready: true, err: errs}
+	h := NewHub("", nil, f)
 	h.Scan(context.Background(), refs("a", ids...), false)
 	waitIdle(t, h)
-	o := h.Overview()
-	if o.Providers[0].Message == "" {
+
+	if h.Overview().Providers[0].Message == "" {
 		t.Error("no explanation")
 	}
-	if f.calls.Load() >= 40 {
-		t.Errorf("kept asking after the data was private: %d calls", f.calls.Load())
+	if n := int(f.calls.Load()); n > scanWorkers {
+		t.Errorf("kept asking after the data was private: %d calls, at most %d expected", n, scanWorkers)
 	}
 }
 

@@ -181,11 +181,13 @@ install_arch() {
 	ok "Downloaded"
 
 	step "Verifying checksum" "Checksum matches" verify "$TMP/$tar" "$TMP/$tar.sha256"
-	step "Unpacking" "Unpacked" tar -xzf "$TMP/$tar" -C "$TMP" shelf appicon.png
+	mkdir -p "$TMP/pkg"
+	step "Unpacking" "Unpacked" tar -xzf "$TMP/$tar" -C "$TMP/pkg"
+	[ -f "$TMP/pkg/shelf" ] && [ -f "$TMP/pkg/appicon.png" ] || die "the archive is missing the binary or icon"
 
 	spin "Installing"
-	install -Dm755 "$TMP/shelf" "$TARGET"
-	install -Dm644 "$TMP/appicon.png" "$ICON_FILE"
+	install -Dm755 "$TMP/pkg/shelf" "$TARGET"
+	install -Dm644 "$TMP/pkg/appicon.png" "$ICON_FILE"
 	ok "Installed the binary to ${TARGET/#$HOME/\~}"
 
 	if command -v pacman >/dev/null; then

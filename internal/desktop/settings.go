@@ -1,41 +1,22 @@
-// Package desktop connects Shelf to the rest of the desktop: Discord rich
-// presence, application menu entries for games, the shelf:// link scheme and a
+// Package desktop connects Shelf to the rest of the desktop: application menu entries for games, the shelf:// link scheme and a
 // tray icon.
 package desktop
 
 import (
 	"encoding/json"
-	"fmt"
 	"log"
 	"os"
 	"path/filepath"
-	"regexp"
 	"sync"
 )
 
 // Settings are the switches on the desktop integration page. Everything is off
 // until the user turns it on.
 type Settings struct {
-	DiscordEnabled  bool   `json:"discordEnabled"`
-	DiscordClientID string `json:"discordClientId"` // id of the Discord application that names the presence
-	MenuEntries     bool   `json:"menuEntries"`     // an application menu entry per installed game
-	URLHandler      bool   `json:"urlHandler"`      // open shelf:// links
-	Tray            bool   `json:"tray"`            // a tray icon; applied at the next start
-	CloseToTray     bool   `json:"closeToTray"`     // closing the window leaves Shelf in the tray; applied at the next start
-}
-
-// A Discord application id is a snowflake.
-var clientIDRe = regexp.MustCompile(`^\d{15,25}$`)
-
-// Validate rejects settings that can't work, such as Discord presence with no application id.
-func (s Settings) Validate() error {
-	if s.DiscordClientID != "" && !clientIDRe.MatchString(s.DiscordClientID) {
-		return fmt.Errorf("a Discord application id is a long number, like 1234567890123456789")
-	}
-	if s.DiscordEnabled && s.DiscordClientID == "" {
-		return fmt.Errorf("Discord presence needs an application id")
-	}
-	return nil
+	MenuEntries bool `json:"menuEntries"` // an application menu entry per installed game
+	URLHandler  bool `json:"urlHandler"`  // open shelf:// links
+	Tray        bool `json:"tray"`        // a tray icon; applied at the next start
+	CloseToTray bool `json:"closeToTray"` // closing the window leaves Shelf in the tray; applied at the next start
 }
 
 // Store keeps Settings in desktop.json in the config folder.
@@ -60,7 +41,7 @@ func NewStore() *Store {
 	st.path = filepath.Join(dir, "desktop.json")
 	if raw, err := os.ReadFile(st.path); err == nil {
 		var saved Settings
-		if json.Unmarshal(raw, &saved) == nil && (saved.DiscordClientID == "" || clientIDRe.MatchString(saved.DiscordClientID)) {
+		if json.Unmarshal(raw, &saved) == nil {
 			st.s = saved
 		}
 	}
@@ -74,9 +55,6 @@ func (st *Store) Get() Settings {
 }
 
 func (st *Store) Set(s Settings) error {
-	if err := s.Validate(); err != nil {
-		return err
-	}
 	st.mu.Lock()
 	defer st.mu.Unlock()
 

@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"log"
 	"sort"
-	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
@@ -15,18 +14,16 @@ import (
 // DesktopStatus is the desktop integration page: the settings and what is
 // actually going on.
 type DesktopStatus struct {
-	Settings         desktop.Settings `json:"settings"`
-	DiscordConnected bool             `json:"discordConnected"`
-	TrayRunning      bool             `json:"trayRunning"`
-	URLHandler       bool             `json:"urlHandler"` // the shelf:// handler file is in place
+	Settings    desktop.Settings `json:"settings"`
+	TrayRunning bool             `json:"trayRunning"`
+	URLHandler  bool             `json:"urlHandler"` // the shelf:// handler file is in place
 }
 
 func (a *App) GetDesktopStatus() DesktopStatus {
 	return DesktopStatus{
-		Settings:         a.desk.Get(),
-		DiscordConnected: a.presence.Connected(),
-		TrayRunning:      a.tray != nil && a.tray.Running(),
-		URLHandler:       desktop.URLHandlerRegistered(desktop.ApplicationsDir()),
+		Settings:    a.desk.Get(),
+		TrayRunning: a.tray != nil && a.tray.Running(),
+		URLHandler:  desktop.URLHandlerRegistered(desktop.ApplicationsDir()),
 	}
 }
 
@@ -41,13 +38,6 @@ func (a *App) SetDesktopSettings(s desktop.Settings) (DesktopStatus, error) {
 }
 
 func (a *App) applyDesktop(s desktop.Settings) {
-	if s.DiscordEnabled {
-		a.presence.Enable(s.DiscordClientID)
-		a.updatePresence(a.monitor.Snapshot())
-	} else {
-		a.presence.Disable()
-	}
-
 	dir := desktop.ApplicationsDir()
 	if s.URLHandler {
 		exe, err := desktop.Executable()
@@ -77,9 +67,9 @@ func (a *App) startDesktop() {
 	if s.Tray {
 		a.tray = &desktop.Tray{
 			Icon:     icon,
-			OnToggle: a.showWindow,
+			OnToggle: a.toggleWindow,
 			OnShow:   a.showWindow,
-			OnQuit:   func() { runtime.Quit(a.ctx) },
+			OnQuit:   a.quit,
 			OnLaunch: a.launchFromLink,
 		}
 		a.tray.Start()
@@ -91,8 +81,45 @@ func (a *App) startDesktop() {
 }
 
 func (a *App) showWindow() {
+	a.winMu.Lock()
+	a.hidden = false
+	a.winMu.Unlock()
 	runtime.WindowShow(a.ctx)
 	runtime.WindowUnminimise(a.ctx)
+}
+
+// toggleWindow is the tray icon click: hide the window if it is up, else show it.
+func (a *App) toggleWindow() {
+	a.winMu.Lock()
+	hidden := a.hidden
+	a.hidden = !hidden
+	a.winMu.Unlock()
+	if hidden {
+		runtime.WindowShow(a.ctx)
+		runtime.WindowUnminimise(a.ctx)
+	} else {
+		runtime.WindowHide(a.ctx)
+	}
+}
+
+// beforeClose decides what closing the window does: with close-to-tray it
+// hides the window and keeps Shelf running (true cancels the close).
+func (a *App) beforeClose(closeToTray bool) bool {
+	a.winMu.Lock()
+	defer a.winMu.Unlock()
+	if !closeToTray || a.quitting {
+		return false
+	}
+	a.hidden = true
+	runtime.WindowHide(a.ctx)
+	return true
+}
+
+func (a *App) quit() {
+	a.winMu.Lock()
+	a.quitting = true
+	a.winMu.Unlock()
+	runtime.Quit(a.ctx)
 }
 
 // onSecondInstance runs when Shelf is started again, e.g. by a shelf:// link or
@@ -138,34 +165,6 @@ func (a *App) gameByExternalID(ext string) (library.Game, bool) {
 	defer a.mu.RUnlock()
 	g, ok = a.known[ext]
 	return g, ok
-}
-
-var storeNames = map[library.Source]string{
-	library.SourceSteam:   "Steam",
-	library.SourceEpic:    "Epic Games",
-	library.SourceUbisoft: "Ubisoft",
-}
-
-// updatePresence shows the game started last on Discord, or clears it.
-func (a *App) updatePresence(now []library.Session) {
-	if !a.desk.Get().DiscordEnabled {
-		return
-	}
-	if len(now) == 0 {
-		a.presence.Set(nil)
-		return
-	}
-	latest := now[len(now)-1] // sessions are sorted oldest first
-	g, ok := a.gameByExternalID(latest.AppID)
-	if !ok {
-		a.presence.Set(nil)
-		return
-	}
-	a.presence.Set(&desktop.Activity{
-		Details: g.Name,
-		State:   "on " + storeNames[g.Source],
-		Start:   latest.Since / int64(time.Second/time.Millisecond),
-	})
 }
 
 // syncDesktop brings the menu entries and the tray's recent games up to date.

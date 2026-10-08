@@ -30,14 +30,17 @@ type App struct {
 	sys     *sysmon.Sampler
 	hw      *sysmon.Monitor
 
-	desk     *desktop.Store
-	presence *desktop.Presence
-	tray     *desktop.Tray
+	desk *desktop.Store
+	tray *desktop.Tray
+
+	winMu    sync.Mutex
+	hidden   bool // the window is hidden in the tray
+	quitting bool
 	syncMu   sync.Mutex // one desktop sync at a time
 
 	mu    sync.RWMutex
 	paths map[string]string
-	known map[string]library.Game // by external id, for Discord and the tray
+	known map[string]library.Game // by external id, for the tray
 }
 
 func NewApp() *App {
@@ -56,9 +59,8 @@ func NewApp() *App {
 		epic:    ep,
 		sys:     sys,
 
-		desk:     desktop.NewStore(),
-		presence: desktop.NewPresence(),
-		known:    map[string]library.Game{},
+		desk:  desktop.NewStore(),
+		known: map[string]library.Game{},
 	}
 }
 
@@ -85,7 +87,6 @@ func (a *App) startup(ctx context.Context) {
 
 	go a.monitor.Run(ctx, 2*time.Second, func(now, stopped []library.Session) {
 		runtime.EventsEmit(ctx, "nowplaying:changed", now)
-		a.updatePresence(now)
 		if len(stopped) == 0 {
 			return
 		}
@@ -237,7 +238,6 @@ func (a *App) OpenStorePage(id string) error {
 }
 
 func (a *App) shutdown(ctx context.Context) {
-	a.presence.Disable()
 	if a.tray != nil {
 		a.tray.Stop()
 	}

@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"embed"
 	"net/http"
 	"os"
@@ -60,10 +61,12 @@ func main() {
 			},
 		},
 		// With the tray on, closing the window can keep Shelf running there.
-		HideWindowOnClose: closeToTray,
-		BackgroundColour:  &options.RGBA{R: 10, G: 10, B: 10, A: 1},
-		OnStartup:         app.startup,
-		OnShutdown:        app.shutdown,
+		BackgroundColour: &options.RGBA{R: 10, G: 10, B: 10, A: 1},
+		OnStartup:        app.startup,
+		OnShutdown:       app.shutdown,
+		OnBeforeClose: func(ctx context.Context) bool {
+			return app.beforeClose(closeToTray)
+		},
 		Bind: []interface{}{
 			app,
 		},

@@ -26,8 +26,6 @@ export namespace applog {
 export namespace desktop {
 	
 	export class Settings {
-	    discordEnabled: boolean;
-	    discordClientId: string;
 	    menuEntries: boolean;
 	    urlHandler: boolean;
 	    tray: boolean;
@@ -39,8 +37,6 @@ export namespace desktop {
 	
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
-	        this.discordEnabled = source["discordEnabled"];
-	        this.discordClientId = source["discordClientId"];
 	        this.menuEntries = source["menuEntries"];
 	        this.urlHandler = source["urlHandler"];
 	        this.tray = source["tray"];
@@ -580,7 +576,6 @@ export namespace main {
 	
 	export class DesktopStatus {
 	    settings: desktop.Settings;
-	    discordConnected: boolean;
 	    trayRunning: boolean;
 	    urlHandler: boolean;
 	
@@ -591,7 +586,6 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.settings = this.convertValues(source["settings"], desktop.Settings);
-	        this.discordConnected = source["discordConnected"];
 	        this.trayRunning = source["trayRunning"];
 	        this.urlHandler = source["urlHandler"];
 	    }

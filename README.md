@@ -111,6 +111,7 @@ make install
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
+- **Share card:** an image of your library to post anywhere, with your hours, counts per store and most played games (see [Share card](#share-card))
 - **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
 - **Achievements:** your progress per game and across the library, for the launchers that allow it (see [Achievements](#achievements))
 - **Update notifier:** Shelf tells you when a new release is out and can install it for you (see [Updates](#updates))
@@ -233,6 +234,10 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
 Open a game and use **Collections** and **Tags** in its sheet. A game can be in any number of collections (press **New collection** to make one on the spot) and carry any number of tags; type a tag and press Enter or a comma. The **Collections** button in the header narrows the library to one collection or tag, and works together with the store filter, search and the Favorites tab. **Settings, Collections** renames and deletes collections and removes a tag from every game.
 
 Everything is saved in `~/.config/shelf/organizer.json`, separate from your favorites. Games are filed by store and id (`steam:620`, `epic:Fortnite`), so the same title on two stores can be filed differently.
+
+## Share card
+
+**More, Share card** draws a 1200×720 image of your library: total hours played, how many games you have per store, installed and favorite counts, and your five most played games with their covers. Press **Save as PNG** to put it wherever you like. The card holds only game titles, play time and counts, no paths, accounts or dates, and nothing is uploaded.
 
 ## Friends
 

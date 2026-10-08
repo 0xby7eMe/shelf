@@ -37,6 +37,7 @@ func main() {
 		println("Error:", err.Error())
 		return
 	}
+	app.covers = covers
 
 	ds := app.desk.Get()
 	closeToTray := ds.Tray && ds.CloseToTray

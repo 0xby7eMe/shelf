@@ -373,6 +373,166 @@ export namespace epic {
 
 }
 
+export namespace friends {
+	
+	export class FieldInfo {
+	    key: string;
+	    label: string;
+	    help?: string;
+	    helpUrl?: string;
+	    secret?: boolean;
+	    set: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new FieldInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.key = source["key"];
+	        this.label = source["label"];
+	        this.help = source["help"];
+	        this.helpUrl = source["helpUrl"];
+	        this.secret = source["secret"];
+	        this.set = source["set"];
+	    }
+	}
+	export class Playing {
+	    source: string;
+	    id: string;
+	    name: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Playing(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.id = source["id"];
+	        this.name = source["name"];
+	    }
+	}
+	export class Friend {
+	    id: string;
+	    source: string;
+	    name: string;
+	    avatar?: string;
+	    profileUrl?: string;
+	    status: string;
+	    playing?: Playing;
+	
+	    static createFrom(source: any = {}) {
+	        return new Friend(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.avatar = source["avatar"];
+	        this.profileUrl = source["profileUrl"];
+	        this.status = source["status"];
+	        this.playing = this.convertValues(source["playing"], Playing);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	
+	export class ProviderInfo {
+	    source: string;
+	    name: string;
+	    ready: boolean;
+	    message?: string;
+	    fields: FieldInfo[];
+	    count: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProviderInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.ready = source["ready"];
+	        this.message = source["message"];
+	        this.fields = this.convertValues(source["fields"], FieldInfo);
+	        this.count = source["count"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class Snapshot {
+	    providers: ProviderInfo[];
+	    friends: Friend[];
+	    at: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Snapshot(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providers = this.convertValues(source["providers"], ProviderInfo);
+	        this.friends = this.convertValues(source["friends"], Friend);
+	        this.at = source["at"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace library {
 	
 	export class Collection {

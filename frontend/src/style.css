@@ -8,8 +8,6 @@
 @theme inline {
 	--font-heading: var(--font-sans);
 	--font-sans: 'Geist Variable', sans-serif;
-	--color-solid: var(--shelf-accent);
-	--color-solid-foreground: var(--shelf-accent-fg);
 	--color-sidebar-ring: var(--sidebar-ring);
 	--color-sidebar-border: var(--sidebar-border);
 	--color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -51,9 +49,7 @@
 }
 
 :root {
-	/* The accent is white until the user picks another colour in Settings, Appearance. */
-	--shelf-accent: #ffffff;
-	--shelf-accent-fg: #000000;
+	/* Settings, Appearance, Poster size changes this. */
 	--poster-min: 160px;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
@@ -133,10 +129,6 @@
 	html {
 		@apply font-sans;
 	}
-}
-
-.accent-glow:hover {
-	box-shadow: 0 0 40px color-mix(in srgb, var(--shelf-accent) 30%, transparent);
 }
 
 /* Settings, Appearance, Reduce motion: nothing moves, but everything still ends up where it should. */

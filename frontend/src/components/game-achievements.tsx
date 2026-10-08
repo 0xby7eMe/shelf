@@ -43,7 +43,7 @@ export function GameAchievements({ game }: { game: library.Game }) {
 					{detail.unlocked} / {detail.total} · {pct}%
 				</p>
 			</div>
-			<Bar accent value={pct} />
+			<Bar bright value={pct} />
 
 			<ul className={cn("space-y-1", all && "max-h-72 overflow-y-auto pr-1")}>
 				{shown.map((a) => (

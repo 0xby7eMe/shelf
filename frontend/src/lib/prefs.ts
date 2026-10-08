@@ -12,7 +12,6 @@ export interface Prefs {
 	logHeight: number // px
 	hardwareMonitor: boolean // show the hardware monitor button
 
-	accent: string // "#rrggbb", the colour of buttons, switches and progress bars
 	posterSize: PosterSize
 	heroBanner: boolean // the big banner for the game played last
 	shelfRecent: boolean // the "Continue playing" shelf
@@ -31,7 +30,6 @@ function osReducesMotion(): boolean {
 	}
 }
 
-export const DEFAULT_ACCENT = "#ffffff"
 export const UI_SCALES = [90, 100, 110, 125]
 
 const defaults: Prefs = {
@@ -42,7 +40,6 @@ const defaults: Prefs = {
 	logHeight: 280,
 	hardwareMonitor: false,
 
-	accent: DEFAULT_ACCENT,
 	posterSize: "medium",
 	heroBanner: true,
 	shelfRecent: true,
@@ -63,7 +60,6 @@ const validators: { [K in keyof Prefs]: (v: unknown) => Prefs[K] | undefined } =
 	logHeight: (v) => (typeof v === "number" ? clamp(v, 120, 900) : undefined),
 	hardwareMonitor: bool,
 
-	accent: (v) => (typeof v === "string" && /^#[0-9a-f]{6}$/i.test(v) ? v.toLowerCase() : undefined),
 	posterSize: (v) => (v === "small" || v === "medium" || v === "large" ? v : undefined),
 	heroBanner: bool,
 	shelfRecent: bool,
@@ -113,7 +109,6 @@ export function setPrefs(patch: Partial<Prefs>) {
 // Puts the appearance settings back to how Shelf ships.
 export function resetAppearance() {
 	setPrefs({
-		accent: defaults.accent,
 		posterSize: defaults.posterSize,
 		heroBanner: defaults.heroBanner,
 		shelfRecent: defaults.shelfRecent,

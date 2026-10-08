@@ -118,7 +118,7 @@ export function AboutSection() {
 
 						{installing && (
 							<div className="space-y-2">
-								<Bar accent value={pct ?? 8} />
+								<Bar bright value={pct ?? 8} />
 								<p className="text-xs text-white/45">{pct === null ? "Starting…" : `Downloading ${pct}%`}</p>
 							</div>
 						)}

@@ -84,7 +84,7 @@ export function AchievementsDialog({ open, games, onOpenChange, onSelect, onSetu
 
 						{scanning && (
 							<div className="space-y-2">
-								<Bar accent value={overview.pending > 0 ? (overview.done / overview.pending) * 100 : 0} />
+								<Bar bright value={overview.pending > 0 ? (overview.done / overview.pending) * 100 : 0} />
 								<p className="text-xs text-white/45">
 									Scanning your games… {overview.done} of {overview.pending}
 								</p>
@@ -112,7 +112,7 @@ export function AchievementsDialog({ open, games, onOpenChange, onSelect, onSetu
 													<div className="min-w-0 flex-1">
 														<p className="truncate text-sm font-medium">{g.name}</p>
 														<div className="mt-1.5 flex items-center gap-3">
-															<Bar accent value={(g.unlocked / g.total) * 100} className="flex-1" />
+															<Bar bright value={(g.unlocked / g.total) * 100} className="flex-1" />
 															<span className="shrink-0 text-xs text-white/45 tabular-nums">
 																{g.unlocked}/{g.total}
 															</span>

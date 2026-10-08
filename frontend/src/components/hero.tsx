@@ -50,7 +50,7 @@ export function Hero({ game, onPlay, onDetails }: Props) {
 				<div className="flex gap-2 pt-1">
 					<button
 						onClick={() => onPlay(game)}
-						className="inline-flex h-10 items-center gap-2 rounded-full bg-solid px-5 text-sm font-medium text-solid-foreground transition duration-300 accent-glow"
+						className="inline-flex h-10 items-center gap-2 rounded-full bg-white px-5 text-sm font-medium text-black transition duration-300 hover:shadow-[0_0_40px_rgba(255,255,255,0.35)]"
 					>
 						<Play className="size-3.5 fill-current" />
 						Play

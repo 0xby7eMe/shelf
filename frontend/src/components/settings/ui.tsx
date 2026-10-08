@@ -37,7 +37,7 @@ export function PillButton({
 			className={cn(
 				base,
 				variant === "solid" &&
-					"bg-solid text-solid-foreground ring-transparent accent-glow",
+					"bg-white text-black ring-transparent hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]",
 				variant === "soft" && "bg-white/5 text-white/80 ring-white/10 hover:bg-white/10 hover:text-white",
 				variant === "danger" && "bg-red-500/10 text-red-300 ring-red-400/20 hover:bg-red-500/20",
 				className
@@ -64,12 +64,12 @@ export function IconButton({
 	)
 }
 
-// A progress bar. value is a percentage; accent paints it in the accent colour instead of a quiet white.
-export function Bar({ value, className, accent }: { value: number; className?: string; accent?: boolean }) {
+// A progress bar. value is a percentage; bright paints it solid white instead of a quieter white.
+export function Bar({ value, className, bright }: { value: number; className?: string; bright?: boolean }) {
 	return (
 		<div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", className)}>
 			<div
-				className={cn("h-full rounded-full transition-[width] duration-500", accent ? "bg-solid" : "bg-white/70")}
+				className={cn("h-full rounded-full transition-[width] duration-500", bright ? "bg-white" : "bg-white/70")}
 				style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
 			/>
 		</div>

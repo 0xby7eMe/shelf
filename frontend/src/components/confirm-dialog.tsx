@@ -71,7 +71,7 @@ export function ConfirmDialog() {
 									"h-10 rounded-full px-5 text-sm font-medium transition",
 									options.destructive
 										? "bg-red-500 text-white hover:bg-red-400 hover:shadow-[0_0_32px_rgba(239,68,68,0.45)]"
-										: "bg-solid text-solid-foreground accent-glow"
+										: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
 								)}
 							>
 								{options.confirmLabel ?? "Confirm"}

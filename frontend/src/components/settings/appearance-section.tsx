@@ -1,10 +1,6 @@
-import { Check } from "lucide-react"
-
 import { ToggleRow } from "@/components/toggle-row"
-import { Bar, Label, Panel, PillButton, SectionHeading, Segmented } from "@/components/settings/ui"
-import { ACCENTS } from "@/lib/appearance"
+import { Label, Panel, PillButton, SectionHeading, Segmented } from "@/components/settings/ui"
 import { resetAppearance, setPrefs, UI_SCALES, usePrefs, type PosterSize } from "@/lib/prefs"
-import { cn } from "@/lib/utils"
 
 const POSTER_SIZES: { value: PosterSize; label: string }[] = [
 	{ value: "small", label: "Small" },
@@ -18,25 +14,6 @@ export function AppearanceSection() {
 	return (
 		<div className="space-y-6">
 			<SectionHeading title="Appearance" hint="Make Shelf look the way you like. These settings stay on this computer." />
-
-			<Panel>
-				<div>
-					<Label>Accent color</Label>
-					<p className="mt-1 text-xs text-white/40">Buttons, switches and progress bars.</p>
-				</div>
-				<div className="flex flex-wrap items-center gap-2.5">
-					{ACCENTS.map((a) => (
-						<Swatch key={a.color} color={a.color} name={a.name} active={prefs.accent === a.color} onClick={() => setPrefs({ accent: a.color })} />
-					))}
-				</div>
-				<div className="flex flex-wrap items-center gap-4 rounded-xl bg-black/20 p-4">
-					<PillButton variant="solid">Play</PillButton>
-					<Bar accent value={62} className="w-40" />
-					<span aria-hidden className="relative h-6 w-10 rounded-full bg-solid">
-						<span className="absolute top-0.5 left-0.5 size-5 translate-x-4 rounded-full bg-solid-foreground" />
-					</span>
-				</div>
-			</Panel>
 
 			<Panel>
 				<div className="flex flex-wrap items-center justify-between gap-3">
@@ -98,24 +75,5 @@ export function AppearanceSection() {
 				<PillButton onClick={resetAppearance}>Reset appearance</PillButton>
 			</div>
 		</div>
-	)
-}
-
-function Swatch({ color, name, active, onClick }: { color: string; name: string; active: boolean; onClick: () => void }) {
-	return (
-		<button
-			type="button"
-			title={name}
-			aria-label={name}
-			aria-pressed={active}
-			onClick={onClick}
-			className={cn(
-				"grid size-8 place-items-center rounded-full ring-2 ring-offset-2 ring-offset-[#101010] transition",
-				active ? "ring-white" : "ring-white/15 hover:ring-white/40"
-			)}
-			style={{ background: color }}
-		>
-			{active && <Check className="size-3.5 text-black/70" />}
-		</button>
 	)
 }

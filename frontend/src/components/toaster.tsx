@@ -46,7 +46,7 @@ export function Toaster() {
 										t.action?.onClick()
 										dismiss(t.id)
 									}}
-									className="mt-2.5 rounded-full bg-solid px-3.5 py-1 text-xs font-medium text-solid-foreground transition accent-glow"
+									className="mt-2.5 rounded-full bg-white px-3.5 py-1 text-xs font-medium text-black transition hover:shadow-[0_0_24px_rgba(255,255,255,0.3)]"
 								>
 									{t.action.label}
 								</button>

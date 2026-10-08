@@ -25,13 +25,13 @@ export function ToggleRow({ label, hint, checked, disabled, onChange }: Props) {
 				onClick={() => onChange(!checked)}
 				className={cn(
 					"relative h-6 w-10 shrink-0 rounded-full ring-1 ring-white/10 transition-colors duration-200 disabled:pointer-events-none",
-					checked ? "bg-solid" : "bg-white/10"
+					checked ? "bg-white" : "bg-white/10"
 				)}
 			>
 				<span
 					className={cn(
 						"absolute top-0.5 left-0.5 size-5 rounded-full transition-transform duration-200",
-						checked ? "translate-x-4 bg-solid-foreground" : "bg-white/60"
+						checked ? "translate-x-4 bg-black" : "bg-white/60"
 					)}
 				/>
 			</button>

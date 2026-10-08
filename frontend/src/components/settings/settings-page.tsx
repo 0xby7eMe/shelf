@@ -1,7 +1,8 @@
-import { ArrowLeft, Download, FolderKanban, HardDrive, Gamepad2, Monitor, Plug, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, Download, FolderKanban, HardDrive, Gamepad2, Info, Monitor, Plug, SlidersHorizontal } from "lucide-react"
 
 import { epic, library } from "../../../wailsjs/go/models"
 import { WindowControls } from "@/components/window-controls"
+import { AboutSection } from "@/components/settings/about-section"
 import { AdvancedSection } from "@/components/settings/advanced-section"
 import { CollectionsSection } from "@/components/settings/collections-section"
 import { ControllerSection } from "@/components/settings/controller-section"
@@ -11,7 +12,7 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { StorageSection } from "@/components/settings/storage-section"
 import { cn } from "@/lib/utils"
 
-export type SettingsSection = "integrations" | "collections" | "downloads" | "storage" | "controller" | "desktop" | "advanced"
+export type SettingsSection = "integrations" | "collections" | "downloads" | "storage" | "controller" | "desktop" | "advanced" | "about"
 
 export const SECTIONS: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
 	{ id: "integrations", label: "Integrations", icon: Plug },
@@ -21,6 +22,7 @@ export const SECTIONS: { id: SettingsSection; label: string; icon: React.Compone
 	{ id: "controller", label: "Controller", icon: Gamepad2 },
 	{ id: "desktop", label: "Desktop", icon: Monitor },
 	{ id: "advanced", label: "Advanced", icon: SlidersHorizontal },
+	{ id: "about", label: "About", icon: Info },
 ]
 
 interface Props {
@@ -97,6 +99,7 @@ export function SettingsPage({
 					{section === "controller" && <ControllerSection />}
 					{section === "desktop" && <DesktopSection />}
 					{section === "advanced" && <AdvancedSection />}
+					{section === "about" && <AboutSection />}
 				</main>
 			</div>
 		</div>

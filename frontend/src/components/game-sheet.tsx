@@ -29,6 +29,7 @@ import { BattlEyeNotice, needsBattlEyeNotice } from "@/components/battleye-notic
 import { useBattlEyeRuntime } from "@/lib/use-battleye"
 import { LiveDot } from "@/components/live-dot"
 import { GameOrganizer } from "@/components/game-organizer"
+import { GameAchievements } from "@/components/game-achievements"
 
 // What the sheet can ask the app to do with an Epic game.
 export interface EpicActions {
@@ -364,6 +365,12 @@ function Body({
 						</>
 					)}
 				</Reveal>
+
+				{game.source === "steam" && (
+					<Reveal i={6}>
+						<GameAchievements game={game} />
+					</Reveal>
+				)}
 
 				{isEpic && game.installed && (
 					<Reveal i={6} className="flex gap-2">

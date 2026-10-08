@@ -252,7 +252,7 @@ New launchers plug in by implementing one small `Provider` interface in `interna
 
 ## Achievements
 
-**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a game and its sheet lists that game's achievements, with the newest unlocks, the rarest ones and what is still locked, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
+**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a Steam game and its sheet lists that game's achievements: the newest unlocks first, then what is still locked, easiest first, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
 
 | Launcher | Achievements | Why |
 | --- | --- | --- |

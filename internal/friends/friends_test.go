@@ -4,12 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"sync/atomic"
 	"testing"
 	"time"
+
+	"shelf/internal/steamapi"
 )
 
 type fake struct {
@@ -151,120 +151,28 @@ func TestUnsupportedSaysWhy(t *testing.T) {
 	}
 }
 
-func steamServer(t *testing.T, status int) (*httptest.Server, *string) {
-	t.Helper()
-	var gotKey string
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		gotKey = r.URL.Query().Get("key")
-		if status != http.StatusOK {
-			w.WriteHeader(status)
-			return
-		}
-		switch r.URL.Path {
-		case "/ISteamUser/GetFriendList/v1/":
-			if r.URL.Query().Get("steamid") != "me" {
-				t.Errorf("steamid = %q", r.URL.Query().Get("steamid"))
-			}
-			fmt.Fprint(w, `{"friendslist":{"friends":[{"steamid":"1"},{"steamid":"2"},{"steamid":"3"},{"steamid":"4"}]}}`)
-		case "/ISteamUser/GetPlayerSummaries/v2/":
-			fmt.Fprint(w, `{"response":{"players":[
-				{"steamid":"1","personaname":"Amy","personastate":1,"gameid":"620","gameextrainfo":"Portal 2","avatarmedium":"https://a/1.jpg","profileurl":"https://p/1"},
-				{"steamid":"2","personaname":"Bob","personastate":3},
-				{"steamid":"3","personaname":"Cy","personastate":0},
-				{"steamid":"4","personaname":"Di","personastate":6}]}}`)
-		default:
-			http.NotFound(w, r)
-		}
-	}))
-	t.Cleanup(srv.Close)
-	return srv, &gotKey
-}
-
-func newTestSteam(base string) *Steam {
-	s := NewSteam()
-	s.apiBase = base
-	s.userID = func() (string, error) { return "me", nil }
-	return s
-}
-
-func TestSteamFriends(t *testing.T) {
-	srv, gotKey := steamServer(t, http.StatusOK)
-	s := newTestSteam(srv.URL)
-	if ok, _ := s.Ready(); ok {
-		t.Fatal("ready without a key")
+func TestSteamFriendMapsPresence(t *testing.T) {
+	cases := []struct {
+		p    steamapi.Player
+		want Status
+	}{
+		{steamapi.Player{PersonaState: 1}, StatusOnline},
+		{steamapi.Player{PersonaState: 6}, StatusOnline},
+		{steamapi.Player{PersonaState: 3}, StatusAway},
+		{steamapi.Player{PersonaState: 4}, StatusAway},
+		{steamapi.Player{PersonaState: 0}, StatusOffline},
+		{steamapi.Player{PersonaState: 1, GameID: "620", GameName: "Portal 2"}, StatusPlaying},
 	}
-	s.Configure(map[string]string{"apiKey": "K"})
-	if ok, why := s.Ready(); !ok {
-		t.Fatal(why)
-	}
-
-	fs, err := s.Friends(context.Background())
-	if err != nil {
-		t.Fatal(err)
-	}
-	if *gotKey != "K" || len(fs) != 4 {
-		t.Fatalf("key=%q friends=%d", *gotKey, len(fs))
-	}
-	want := []Status{StatusPlaying, StatusAway, StatusOffline, StatusOnline}
-	for i, f := range fs {
-		if f.Status != want[i] {
-			t.Errorf("%s: status %s, want %s", f.Name, f.Status, want[i])
+	for _, c := range cases {
+		if got := steamFriend(c.p).Status; got != c.want {
+			t.Errorf("%+v: %s, want %s", c.p, got, c.want)
 		}
 	}
-	if p := fs[0].Playing; p == nil || p.Source != "steam" || p.ID != "620" || p.Name != "Portal 2" {
-		t.Errorf("playing = %+v", fs[0].Playing)
+	f := steamFriend(steamapi.Player{PersonaState: 1, GameID: "620", GameName: "Portal 2"})
+	if p := f.Playing; p == nil || p.Source != "steam" || p.ID != "620" || p.Name != "Portal 2" {
+		t.Errorf("playing = %+v", f.Playing)
 	}
-}
-
-func TestSteamErrorsAreFriendlyAndKeepTheKeyOut(t *testing.T) {
-	for status, want := range map[int]string{
-		http.StatusForbidden:    "rejected the Web API key",
-		http.StatusUnauthorized: "friends list is private",
-	} {
-		srv, _ := steamServer(t, status)
-		s := newTestSteam(srv.URL)
-		s.Configure(map[string]string{"apiKey": "SECRETKEY"})
-		_, err := s.Friends(context.Background())
-		if err == nil || !strings.Contains(err.Error(), want) {
-			t.Errorf("status %d: err = %v", status, err)
-		}
-	}
-
-	// An unreachable server must not put the request URL, and so the key, in the error.
-	s := newTestSteam("http://127.0.0.1:1")
-	s.Configure(map[string]string{"apiKey": "SECRETKEY"})
-	_, err := s.Friends(context.Background())
-	if err == nil || strings.Contains(err.Error(), "SECRETKEY") {
-		t.Errorf("err = %v", err)
-	}
-}
-
-func TestSteamAsksForHundredAtATime(t *testing.T) {
-	var batches []int
-	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.Contains(r.URL.Path, "GetFriendList") {
-			var b strings.Builder
-			b.WriteString(`{"friendslist":{"friends":[`)
-			for i := 0; i < 230; i++ {
-				if i > 0 {
-					b.WriteString(",")
-				}
-				fmt.Fprintf(&b, `{"steamid":"%d"}`, i)
-			}
-			b.WriteString("]}}")
-			fmt.Fprint(w, b.String())
-			return
-		}
-		batches = append(batches, len(strings.Split(r.URL.Query().Get("steamids"), ",")))
-		fmt.Fprint(w, `{"response":{"players":[]}}`)
-	}))
-	defer srv.Close()
-	s := newTestSteam(srv.URL)
-	s.Configure(map[string]string{"apiKey": "K"})
-	if _, err := s.Friends(context.Background()); err != nil {
-		t.Fatal(err)
-	}
-	if fmt.Sprint(batches) != "[100 100 30]" {
-		t.Errorf("batches = %v", batches)
+	if f := steamFriend(steamapi.Player{GameID: "9"}); f.Playing == nil || f.Playing.Name != "a game" {
+		t.Errorf("unnamed game = %+v", f.Playing)
 	}
 }

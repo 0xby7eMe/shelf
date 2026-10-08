@@ -601,6 +601,7 @@ function App() {
 				onOpenChange={setFriendsOpen}
 				games={games ?? NO_GAMES}
 				onSelect={setSelected}
+				onSetup={(source) => openIntegration(source as Integration)}
 			/>
 		</div>
 

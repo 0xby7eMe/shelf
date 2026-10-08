@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -17,6 +18,7 @@ import (
 	"shelf/internal/epic"
 	"shelf/internal/friends"
 	"shelf/internal/library"
+	"shelf/internal/steamapi"
 	"shelf/internal/sysmon"
 )
 
@@ -31,6 +33,7 @@ type App struct {
 	sys     *sysmon.Sampler
 	hw      *sysmon.Monitor
 	friends *friends.Hub
+	steam   *steamapi.Client
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -52,8 +55,11 @@ func NewApp() *App {
 	monitor.Extra = ep.Running
 	sys := sysmon.New()
 
+	steam := steamapi.New(library.SteamUserID)
+
 	return &App{
-		lib:     library.New(library.NewSteam(), ep.Provider(), ep.UbisoftProvider()),
+		steam:   steam,
+		lib:     library.New(library.NewSteam(steam), ep.Provider(), ep.UbisoftProvider()),
 		favs:    library.NewFavorites(),
 		org:     library.NewOrganizer(),
 		monitor: monitor,
@@ -62,7 +68,7 @@ func NewApp() *App {
 		sys:     sys,
 
 		friends: friends.NewHub(friends.NewStore(),
-			friends.NewSteam(),
+			friends.NewSteam(steam),
 			friends.NewUnsupported("epic", "Epic Games", "Epic only shares who is online over a private channel that other apps can't use, and legendary has no friends feature."),
 			friends.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no way for other apps to read your friends."),
 		),
@@ -199,6 +205,72 @@ func (a *App) DisconnectFriends(source string) (friends.Snapshot, error) {
 	return a.friends.Snapshot(a.ctx, true), nil
 }
 
+// SteamAPIStatus is the Steam integration page: whether a key is saved, and
+// the account card when Steam answers.
+type SteamAPIStatus struct {
+	Configured bool               `json:"configured"`
+	Message    string             `json:"message,omitempty"` // what is missing or went wrong
+	Overview   *steamapi.Overview `json:"overview,omitempty"`
+}
+
+// steamStatus describes the integration. The error is why the account card is
+// missing, if it is; it is also in Message for the interface.
+func (a *App) steamStatus() (SteamAPIStatus, error) {
+	st := SteamAPIStatus{Configured: a.steam.Configured()}
+	if !st.Configured {
+		return st, nil
+	}
+	if ok, why := a.steam.Ready(); !ok {
+		st.Message = why
+		return st, errors.New(why)
+	}
+	ctx, cancel := context.WithTimeout(a.ctx, 20*time.Second)
+	defer cancel()
+	o, err := a.steam.Overview(ctx)
+	if err != nil {
+		st.Message = err.Error()
+		return st, err
+	}
+	st.Overview = &o
+	return st, nil
+}
+
+func (a *App) GetSteamAPI() SteamAPIStatus {
+	st, _ := a.steamStatus()
+	return st
+}
+
+// SetSteamAPIKey saves a key once Steam accepts it, then refreshes the library
+// so the games that aren't installed show up.
+func (a *App) SetSteamAPIKey(key string) (SteamAPIStatus, error) {
+	key = strings.TrimSpace(key)
+	if key == "" {
+		return SteamAPIStatus{}, fmt.Errorf("paste your Web API key first")
+	}
+	prev := a.steam.Key()
+	if err := a.steam.SetKey(key); err != nil {
+		return SteamAPIStatus{}, err
+	}
+	st, err := a.steamStatus()
+	if errors.Is(err, steamapi.ErrBadKey) {
+		// A key Steam turns down isn't kept. Other trouble, such as being offline, is not the key's fault.
+		a.steam.SetKey(prev)
+		return SteamAPIStatus{}, err
+	}
+	runtime.EventsEmit(a.ctx, "library:changed")
+	return st, nil
+}
+
+// DisconnectSteamAPI forgets the key. Games that aren't installed leave the library again.
+func (a *App) DisconnectSteamAPI() (SteamAPIStatus, error) {
+	if err := a.steam.SetKey(""); err != nil {
+		return SteamAPIStatus{}, err
+	}
+	runtime.EventsEmit(a.ctx, "library:changed")
+	st, _ := a.steamStatus()
+	return st, nil
+}
+
 func (a *App) GetFavorites() []string { return a.favs.List() }
 
 func (a *App) ToggleFavorite(appID string) ([]string, error) {
@@ -286,6 +358,13 @@ func (a *App) GetStats(weeks int) library.Stats {
 func (a *App) Launch(id string) error {
 	switch store, ext := splitID(id); store {
 	case library.SourceSteam:
+		// A game that isn't installed is one the Web API listed: open Steam's install dialog.
+		a.mu.RLock()
+		g, known := a.known[ext]
+		a.mu.RUnlock()
+		if known && g.Source == library.SourceSteam && !g.Installed {
+			return library.InstallSteam(ext)
+		}
 		return library.Launch(ext)
 	case library.SourceEpic:
 		return a.epic.Launch(ext)

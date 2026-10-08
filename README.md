@@ -112,6 +112,8 @@ make install
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
+- **Achievements:** your progress per game and across the library, for the launchers that allow it (see [Achievements](#achievements))
+- **Update notifier:** Shelf tells you when a new release is out and can install it for you (see [Updates](#updates))
 
 **Epic Games**
 
@@ -248,6 +250,28 @@ Epic and Ubisoft are listed in the window with the reason, so you know why they 
 
 New launchers plug in by implementing one small `Provider` interface in `internal/friends`; the window draws their setup form from the fields they declare.
 
+## Achievements
+
+**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a game and its sheet lists that game's achievements, with the newest unlocks, the rarest ones and what is still locked, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
+
+| Launcher | Achievements | Why |
+| --- | --- | --- |
+| Steam | Yes | Through the Steam Web API key from [Steam](#steam) |
+| Epic Games | No | Epic only serves achievements to a game's own developer, with credentials issued per game |
+| Ubisoft | No | Ubisoft Connect has no public way to read them |
+
+Epic and Ubisoft are listed in the window with the reason. For Steam, your **Game details** have to be public in Steam's privacy settings, and Shelf says so if they aren't. Like [Friends](#friends), each launcher is a small `Provider` in `internal/achievements`, so a store that gains an API later is one file.
+
+## Updates
+
+Shelf checks GitHub for a new release when it starts and once a day after that, and shows a notice when there is one. **Settings, About** shows the version you run, checks on demand and holds the switch to turn the automatic check off. For a new version you can read what changed, **Skip this version**, or press **Update now**:
+
+- An **AppImage** or a binary you installed with the install script is replaced in place. Shelf downloads the right file for your system, checks its SHA-256, swaps it in and offers to restart.
+- A copy installed by your package manager, or in a folder you can't write to, can't update itself. Shelf says so and opens the release page instead.
+- A build from source never checks, since it has no release number.
+
+Only the release files of this repository are ever downloaded. You can always update the way you installed: run the [install script](#quick-install) again.
+
 ## Desktop integration
 
 **Settings, Desktop.** Everything is off until you switch it on.
@@ -325,6 +349,8 @@ Finished sessions of every store feed the activity heatmap.
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
 | Steam Web API key | `~/.config/shelf/steam.json` |
+| Update settings and the last release seen | `~/.config/shelf/updates.json` |
+| Achievement progress cache | `~/.cache/shelf/achievements.json` |
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
 | Epic login and metadata | `~/.config/shelf/legendary` |
 | Proton prefixes (Ubisoft's is `ubisoft-connect`) | `~/.local/share/shelf/prefixes` |

@@ -6,13 +6,16 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
+	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
+	"shelf/internal/achievements"
 	"shelf/internal/applog"
 	"shelf/internal/desktop"
 	"shelf/internal/epic"
@@ -20,6 +23,7 @@ import (
 	"shelf/internal/library"
 	"shelf/internal/steamapi"
 	"shelf/internal/sysmon"
+	"shelf/internal/update"
 )
 
 type App struct {
@@ -34,6 +38,8 @@ type App struct {
 	hw      *sysmon.Monitor
 	friends *friends.Hub
 	steam   *steamapi.Client
+	ach     *achievements.Hub
+	updater *update.Updater
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -57,7 +63,7 @@ func NewApp() *App {
 
 	steam := steamapi.New(library.SteamUserID)
 
-	return &App{
+	a := &App{
 		steam:   steam,
 		lib:     library.New(library.NewSteam(steam), ep.Provider(), ep.UbisoftProvider()),
 		favs:    library.NewFavorites(),
@@ -75,6 +81,21 @@ func NewApp() *App {
 
 		desk:  desktop.NewStore(),
 		known: map[string]library.Game{},
+
+		updater: update.New(version, "0xby7eMe/shelf", update.NewStore()),
+	}
+	a.ach = achievements.NewHub(achievements.DefaultCachePath(), a.emitEvent,
+		achievements.NewSteam(steam),
+		achievements.NewUnsupported("epic", "Epic Games", "Epic only serves achievements to a game's own developer, with credentials issued per game, so other apps can't read them."),
+		achievements.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no public way for other apps to read your achievements."),
+	)
+	return a
+}
+
+// emitEvent sends an event to the interface, once there is one.
+func (a *App) emitEvent(name string, data any) {
+	if a.ctx != nil {
+		runtime.EventsEmit(a.ctx, name, data)
 	}
 }
 
@@ -89,6 +110,7 @@ func (a *App) startup(ctx context.Context) {
 
 	a.epic.Start(ctx)
 	a.startDesktop()
+	go a.watchUpdates(ctx)
 
 	go func() {
 		err := library.Watch(ctx, func() {
@@ -269,6 +291,122 @@ func (a *App) DisconnectSteamAPI() (SteamAPIStatus, error) {
 	runtime.EventsEmit(a.ctx, "library:changed")
 	st, _ := a.steamStatus()
 	return st, nil
+}
+
+// GetAchievementOverview is what is known of your progress, without asking anyone.
+func (a *App) GetAchievementOverview() achievements.Overview { return a.ach.Overview() }
+
+// ScanAchievements looks your played games up in the background and returns
+// what is known so far. Progress comes as "achievements:changed" events.
+func (a *App) ScanAchievements(force bool) achievements.Overview {
+	a.mu.RLock()
+	refs := make([]achievements.GameRef, 0, len(a.known))
+	for _, g := range a.known {
+		if g.PlaytimeMinutes > 0 {
+			refs = append(refs, achievements.GameRef{Source: string(g.Source), GameID: g.ExternalID, Name: g.Name})
+		}
+	}
+	a.mu.RUnlock()
+	a.ach.Scan(a.ctx, refs, force)
+	return a.ach.Overview()
+}
+
+// GetGameAchievements lists one game's achievements, for the game's sheet.
+func (a *App) GetGameAchievements(id string) (achievements.Detail, error) {
+	store, ext := splitID(id)
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	defer cancel()
+	return a.ach.Detail(ctx, string(store), ext)
+}
+
+// Version is the release this copy was built from, or "dev".
+func (a *App) Version() string { return version }
+
+func (a *App) GetUpdateStatus() update.Status { return a.updater.Status() }
+
+func (a *App) CheckForUpdates() (update.Status, error) {
+	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
+	defer cancel()
+	return a.updater.Check(ctx)
+}
+
+func (a *App) SetAutoUpdateCheck(on bool) (update.Status, error) {
+	err := a.updater.SetAutoCheck(on)
+	return a.updater.Status(), err
+}
+
+func (a *App) SkipUpdate(tag string) (update.Status, error) {
+	err := a.updater.Skip(tag)
+	return a.updater.Status(), err
+}
+
+// InstallUpdate downloads the newest release and swaps it in. Progress comes
+// as "update:progress" events; the new version runs after RestartApp.
+func (a *App) InstallUpdate() (string, error) {
+	var last time.Time
+	return a.updater.Install(a.ctx, func(done, total int64) {
+		if time.Since(last) < 200*time.Millisecond && done != total {
+			return
+		}
+		last = time.Now()
+		runtime.EventsEmit(a.ctx, "update:progress", map[string]int64{"done": done, "total": total})
+	})
+}
+
+// RestartApp starts the installed copy again once this one has quit.
+func (a *App) RestartApp() error {
+	path, err := a.updater.RelaunchPath()
+	if err != nil {
+		return err
+	}
+	// The new copy has to wait for this one to let go of the single-instance lock.
+	cmd := exec.Command("sh", "-c", `sleep 2; exec "$0"`, path)
+	cmd.Env = library.ChildEnv()
+	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
+	if err := cmd.Start(); err != nil {
+		return err
+	}
+	go cmd.Wait()
+	a.quit()
+	return nil
+}
+
+// watchUpdates checks for a new release shortly after start and then daily,
+// and tells the interface once per release.
+func (a *App) watchUpdates(ctx context.Context) {
+	notified := ""
+	notify := func(st update.Status) {
+		if st.Available && !st.Skipped && st.Latest != notified {
+			notified = st.Latest
+			runtime.EventsEmit(ctx, "update:available", st)
+		}
+	}
+
+	delay := 20 * time.Second
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-time.After(delay):
+		}
+		delay = 24 * time.Hour
+
+		// What the last run found counts even if no check is due.
+		if st := a.updater.Status(); st.AutoCheck {
+			notify(st)
+		}
+		if !a.updater.DueForCheck(6 * time.Hour) {
+			continue
+		}
+		cctx, cancel := context.WithTimeout(ctx, 30*time.Second)
+		st, err := a.updater.Check(cctx)
+		cancel()
+		if err != nil {
+			log.Printf("updates: %v", err)
+			continue
+		}
+		notify(st)
+	}
 }
 
 func (a *App) GetFavorites() []string { return a.favs.List() }

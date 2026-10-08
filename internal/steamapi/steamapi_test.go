@@ -184,3 +184,65 @@ func TestOverviewWithPrivateGameDetailsStillWorks(t *testing.T) {
 		t.Errorf("overview = %+v, %v", o, err)
 	}
 }
+
+func TestPlayerAchievements(t *testing.T) {
+	cases := []struct {
+		name   string
+		status int
+		body   string
+		want   error
+		count  int
+	}{
+		{"ok", 200, `{"playerstats":{"success":true,"achievements":[{"apiname":"A","name":"First","achieved":1,"unlocktime":99},{"apiname":"B","name":"Second","achieved":0}]}}`, nil, 2},
+		{"no stats", 400, `{"playerstats":{"error":"Requested app has no stats","success":false}}`, ErrNoAchievements, 0},
+		{"private", 403, `{"playerstats":{"error":"Profile is not public","success":false}}`, ErrPrivate, 0},
+		{"none listed", 200, `{"playerstats":{"success":true}}`, ErrNoAchievements, 0},
+		{"bad key", 403, `Forbidden`, ErrBadKey, 0},
+	}
+	for _, tc := range cases {
+		c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+			if r.URL.Query().Get("appid") != "620" || r.URL.Query().Get("steamid") != "me" {
+				t.Errorf("query = %v", r.URL.Query())
+			}
+			w.WriteHeader(tc.status)
+			fmt.Fprint(w, tc.body)
+		})
+		got, err := c.PlayerAchievements(context.Background(), "620")
+		if !errors.Is(err, tc.want) || len(got) != tc.count {
+			t.Errorf("%s: %d achievements, err = %v", tc.name, len(got), err)
+		}
+	}
+	// An unrecognised explanation is passed on rather than hidden.
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		w.WriteHeader(400)
+		fmt.Fprint(w, `{"playerstats":{"error":"Something odd","success":false}}`)
+	})
+	if _, err := c.PlayerAchievements(context.Background(), "1"); err == nil || !strings.Contains(err.Error(), "Something odd") {
+		t.Errorf("err = %v", err)
+	}
+}
+
+func TestSchemaAndGlobalPercentages(t *testing.T) {
+	var gotKey string
+	c := testClient(t, func(w http.ResponseWriter, r *http.Request) {
+		gotKey = r.URL.Query().Get("key")
+		switch r.URL.Path {
+		case "/ISteamUserStats/GetSchemaForGame/v2/":
+			fmt.Fprint(w, `{"game":{"availableGameStats":{"achievements":[{"name":"A","displayName":"First","description":"d","hidden":1,"icon":"i","icongray":"g"}]}}}`)
+		case "/ISteamUserStats/GetGlobalAchievementPercentagesForApp/v2/":
+			// v2 writes numbers, older answers wrote text; both must work.
+			fmt.Fprint(w, `{"achievementpercentages":{"achievements":[{"name":"A","percent":12.5},{"name":"B","percent":"3.25"}]}}`)
+		}
+	})
+	sch, err := c.Schema(context.Background(), "620")
+	if err != nil || len(sch) != 1 || sch[0].DisplayName != "First" || sch[0].Hidden != 1 {
+		t.Fatalf("schema = %+v, %v", sch, err)
+	}
+	pct, err := c.GlobalPercentages(context.Background(), "620")
+	if err != nil || pct["A"] != 12.5 || pct["B"] != 3.25 {
+		t.Fatalf("percentages = %v, %v", pct, err)
+	}
+	if gotKey != "" {
+		t.Error("the percentages call sent the key although it doesn't need it")
+	}
+}

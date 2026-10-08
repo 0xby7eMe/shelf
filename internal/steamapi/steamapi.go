@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"net/url"
 	"os"
@@ -131,13 +132,15 @@ func (c *Client) account() (string, error) {
 	return id, nil
 }
 
-// get calls one API method and decodes its answer.
-func (c *Client) get(ctx context.Context, path string, q url.Values, out any) error {
-	q.Set("key", c.Key())
+// request sends one API call and returns Steam's status and body.
+func (c *Client) request(ctx context.Context, path string, q url.Values, signed bool) (int, []byte, error) {
+	if signed {
+		q.Set("key", c.Key())
+	}
 	q.Set("format", "json")
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, c.BaseURL+path+"?"+q.Encode(), nil)
 	if err != nil {
-		return err
+		return 0, nil, err
 	}
 	resp, err := c.http.Do(req)
 	if err != nil {
@@ -146,12 +149,32 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 		if errors.As(err, &ue) {
 			err = ue.Err
 		}
-		return fmt.Errorf("couldn't reach Steam: %w", err)
+		return 0, nil, fmt.Errorf("couldn't reach Steam: %w", err)
 	}
 	defer resp.Body.Close()
+	body, err := io.ReadAll(io.LimitReader(resp.Body, 8<<20))
+	if err != nil {
+		return 0, nil, fmt.Errorf("couldn't read Steam's answer: %w", err)
+	}
+	return resp.StatusCode, body, nil
+}
 
-	switch resp.StatusCode {
+// get calls one API method and decodes its answer.
+func (c *Client) get(ctx context.Context, path string, q url.Values, out any) error {
+	status, body, err := c.request(ctx, path, q, true)
+	if err != nil {
+		return err
+	}
+	if err := statusError(status); err != nil {
+		return err
+	}
+	return decode(body, out)
+}
+
+func statusError(status int) error {
+	switch status {
 	case http.StatusOK:
+		return nil
 	case http.StatusUnauthorized:
 		return ErrPrivate
 	case http.StatusForbidden:
@@ -159,9 +182,12 @@ func (c *Client) get(ctx context.Context, path string, q url.Values, out any) er
 	case http.StatusTooManyRequests:
 		return errors.New("Steam asked us to slow down. Try again in a minute.")
 	default:
-		return fmt.Errorf("Steam answered %s", resp.Status)
+		return fmt.Errorf("Steam answered %d %s", status, http.StatusText(status))
 	}
-	if err := json.NewDecoder(resp.Body).Decode(out); err != nil {
+}
+
+func decode(body []byte, out any) error {
+	if err := json.Unmarshal(body, out); err != nil {
 		return fmt.Errorf("Steam sent something unexpected: %w", err)
 	}
 	return nil

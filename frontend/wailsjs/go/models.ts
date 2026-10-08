@@ -1,3 +1,156 @@
+export namespace achievements {
+	
+	export class Achievement {
+	    id: string;
+	    name: string;
+	    description?: string;
+	    icon?: string;
+	    unlocked: boolean;
+	    unlockedAt?: number;
+	    hidden?: boolean;
+	    percent: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Achievement(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.id = source["id"];
+	        this.name = source["name"];
+	        this.description = source["description"];
+	        this.icon = source["icon"];
+	        this.unlocked = source["unlocked"];
+	        this.unlockedAt = source["unlockedAt"];
+	        this.hidden = source["hidden"];
+	        this.percent = source["percent"];
+	    }
+	}
+	export class Detail {
+	    source: string;
+	    gameId: string;
+	    unlocked: number;
+	    total: number;
+	    achievements: Achievement[];
+	
+	    static createFrom(source: any = {}) {
+	        return new Detail(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.gameId = source["gameId"];
+	        this.unlocked = source["unlocked"];
+	        this.total = source["total"];
+	        this.achievements = this.convertValues(source["achievements"], Achievement);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+	export class GameProgress {
+	    source: string;
+	    gameId: string;
+	    name: string;
+	    unlocked: number;
+	    total: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new GameProgress(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.gameId = source["gameId"];
+	        this.name = source["name"];
+	        this.unlocked = source["unlocked"];
+	        this.total = source["total"];
+	    }
+	}
+	export class ProviderInfo {
+	    source: string;
+	    name: string;
+	    ready: boolean;
+	    message?: string;
+	    games: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new ProviderInfo(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.source = source["source"];
+	        this.name = source["name"];
+	        this.ready = source["ready"];
+	        this.message = source["message"];
+	        this.games = source["games"];
+	    }
+	}
+	export class Overview {
+	    providers: ProviderInfo[];
+	    games: GameProgress[];
+	    unlocked: number;
+	    total: number;
+	    perfect: number;
+	    scanning: boolean;
+	    done: number;
+	    pending: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new Overview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.providers = this.convertValues(source["providers"], ProviderInfo);
+	        this.games = this.convertValues(source["games"], GameProgress);
+	        this.unlocked = source["unlocked"];
+	        this.total = source["total"];
+	        this.perfect = source["perfect"];
+	        this.scanning = source["scanning"];
+	        this.done = source["done"];
+	        this.pending = source["pending"];
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
+
+}
+
 export namespace applog {
 	
 	export class Line {
@@ -1214,6 +1367,43 @@ export namespace sysmon {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace update {
+	
+	export class Status {
+	    current: string;
+	    supported: boolean;
+	    autoCheck: boolean;
+	    latest?: string;
+	    available: boolean;
+	    skipped: boolean;
+	    url?: string;
+	    notes?: string;
+	    checkedAt?: number;
+	    canInstall: boolean;
+	    installNote?: string;
+	
+	    static createFrom(source: any = {}) {
+	        return new Status(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.current = source["current"];
+	        this.supported = source["supported"];
+	        this.autoCheck = source["autoCheck"];
+	        this.latest = source["latest"];
+	        this.available = source["available"];
+	        this.skipped = source["skipped"];
+	        this.url = source["url"];
+	        this.notes = source["notes"];
+	        this.checkedAt = source["checkedAt"];
+	        this.canInstall = source["canInstall"];
+	        this.installNote = source["installNote"];
+	    }
 	}
 
 }

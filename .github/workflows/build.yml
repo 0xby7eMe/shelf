@@ -14,6 +14,10 @@ concurrency:
 permissions:
   contents: read
 
+env:
+  # Releases know their own version so Shelf can tell when a newer one is out.
+  VERSION: ${{ startsWith(github.ref, 'refs/tags/v') && github.ref_name || 'dev' }}
+
 jobs:
   # A plain binary for Arch Linux and friends, built on Arch itself so it links
   # against the same GTK 3 and WebKitGTK 4.1 the user has installed.
@@ -43,7 +47,7 @@ jobs:
         run: scripts/icon.sh
 
       - name: Build
-        run: wails build -tags webkit2_41
+        run: wails build -tags webkit2_41 -ldflags "-X main.version=$VERSION"
 
       - name: Package
         run: |
@@ -90,7 +94,7 @@ jobs:
         run: scripts/icon.sh
 
       - name: Build
-        run: wails build -tags webkit2_41
+        run: wails build -tags webkit2_41 -ldflags "-X main.version=$VERSION"
 
       - name: Build AppImage
         run: |

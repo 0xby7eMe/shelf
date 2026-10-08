@@ -14,6 +14,10 @@ import (
 	"shelf/internal/library"
 )
 
+// version is set when building a release: -ldflags "-X main.version=v0.4.1".
+// Anything else is a development build, which never checks for updates.
+var version = "dev"
+
 // osArgs is what Shelf was started with, apart from the program itself.
 func osArgs() []string { return os.Args[1:] }
 

@@ -134,6 +134,10 @@ export function GetBattlEyeRuntime() {
   return window['go']['main']['App']['GetBattlEyeRuntime']();
 }
 
+export function GetCardCover(arg1) {
+  return window['go']['main']['App']['GetCardCover'](arg1);
+}
+
 export function GetDesktopStatus() {
   return window['go']['main']['App']['GetDesktopStatus']();
 }
@@ -268,6 +272,10 @@ export function RenameCollection(arg1, arg2) {
 
 export function RestartApp() {
   return window['go']['main']['App']['RestartApp']();
+}
+
+export function SaveShareCard(arg1) {
+  return window['go']['main']['App']['SaveShareCard'](arg1);
 }
 
 export function ScanAchievements(arg1) {

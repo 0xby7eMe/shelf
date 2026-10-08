@@ -40,6 +40,8 @@ import { PadHints } from "@/components/pad-hints"
 import { FilterMenu, MoreMenu, headerButton, type MoreItem, type SortKey, type SourceFilter } from "@/components/header-menus"
 import { MonitorPage } from "@/components/monitor/monitor-page"
 import { UbisoftHint } from "@/components/ubisoft-hint"
+import { GroupMenu } from "@/components/group-menu"
+import { groupLabel, groupMembers, useOrganizer, type Group } from "@/lib/organizer"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
 import { usePrefs } from "@/lib/prefs"
 import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
@@ -84,6 +86,8 @@ function App() {
 	}, [])
 	const [settingsGame, setSettingsGame] = useState<library.Game | null>(null)
 	const [source, setSource] = useState<SourceFilter>("all")
+	const [group, setGroup] = useState<Group>(null)
+	const organization = useOrganizer()
 	const { account, installs, queue, reloadAccount } = useEpic(games, () => openIntegration("epic"))
   	const stats = useStats()
 	const reqRef = useRef(0)
@@ -126,6 +130,9 @@ function App() {
 		return EventsOn("nowplaying:changed", (s: library.Session[]) => setPlaying(s ?? []))
 	}, [])
 
+	// A game started from a shelf:// link, a menu entry or the tray that couldn't start.
+	useEffect(() => EventsOn("desktop:error", (message: string) => toast.error(message)), [])
+
 	useEffect(() => {
 		GetFavorites()
 			.then((ids) => setFavorites(new Set(ids)))
@@ -163,6 +170,10 @@ function App() {
 		return () => window.removeEventListener("keydown", onKey)
 	}, [])
 
+	// A group that no longer exists, such as a deleted collection, stops filtering.
+	const activeGroup = group && groupLabel(organization, group) ? group : null
+	const members = useMemo(() => groupMembers(organization, activeGroup), [organization, activeGroup])
+
 	const visible = useMemo(() => {
 		if (!games) return []
 		const q = query.trim().toLowerCase()
@@ -175,9 +186,10 @@ function App() {
 						: true
 			)
 			.filter((g) => source === "all" || g.source === source)
+			.filter((g) => !members || members.has(g.id))
 			.filter((g) => !q || g.name.toLowerCase().includes(q))
 			.sort(sorters[sort])
-	}, [games, query, filter, source, sort, favorites])
+	}, [games, query, filter, source, sort, favorites, members])
 
 	// Stable identity, so memoized cards don't re-render when something unrelated changes.
 	const toggleFavorite = useCallback((game: library.Game) => {
@@ -276,7 +288,7 @@ function App() {
 		[games]
 	)
 
-	const showHero = !!featured && !query.trim()
+	const showHero = !!featured && !query.trim() && !activeGroup
 	const showShelves = showHero && filter === "all"
 
 	function play(game: library.Game) {
@@ -440,6 +452,8 @@ function App() {
 
 				<FilterMenu source={source} onSource={setSource} sort={sort} onSort={setSort} />
 
+				<GroupMenu group={activeGroup} onGroup={setGroup} />
+
 				<button
 					onClick={() => setSettings("integrations")}
 					title="Settings"
@@ -531,7 +545,9 @@ function App() {
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0
 							? "No games found."
-							: filter === "favorites" && !query
+							: activeGroup && !query
+								? `Nothing in ${groupLabel(organization, activeGroup)} matches these filters.`
+								: filter === "favorites" && !query
 								? "No favorites yet. Click the heart on a poster."
 								: "Nothing matches."
 						}

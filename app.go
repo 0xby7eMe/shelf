@@ -13,6 +13,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/runtime"
 
 	"shelf/internal/applog"
+	"shelf/internal/desktop"
 	"shelf/internal/epic"
 	"shelf/internal/library"
 	"shelf/internal/sysmon"
@@ -22,14 +23,24 @@ type App struct {
 	ctx     context.Context
 	lib     *library.Library
 	favs    *library.Favorites
+	org     *library.Organizer
 	monitor *library.Monitor
 	hist    *library.History
 	epic    *epic.Manager
 	sys     *sysmon.Sampler
 	hw      *sysmon.Monitor
 
+	desk *desktop.Store
+	tray *desktop.Tray
+
+	winMu    sync.Mutex
+	hidden   bool // the window is hidden in the tray
+	quitting bool
+	syncMu   sync.Mutex // one desktop sync at a time
+
 	mu    sync.RWMutex
 	paths map[string]string
+	known map[string]library.Game // by external id, for the tray
 }
 
 func NewApp() *App {
@@ -42,10 +53,14 @@ func NewApp() *App {
 	return &App{
 		lib:     library.New(library.NewSteam(), ep.Provider(), ep.UbisoftProvider()),
 		favs:    library.NewFavorites(),
+		org:     library.NewOrganizer(),
 		monitor: monitor,
 		hist:    hist,
 		epic:    ep,
 		sys:     sys,
+
+		desk:  desktop.NewStore(),
+		known: map[string]library.Game{},
 	}
 }
 
@@ -59,6 +74,7 @@ func (a *App) startup(ctx context.Context) {
 	})
 
 	a.epic.Start(ctx)
+	a.startDesktop()
 
 	go func() {
 		err := library.Watch(ctx, func() {
@@ -125,6 +141,34 @@ func (a *App) GetNowPlaying() []library.Session {
 	return a.monitor.Snapshot()
 }
 
+// --- collections and tags ---
+
+func (a *App) GetOrganization() library.Organization { return a.org.Get() }
+
+func (a *App) CreateCollection(name string) (library.Organization, error) {
+	return a.org.CreateCollection(name)
+}
+
+func (a *App) RenameCollection(id, name string) (library.Organization, error) {
+	return a.org.RenameCollection(id, name)
+}
+
+func (a *App) DeleteCollection(id string) (library.Organization, error) {
+	return a.org.DeleteCollection(id)
+}
+
+// SetGameCollections files a game under exactly these collections.
+func (a *App) SetGameCollections(gameID string, collectionIDs []string) (library.Organization, error) {
+	return a.org.SetGameCollections(gameID, collectionIDs)
+}
+
+func (a *App) SetGameTags(gameID string, tags []string) (library.Organization, error) {
+	return a.org.SetTags(gameID, tags)
+}
+
+// DeleteTag removes a tag from every game.
+func (a *App) DeleteTag(tag string) (library.Organization, error) { return a.org.DeleteTag(tag) }
+
 func (a *App) GetFavorites() []string { return a.favs.List() }
 
 func (a *App) ToggleFavorite(appID string) ([]string, error) {
@@ -140,9 +184,16 @@ func (a *App) GetGames() []library.Game {
 			paths[g.ID] = g.InstallPath
 		}
 	}
+	known := make(map[string]library.Game, len(games))
+	for _, g := range games {
+		known[g.ExternalID] = g
+	}
 	a.mu.Lock()
 	a.paths = paths
+	a.known = known
 	a.mu.Unlock()
+
+	go a.syncDesktop(games)
 
 	return games
 }
@@ -187,6 +238,9 @@ func (a *App) OpenStorePage(id string) error {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	if a.tray != nil {
+		a.tray.Stop()
+	}
 	end := time.Now().UnixMilli()
 	for _, s := range a.monitor.Snapshot() {
 		if _, err := a.hist.Add(s.AppID, s.Since, end); err != nil {

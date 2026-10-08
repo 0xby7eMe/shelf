@@ -3,6 +3,7 @@ module shelf
 go 1.25.0
 
 require (
+	fyne.io/systray v1.12.2
 	github.com/fsnotify/fsnotify v1.10.1
 	github.com/ulikunitz/xz v0.5.17
 	github.com/wailsapp/wails/v2 v2.16.0

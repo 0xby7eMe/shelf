@@ -2,8 +2,9 @@
 Name=Shelf
 Exec=/usr/bin/shelf
 Type=Application
-Comment=A minimal library for your Steam and Epic games
+Comment=A minimal library for your Steam, Epic and Ubisoft games
 Icon=shelf
 Categories=Game;
+Keywords=games;library;steam;epic;ubisoft;
 Terminal=false
 StartupWMClass=shelf

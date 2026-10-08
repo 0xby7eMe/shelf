@@ -1,11 +1,14 @@
 TAGS := webkit2_41
 
-.PHONY: dev build install
+.PHONY: dev build icon install
 
 dev:
 	wails dev -tags $(TAGS)
 
-build:
+icon:
+	scripts/icon.sh
+
+build: icon
 	wails build -tags $(TAGS)
 
 install: build

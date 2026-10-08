@@ -31,6 +31,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 - Hero banner for the game you played last, plus "Continue playing" and "Never played" shelves
 - Detail sheet with playtime, last played, share of your library, store page and install folder
 - Favorites and a random game picker
+- **Collections and tags** of your own, to filter the library by (see [Collections and tags](#collections-and-tags))
 - **Live library:** installs, uninstalls and playtime update automatically
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
@@ -52,6 +53,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 - Controller navigation with soft interface sounds, drawn with the buttons of your controller (Xbox, PlayStation or Nintendo)
 - One **Integrations** page with a tab per store
+- **Desktop integration:** application menu entries, `shelf://` links and a tray icon (see [Desktop integration](#desktop-integration))
 - An optional **hardware monitor** with live CPU, memory, disk, network and GPU graphs (see [Hardware monitor](#hardware-monitor))
 - A download queue, a disk usage view, and a log window
 - Frameless glass UI, dark only
@@ -134,6 +136,20 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
   <img src="assets/settings-storage.png" width="49%" alt="Disk usage">
 </p>
 
+## Collections and tags
+
+Open a game and use **Collections** and **Tags** in its sheet. A game can be in any number of collections (press **New collection** to make one on the spot) and carry any number of tags; type a tag and press Enter or a comma. The **Collections** button in the header narrows the library to one collection or tag, and works together with the store filter, search and the Favorites tab. **Settings, Collections** renames and deletes collections and removes a tag from every game.
+
+Everything is saved in `~/.config/shelf/organizer.json`, separate from your favorites. Games are filed by store and id (`steam:620`, `epic:Fortnite`), so the same title on two stores can be filed differently.
+
+## Desktop integration
+
+**Settings, Desktop.** Everything is off until you switch it on.
+
+- **Application menu entries** add every installed game to your launcher, kept up to date as games come and go. Shelf only ever removes entries it wrote itself.
+- **`shelf://` links** make `shelf://launch/steam:620` or `shelf://launch/epic:Fortnite` start a game from a browser, script or anything that opens URLs. Only installed games can be started this way, and a link can't do anything else. Menu entries use the same links. Only one Shelf runs at a time: a second start hands its link to the running one.
+- **Tray icon** shows recently played games with a click to start them. It uses the StatusNotifier protocol, so GNOME needs the AppIndicator extension. **Keep running in the tray** makes closing the window hide it; quit from the tray menu. Both apply at the next start.
+
 ## Controller
 
 Plug in a gamepad and press any button (the window needs focus). Focus moves smoothly between games, and the interface plays soft sounds as you go.
@@ -181,47 +197,53 @@ Everything is read from `/proc` and `/sys`, once a second, so it needs no extra 
 
 ## Install
 
-### From a release
-
-Download `shelf-linux-amd64.tar.gz` from the [releases page](https://github.com/0xby7eMe/shelf/releases), then:
+### Quick install
 
 ```bash
-tar -xzf shelf-linux-amd64.tar.gz
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
+
+- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
+- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
+
+Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
+```
+
+Only x86_64 Linux builds are published.
+
+### Manual download
+
+Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
+
+**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
+
+```bash
+sudo pacman -S gtk3 webkit2gtk-4.1
+tar -xzf shelf-arch-x86_64.tar.gz
 install -Dm755 shelf ~/.local/bin/shelf
 install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/shelf.png
 install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
 ```
 
-The binary needs GTK 3 and WebKitGTK 4.1 at runtime:
-
-```bash
-# Arch
-sudo pacman -S gtk3 webkit2gtk-4.1
-# Debian/Ubuntu
-sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
-```
-
-For Epic Games you also need legendary, and a Proton build from Steam or ProtonUp-Qt:
-
-```bash
-# Arch
-sudo pacman -S legendary
-```
-
-Ubisoft needs only a Proton build. Shelf can install GE-Proton for you from the Ubisoft tab.
-
-Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
-
-### AppImage
-
-`shelf-linux-x86_64.AppImage` runs on most distros, including Ubuntu 22.04 and later, with GTK and WebKitGTK bundled, so nothing else needs installing:
+**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
 
 ```bash
 chmod +x shelf-linux-x86_64.AppImage
 ./shelf-linux-x86_64.AppImage
 ```
 
-For Epic Games you still need `legendary` and a Proton build on the system. Ubisoft needs only Proton.
+### Requirements for the games
+
+For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
+
+Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
 
 ### From source
 
@@ -247,7 +269,8 @@ make install
 
 ```bash
 make dev      # run with hot reload
-make build    # production binary in build/bin/
+make icon     # render build/appicon.png from build/appicon.svg
+make build    # production binary in build/bin/ (renders the icon first)
 go test ./internal/...
 ```
 
@@ -274,6 +297,10 @@ Finished sessions of every store feed the activity heatmap.
 | Downloaded art | `~/.cache/shelf/covers` |
 
 Built with Go, [Wails v2](https://wails.io), React, Tailwind CSS v4 and shadcn/ui.
+
+## Releases
+
+Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a release: the binary on an Arch container, and the AppImage on Ubuntu 22.04 so it runs on anything newer. Both builds render the app icon from `build/appicon.svg` first, so the icon in the window, the launcher and the AppImage always matches the SVG.
 
 ## Limitations
 

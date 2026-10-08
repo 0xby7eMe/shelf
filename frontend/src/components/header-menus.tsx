@@ -30,7 +30,7 @@ const popup =
 	"origin-(--transform-origin) duration-100 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 " +
 	"data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95"
 
-function Menu({
+export function Menu({
 	open,
 	onOpenChange,
 	trigger,
@@ -63,7 +63,7 @@ function Menu({
 	)
 }
 
-function Row({
+export function Row({
 	onClick,
 	checked,
 	icon,
@@ -93,7 +93,7 @@ function Row({
 	)
 }
 
-function Heading({ children }: { children: React.ReactNode }) {
+export function Heading({ children }: { children: React.ReactNode }) {
 	return <p className="px-3 pt-2 pb-1 text-[10px] tracking-[0.2em] text-white/35 uppercase">{children}</p>
 }
 

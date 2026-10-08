@@ -28,6 +28,7 @@ import { cn } from "@/lib/utils"
 import { BattlEyeNotice, needsBattlEyeNotice } from "@/components/battleye-notice"
 import { useBattlEyeRuntime } from "@/lib/use-battleye"
 import { LiveDot } from "@/components/live-dot"
+import { GameOrganizer } from "@/components/game-organizer"
 
 // What the sheet can ask the app to do with an Epic game.
 export interface EpicActions {
@@ -339,6 +340,10 @@ function Body({
 							Uninstall
 						</Action>
 					)}
+				</Reveal>
+
+				<Reveal i={6}>
+					<GameOrganizer game={game} />
 				</Reveal>
 
 				<Reveal i={3} className="grid grid-cols-2 gap-3">

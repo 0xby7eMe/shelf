@@ -8,7 +8,7 @@ import (
 )
 
 func main() {
-	games := library.New(library.NewSteam()).Scan()
+	games := library.New(library.NewSteam(nil)).Scan()
 	for _, g := range games {
 		last := "never"
 		if g.LastPlayed > 0 {

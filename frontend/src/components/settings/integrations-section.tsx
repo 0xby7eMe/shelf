@@ -1,10 +1,11 @@
 import { useCallback, useEffect, useState } from "react"
 
-import { GetUbisoftStatus } from "../../../wailsjs/go/main/App"
-import { epic } from "../../../wailsjs/go/models"
+import { GetSteamAPI, GetUbisoftStatus } from "../../../wailsjs/go/main/App"
+import { epic, main } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { EpicSection } from "@/components/settings/epic-section"
 import { SectionHeading } from "@/components/settings/ui"
+import { SteamSection } from "@/components/settings/steam-section"
 import { UbisoftSection } from "@/components/settings/ubisoft-section"
 import { INTEGRATIONS, setIntegrationTab, useIntegrationTab, type Integration } from "@/lib/integrations"
 import { cn } from "@/lib/utils"
@@ -19,6 +20,13 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 	const tab = useIntegrationTab()
 	const [ubisoft, setUbisoft] = useState<epic.UbisoftStatus | null>(null)
 
+	// Asking Steam is a few web requests, so it happens once when the page opens
+	// and after the key changes, not with every library change.
+	const [steam, setSteam] = useState<main.SteamAPIStatus | null>(null)
+	useEffect(() => {
+		GetSteamAPI().then(setSteam).catch(() => {})
+	}, [])
+
 	const reload = useCallback(() => GetUbisoftStatus().then(setUbisoft).catch(() => {}), [])
 	useEffect(() => {
 		reload()
@@ -32,6 +40,7 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 
 	// Whether a store has an account connected, shown as a dot on its tab.
 	const connected: Record<Integration, boolean> = {
+		steam: !!steam?.overview,
 		epic: !!account?.loggedIn,
 		ubisoft: !!ubisoft?.signedIn,
 	}
@@ -63,6 +72,7 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 			</div>
 
 			<div key={tab} className="animate-in duration-200 fade-in">
+				{tab === "steam" && <SteamSection status={steam} onChange={setSteam} />}
 				{tab === "epic" && <EpicSection account={account} onAccountChange={onAccountChange} />}
 				{tab === "ubisoft" && <UbisoftSection />}
 			</div>

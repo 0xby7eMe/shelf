@@ -25,8 +25,10 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, Gauge, RefreshCw, Search, Settings, Share2, Shuffle, Terminal } from "lucide-react"
+import { Activity, Download, Gauge, RefreshCw, Search, Settings, Share2, Shuffle, Terminal, Trophy, Users } from "lucide-react"
+import { AchievementsDialog } from "@/components/achievements-dialog"
 import { ActivityDialog } from "@/components/activity-dialog"
+import { FriendsDialog } from "@/components/friends-dialog"
 import { ShareCardDialog } from "@/components/share-card-dialog"
 import { useStats } from "@/lib/use-stats"
 import { setIntegrationTab, type Integration } from "@/lib/integrations"
@@ -72,6 +74,8 @@ function App() {
 	const [playing, setPlaying] = useState<library.Session[]>([])
 	const [activityOpen, setActivityOpen] = useState(false)
 	const [shareOpen, setShareOpen] = useState(false)
+	const [friendsOpen, setFriendsOpen] = useState(false)
+	const [achievementsOpen, setAchievementsOpen] = useState(false)
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
 	settingsRef.current = settings
@@ -134,6 +138,19 @@ function App() {
 
 	// A game started from a shelf:// link, a menu entry or the tray that couldn't start.
 	useEffect(() => EventsOn("desktop:error", (message: string) => toast.error(message)), [])
+
+	// A newer release is out: say so once, with a way to the page that handles it.
+	useEffect(
+		() =>
+			EventsOn("update:available", (st: { latest?: string }) =>
+				toast.info(`Shelf ${st.latest ?? ""} is available`, {
+					description: "Open About to read what changed and update.",
+					duration: 12000,
+					action: { label: "Open", onClick: () => setSettings("about") },
+				})
+			),
+		[]
+	)
 
 	useEffect(() => {
 		GetFavorites()
@@ -358,6 +375,8 @@ function App() {
 			onSelect: () => refresh(),
 		},
 		{ id: "activity", label: "Activity", icon: <Activity className="size-3.5" />, onSelect: () => setActivityOpen(true) },
+		{ id: "friends", label: "Friends", icon: <Users className="size-3.5" />, onSelect: () => setFriendsOpen(true) },
+		{ id: "achievements", label: "Achievements", icon: <Trophy className="size-3.5" />, onSelect: () => setAchievementsOpen(true) },
 		{ id: "share", label: "Share card", icon: <Share2 className="size-3.5" />, onSelect: () => setShareOpen(true) },
 		...(prefs.hardwareMonitor
 			? [{ id: "performance", label: "Performance", icon: <Gauge className="size-3.5" />, hint: "P", onSelect: () => setMonitorOpen(true) }]
@@ -594,6 +613,22 @@ function App() {
 				stats={stats}
 				games={games ?? NO_GAMES}
 				onSelect={setSelected}
+			/>
+
+			<FriendsDialog
+				open={friendsOpen}
+				onOpenChange={setFriendsOpen}
+				games={games ?? NO_GAMES}
+				onSelect={setSelected}
+				onSetup={(source) => openIntegration(source as Integration)}
+			/>
+
+			<AchievementsDialog
+				open={achievementsOpen}
+				onOpenChange={setAchievementsOpen}
+				games={games ?? NO_GAMES}
+				onSelect={setSelected}
+				onSetup={(source) => openIntegration(source as Integration)}
 			/>
 
 			<ShareCardDialog

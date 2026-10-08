@@ -1,16 +1,31 @@
 package library
 
 import (
+	"context"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
 	"strconv"
 	"strings"
+	"time"
+
+	"shelf/internal/steamapi"
 )
 
-type Steam struct{}
+// OwnedLister knows every game an account owns, installed or not. It is what
+// the Steam Web API provides; without it only installed games are listed,
+// because Steam keeps no names for the rest on disk.
+type OwnedLister interface {
+	OwnedGames(ctx context.Context) ([]steamapi.OwnedGame, error)
+	Configured() bool
+}
 
-func NewSteam() *Steam { return &Steam{} }
+type Steam struct{ owned OwnedLister }
+
+// NewSteam reads installed games from Steam's files and, when owned is given
+// and has a key, adds the games that aren't installed.
+func NewSteam(owned OwnedLister) *Steam { return &Steam{owned: owned} }
 
 func (s *Steam) Source() Source { return SourceSteam }
 
@@ -42,7 +57,50 @@ func (s *Steam) Scan() ([]Game, error) {
 			games = append(games, g)
 		}
 	}
-	return games, nil
+	return s.addOwned(games), nil
+}
+
+// addOwned merges the Web API's library into the installed games: what is
+// missing is added as not installed, and play time and last played take the
+// larger of what Steam's files and the API say.
+func (s *Steam) addOwned(games []Game) []Game {
+	if s.owned == nil || !s.owned.Configured() {
+		return games
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 20*time.Second)
+	defer cancel()
+	owned, err := s.owned.OwnedGames(ctx)
+	if err != nil {
+		log.Printf("library: steam web api: %v", err)
+		return games
+	}
+
+	byID := make(map[string]int, len(games))
+	for i, g := range games {
+		byID[g.ExternalID] = i
+	}
+	for _, o := range owned {
+		id := o.ID()
+		if i, ok := byID[id]; ok {
+			g := &games[i]
+			g.PlaytimeMinutes = max(g.PlaytimeMinutes, o.PlaytimeMinutes)
+			g.LastPlayed = max(g.LastPlayed, o.LastPlayed)
+			continue
+		}
+		if o.Name == "" || isSteamTool(o.Name) {
+			continue
+		}
+		games = append(games, Game{
+			ID:              "steam:" + id,
+			Source:          SourceSteam,
+			ExternalID:      id,
+			Name:            o.Name,
+			Cover:           "/cover/" + id,
+			PlaytimeMinutes: o.PlaytimeMinutes,
+			LastPlayed:      o.LastPlayed,
+		})
+	}
+	return games
 }
 
 func findSteamRoot() (string, error) {
@@ -189,3 +247,42 @@ func SteamRoot() (string, error) { return findSteamRoot() }
 
 // SteamLibraryDirs lists every Steam library folder, root included.
 func SteamLibraryDirs(root string) []string { return libraryDirs(root) }
+
+// SteamUserID is the 64-bit id of the account Steam last signed in with.
+func SteamUserID() (string, error) {
+	root, err := findSteamRoot()
+	if err != nil {
+		return "", err
+	}
+	data, err := os.ReadFile(filepath.Join(root, "config", "loginusers.vdf"))
+	if err != nil {
+		return "", err
+	}
+	return parseLastSteamUser(data)
+}
+
+// parseLastSteamUser picks the account marked as the most recent one, or else
+// the one that signed in last.
+func parseLastSteamUser(data []byte) (string, error) {
+	doc, err := parseVDF(data)
+	if err != nil {
+		return "", err
+	}
+	best, bestTime := "", int64(-1)
+	for id, v := range doc.obj("users") {
+		u, ok := v.(vdfNode)
+		if !ok {
+			continue
+		}
+		if u.str("MostRecent") == "1" {
+			return id, nil
+		}
+		if t, _ := strconv.ParseInt(u.str("Timestamp"), 10, 64); t > bestTime {
+			best, bestTime = id, t
+		}
+	}
+	if best == "" {
+		return "", fmt.Errorf("no Steam account is signed in")
+	}
+	return best, nil
+}

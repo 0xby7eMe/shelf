@@ -11,6 +11,12 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 </div>
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+<p align="center">Linux, x86_64. Arch gets the native binary, everything else the AppImage. <a href="#install">More install options</a></p>
+
 <p align="center">
   <img src="assets/library.png" alt="Library with hero banner, shelves and poster grid">
 </p>
@@ -20,11 +26,81 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
   <img src="assets/favorites.png" width="49%" alt="Favorites filter">
 </p>
 
+## Install
+
+### Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
+
+- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
+- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
+
+Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
+```
+
+Only x86_64 Linux builds are published.
+
+### Manual download
+
+Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
+
+**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
+
+```bash
+sudo pacman -S gtk3 webkit2gtk-4.1
+tar -xzf shelf-arch-x86_64.tar.gz
+install -Dm755 shelf ~/.local/bin/shelf
+install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
+install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
+```
+
+**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
+
+```bash
+chmod +x shelf-linux-x86_64.AppImage
+./shelf-linux-x86_64.AppImage
+```
+
+### Requirements for the games
+
+For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
+
+Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
+
+### From source
+
+Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
+
+```bash
+# Arch
+sudo pacman -S gtk3 webkit2gtk-4.1
+# Debian/Ubuntu
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+```
+
+```bash
+git clone https://github.com/0xby7eMe/shelf
+cd shelf
+cd frontend && npm install && cd ..
+make install
+```
+
+`make install` builds the app and installs the binary, icon and launcher entry for your user.
+
 ## Features
 
 **Library**
 
-- Reads your Steam library from its local files. No login, no API key.
+- Reads your Steam library from its local files. No login needed. An optional Steam Web API key adds the games you own but haven't installed, and more (see [Steam](#steam)).
 - Your Epic Games library alongside it, after a one-time sign-in (see [Epic Games](#epic-games)).
 - Your Ubisoft library too, read from Ubisoft Connect once you've signed in there (see [Ubisoft](#ubisoft)).
 - Poster grid with instant search, installed and favorites filters, a store filter and sorting. Stays smooth with a couple of hundred games.
@@ -36,6 +112,9 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 - **Now playing:** a header indicator with a session timer
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - **Share card:** an image of your library to post anywhere, with your hours, counts per store and most played games (see [Share card](#share-card))
+- **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
+- **Achievements:** your progress per game and across the library, for the launchers that allow it (see [Achievements](#achievements))
+- **Update notifier:** Shelf tells you when a new release is out and can install it for you (see [Updates](#updates))
 
 **Epic Games**
 
@@ -62,6 +141,19 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 <p align="center">
   <img src="assets/library-epic.png" alt="Library showing Steam and Epic games, with update and install badges">
 </p>
+
+## Steam
+
+Out of the box Shelf reads Steam's own files, which only know about installed games. A free **Web API key** fills in the rest. Open **Settings, Integrations, Steam**, paste your key and press **Connect**. Get one at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey); any domain name works when it asks, for example `localhost`.
+
+With a key:
+
+- **Every game you own** is listed, installed or not, with Steam's own art. **Install in Steam** opens Steam's install dialog for the ones you don't have.
+- **Play time and last played** use the larger of what Steam's files and the Web API report, so they are right even for games you removed.
+- **An account card** shows your profile, Steam level, number of games owned and played, total play time and the last two weeks.
+- **Friends** (see [Friends](#friends)).
+
+The key is kept in `~/.config/shelf/steam.json`, readable only by you, and is only ever sent to Steam. **Disconnect** forgets it, and the games that aren't installed leave the library. If Steam says your game details are private, Shelf tells you; set **Game details** to Public in Steam's privacy settings. The list of owned games is kept for ten minutes between scans, and an older copy is used when Steam can't be reached.
 
 ## Epic Games
 
@@ -147,6 +239,44 @@ Everything is saved in `~/.config/shelf/organizer.json`, separate from your favo
 
 **More, Share card** draws a 1200×720 image of your library: total hours played, how many games you have per store, installed and favorite counts, and your five most played games with their covers. Press **Save as PNG** to put it wherever you like. The card holds only game titles, play time and counts, no paths, accounts or dates, and nothing is uploaded.
 
+## Friends
+
+**More, Friends** lists your friends by what they are doing: playing, online, away, and offline (folded away). A friend's game is matched against your library, so you can open it straight away if you own it. The list refreshes every minute while the window is open and never in the background.
+
+| Launcher | Friends | Why |
+| --- | --- | --- |
+| Steam | Yes | Through Steam's Web API |
+| Epic Games | No | Epic only shares who is online over a private channel that other apps can't use |
+| Ubisoft | No | Ubisoft Connect has no way for other apps to read your friends |
+
+Epic and Ubisoft are listed in the window with the reason, so you know why they are empty.
+
+**Steam setup.** The friends list uses the same Web API key as the [Steam integration](#steam), so it is set up once under **Settings, Integrations, Steam**. Your friends list has to be visible to you in Steam's privacy settings, which it is by default.
+
+New launchers plug in by implementing one small `Provider` interface in `internal/friends`; the window draws their setup form from the fields they declare.
+
+## Achievements
+
+**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a Steam game and its sheet lists that game's achievements: the newest unlocks first, then what is still locked, easiest first, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
+
+| Launcher | Achievements | Why |
+| --- | --- | --- |
+| Steam | Yes | Through the Steam Web API key from [Steam](#steam) |
+| Epic Games | No | Epic only serves achievements to a game's own developer, with credentials issued per game |
+| Ubisoft | No | Ubisoft Connect has no public way to read them |
+
+Epic and Ubisoft are listed in the window with the reason. For Steam, your **Game details** have to be public in Steam's privacy settings, and Shelf says so if they aren't. Like [Friends](#friends), each launcher is a small `Provider` in `internal/achievements`, so a store that gains an API later is one file.
+
+## Updates
+
+Shelf checks GitHub for a new release when it starts and once a day after that, and shows a notice when there is one. **Settings, About** shows the version you run, checks on demand and holds the switch to turn the automatic check off. For a new version you can read what changed, **Skip this version**, or press **Update now**:
+
+- An **AppImage** or a binary you installed with the install script is replaced in place. Shelf downloads the right file for your system, checks its SHA-256, swaps it in and offers to restart.
+- A copy installed by your package manager, or in a folder you can't write to, can't update itself. Shelf says so and opens the release page instead.
+- A build from source never checks, since it has no release number.
+
+Only the release files of this repository are ever downloaded. You can always update the way you installed: run the [install script](#quick-install) again.
+
 ## Desktop integration
 
 **Settings, Desktop.** Everything is off until you switch it on.
@@ -200,76 +330,6 @@ Everything is read from `/proc` and `/sys`, once a second, so it needs no extra 
 | `Esc` | Clear search, or leave the settings page |
 | `R` | Open a random game from the current view |
 
-## Install
-
-### Quick install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
-```
-
-The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
-
-- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
-- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
-
-Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
-```
-
-Only x86_64 Linux builds are published.
-
-### Manual download
-
-Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
-
-**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
-
-```bash
-sudo pacman -S gtk3 webkit2gtk-4.1
-tar -xzf shelf-arch-x86_64.tar.gz
-install -Dm755 shelf ~/.local/bin/shelf
-install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
-install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
-```
-
-**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
-
-```bash
-chmod +x shelf-linux-x86_64.AppImage
-./shelf-linux-x86_64.AppImage
-```
-
-### Requirements for the games
-
-For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
-
-Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
-
-### From source
-
-Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
-
-```bash
-# Arch
-sudo pacman -S gtk3 webkit2gtk-4.1
-# Debian/Ubuntu
-sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
-```
-
-```bash
-git clone https://github.com/0xby7eMe/shelf
-cd shelf
-cd frontend && npm install && cd ..
-make install
-```
-
-`make install` builds the app and installs the binary, icon and launcher entry for your user.
-
 ## Development
 
 ```bash
@@ -293,6 +353,9 @@ Finished sessions of every store feed the activity heatmap.
 | --- | --- |
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
+| Steam Web API key | `~/.config/shelf/steam.json` |
+| Update settings and the last release seen | `~/.config/shelf/updates.json` |
+| Achievement progress cache | `~/.cache/shelf/achievements.json` |
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
 | Epic login and metadata | `~/.config/shelf/legendary` |
 | Proton prefixes (Ubisoft's is `ubisoft-connect`) | `~/.local/share/shelf/prefixes` |
@@ -310,7 +373,7 @@ Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a
 ## Limitations
 
 - Linux only for now. The Steam provider only knows Linux paths, including the Flatpak one.
-- Only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. Epic shows your whole library.
+- Without a Steam Web API key only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. With a key, and Epic always, your whole library shows.
 - "Now playing" and session history work with native Steam, not the Flatpak version.
 - Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files, and Epic playtime counts only what Shelf saw.
 - Epic needs legendary and a Proton build. Epic games that must be installed through Ubisoft Connect or the EA app can't be installed from the Epic side.

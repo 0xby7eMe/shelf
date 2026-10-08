@@ -14,7 +14,6 @@ const POSTER_SIZES: { value: PosterSize; label: string }[] = [
 
 export function AppearanceSection() {
 	const prefs = usePrefs()
-	const custom = !ACCENTS.some((a) => a.color === prefs.accent)
 
 	return (
 		<div className="space-y-6">
@@ -29,23 +28,6 @@ export function AppearanceSection() {
 					{ACCENTS.map((a) => (
 						<Swatch key={a.color} color={a.color} name={a.name} active={prefs.accent === a.color} onClick={() => setPrefs({ accent: a.color })} />
 					))}
-					<label
-						title="Pick your own"
-						className={cn(
-							"relative grid size-8 cursor-pointer place-items-center rounded-full ring-2 ring-offset-2 ring-offset-[#101010] transition",
-							custom ? "ring-white" : "ring-white/15 hover:ring-white/40"
-						)}
-						style={{ background: custom ? prefs.accent : "conic-gradient(#f87171, #fbbf24, #4ade80, #38bdf8, #a78bfa, #f87171)" }}
-					>
-						<input
-							type="color"
-							aria-label="Custom accent color"
-							value={prefs.accent}
-							onChange={(e) => setPrefs({ accent: e.target.value })}
-							className="absolute inset-0 size-full cursor-pointer opacity-0"
-						/>
-						{custom && <Check className="size-3.5" style={{ color: "var(--shelf-accent-fg)" }} />}
-					</label>
 				</div>
 				<div className="flex flex-wrap items-center gap-4 rounded-xl bg-black/20 p-4">
 					<PillButton variant="solid">Play</PillButton>

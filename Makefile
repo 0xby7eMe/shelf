@@ -1,4 +1,7 @@
 TAGS := webkit2_41
+# Releases are built with the tag name; anything else is a "dev" build that never checks for updates.
+VERSION ?= dev
+LDFLAGS := -X main.version=$(VERSION)
 
 .PHONY: dev build icon install
 
@@ -9,7 +12,7 @@ icon:
 	scripts/icon.sh
 
 build: icon
-	wails build -tags $(TAGS)
+	wails build -tags $(TAGS) -ldflags "$(LDFLAGS)"
 
 install: build
 	sudo install -Dm755 build/bin/shelf /usr/bin/shelf

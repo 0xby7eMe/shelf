@@ -16,6 +16,14 @@ func openExternal(target string) error {
 	return nil
 }
 
+// InstallSteam asks Steam to install a game, which opens its own install dialog.
+func InstallSteam(appID string) error {
+	if !appIDRe.MatchString(appID) {
+		return fmt.Errorf("invalid app id")
+	}
+	return openExternal("steam://install/" + appID)
+}
+
 func Launch(appID string) error {
 	if !appIDRe.MatchString(appID) {
 		return fmt.Errorf("invalid app id")

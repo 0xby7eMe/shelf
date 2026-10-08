@@ -19,7 +19,12 @@ interface Props {
 	games: library.Game[]
 	onOpenChange: (open: boolean) => void
 	onSelect: (game: library.Game) => void
+	// Opens the settings page where a launcher is set up.
+	onSetup: (source: string) => void
 }
+
+// Launchers whose friends need something set up on a settings tab.
+const SETUP_TABS = new Set(["steam"])
 
 const DOT: Record<string, string> = {
 	playing: "bg-emerald-400",
@@ -28,7 +33,7 @@ const DOT: Record<string, string> = {
 	offline: "bg-white/20",
 }
 
-export function FriendsDialog({ open, games, onOpenChange, onSelect }: Props) {
+export function FriendsDialog({ open, games, onOpenChange, onSelect, onSetup }: Props) {
 	const { snapshot, loading, error, refresh, save, disconnect } = useFriends(open)
 	const [showOffline, setShowOffline] = useState(false)
 
@@ -108,7 +113,13 @@ export function FriendsDialog({ open, games, onOpenChange, onSelect }: Props) {
 
 				<div className="space-y-3">
 					{snapshot?.providers.map((p) => (
-						<ProviderCard key={p.source} provider={p} onSave={save} onDisconnect={disconnect} />
+						<ProviderCard
+							key={p.source}
+							provider={p}
+							onSave={save}
+							onDisconnect={disconnect}
+							onSetup={SETUP_TABS.has(p.source) ? () => { onOpenChange(false); onSetup(p.source) } : undefined}
+						/>
 					))}
 				</div>
 			</DialogContent>
@@ -182,10 +193,12 @@ function ProviderCard({
 	provider,
 	onSave,
 	onDisconnect,
+	onSetup,
 }: {
 	provider: friends.ProviderInfo
 	onSave: (source: string, values: Record<string, string>) => void
 	onDisconnect: (source: string) => void
+	onSetup?: () => void
 }) {
 	const [values, setValues] = useState<Record<string, string>>({})
 	const hasFields = provider.fields.length > 0
@@ -210,6 +223,12 @@ function ProviderCard({
 			</div>
 
 			{provider.message && <p className="mt-1.5 text-xs leading-relaxed text-white/50">{provider.message}</p>}
+
+			{onSetup && !provider.fields.length && (!provider.ready || !!provider.message) && (
+				<div className="mt-3">
+					<PillButton onClick={onSetup}>Open {provider.name} settings</PillButton>
+				</div>
+			)}
 
 			{showForm && (
 				<form

@@ -22,6 +22,10 @@ export function DisconnectFriends(arg1) {
   return window['go']['main']['App']['DisconnectFriends'](arg1);
 }
 
+export function DisconnectSteamAPI() {
+  return window['go']['main']['App']['DisconnectSteamAPI']();
+}
+
 export function EpicCancelInstall(arg1) {
   return window['go']['main']['App']['EpicCancelInstall'](arg1);
 }
@@ -178,6 +182,10 @@ export function GetStats(arg1) {
   return window['go']['main']['App']['GetStats'](arg1);
 }
 
+export function GetSteamAPI() {
+  return window['go']['main']['App']['GetSteamAPI']();
+}
+
 export function GetStorage() {
   return window['go']['main']['App']['GetStorage']();
 }
@@ -260,6 +268,10 @@ export function SetGameCollections(arg1, arg2) {
 
 export function SetGameTags(arg1, arg2) {
   return window['go']['main']['App']['SetGameTags'](arg1, arg2);
+}
+
+export function SetSteamAPIKey(arg1) {
+  return window['go']['main']['App']['SetSteamAPIKey'](arg1);
 }
 
 export function ToggleFavorite(arg1) {

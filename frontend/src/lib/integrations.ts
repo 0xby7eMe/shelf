@@ -2,9 +2,10 @@ import { useSyncExternalStore } from "react"
 
 // The stores Shelf connects to, as tabs of the Integrations page. Anything that
 // needs to send the user to one of them sets the tab before opening settings.
-export type Integration = "epic" | "ubisoft"
+export type Integration = "steam" | "epic" | "ubisoft"
 
 export const INTEGRATIONS: { id: Integration; label: string }[] = [
+	{ id: "steam", label: "Steam" },
 	{ id: "epic", label: "Epic Games" },
 	{ id: "ubisoft", label: "Ubisoft" },
 ]

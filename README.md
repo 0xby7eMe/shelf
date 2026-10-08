@@ -24,7 +24,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 **Library**
 
-- Reads your Steam library from its local files. No login, no API key.
+- Reads your Steam library from its local files. No login needed. An optional Steam Web API key adds the games you own but haven't installed, and more (see [Steam](#steam)).
 - Your Epic Games library alongside it, after a one-time sign-in (see [Epic Games](#epic-games)).
 - Your Ubisoft library too, read from Ubisoft Connect once you've signed in there (see [Ubisoft](#ubisoft)).
 - Poster grid with instant search, installed and favorites filters, a store filter and sorting. Stays smooth with a couple of hundred games.
@@ -62,6 +62,19 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 <p align="center">
   <img src="assets/library-epic.png" alt="Library showing Steam and Epic games, with update and install badges">
 </p>
+
+## Steam
+
+Out of the box Shelf reads Steam's own files, which only know about installed games. A free **Web API key** fills in the rest. Open **Settings, Integrations, Steam**, paste your key and press **Connect**. Get one at [steamcommunity.com/dev/apikey](https://steamcommunity.com/dev/apikey); any domain name works when it asks, for example `localhost`.
+
+With a key:
+
+- **Every game you own** is listed, installed or not, with Steam's own art. **Install in Steam** opens Steam's install dialog for the ones you don't have.
+- **Play time and last played** use the larger of what Steam's files and the Web API report, so they are right even for games you removed.
+- **An account card** shows your profile, Steam level, number of games owned and played, total play time and the last two weeks.
+- **Friends** (see [Friends](#friends)).
+
+The key is kept in `~/.config/shelf/steam.json`, readable only by you, and is only ever sent to Steam. **Disconnect** forgets it, and the games that aren't installed leave the library. If Steam says your game details are private, Shelf tells you; set **Game details** to Public in Steam's privacy settings. The list of owned games is kept for ten minutes between scans, and an older copy is used when Steam can't be reached.
 
 ## Epic Games
 
@@ -155,7 +168,7 @@ Everything is saved in `~/.config/shelf/organizer.json`, separate from your favo
 
 Epic and Ubisoft are listed in the window with the reason, so you know why they are empty.
 
-**Steam setup.** Get a free [Web API key](https://steamcommunity.com/dev/apikey) (any domain name works, for example `localhost`), paste it in the Steam card in the Friends window and press Save. Shelf finds your account from the one Steam is signed in with on this computer. Your friends list has to be visible to you in Steam's privacy settings, which it is by default. The key is kept in `~/.config/shelf/friends.json`, readable only by you, and is only ever sent to Steam.
+**Steam setup.** The friends list uses the same Web API key as the [Steam integration](#steam), so it is set up once under **Settings, Integrations, Steam**. Your friends list has to be visible to you in Steam's privacy settings, which it is by default.
 
 New launchers plug in by implementing one small `Provider` interface in `internal/friends`; the window draws their setup form from the fields they declare.
 
@@ -305,7 +318,7 @@ Finished sessions of every store feed the activity heatmap.
 | --- | --- |
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
-| Friends settings (Steam API key) | `~/.config/shelf/friends.json` |
+| Steam Web API key | `~/.config/shelf/steam.json` |
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
 | Epic login and metadata | `~/.config/shelf/legendary` |
 | Proton prefixes (Ubisoft's is `ubisoft-connect`) | `~/.local/share/shelf/prefixes` |
@@ -323,7 +336,7 @@ Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a
 ## Limitations
 
 - Linux only for now. The Steam provider only knows Linux paths, including the Flatpak one.
-- Only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. Epic shows your whole library.
+- Without a Steam Web API key only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. With a key, and Epic always, your whole library shows.
 - "Now playing" and session history work with native Steam, not the Flatpak version.
 - Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files, and Epic playtime counts only what Shelf saw.
 - Epic needs legendary and a Proton build. Epic games that must be installed through Ubisoft Connect or the EA app can't be installed from the Epic side.

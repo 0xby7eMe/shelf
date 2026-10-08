@@ -768,6 +768,40 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class SteamAPIStatus {
+	    configured: boolean;
+	    message?: string;
+	    overview?: steamapi.Overview;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamAPIStatus(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.configured = source["configured"];
+	        this.message = source["message"];
+	        this.overview = this.convertValues(source["overview"], steamapi.Overview);
+	    }
+	
+		convertValues(a: any, classs: any, asMap: boolean = false): any {
+		    if (!a) {
+		        return a;
+		    }
+		    if (a.slice && a.map) {
+		        return (a as any[]).map(elem => this.convertValues(elem, classs));
+		    } else if ("object" === typeof a) {
+		        if (asMap) {
+		            for (const key of Object.keys(a)) {
+		                a[key] = new classs(a[key]);
+		            }
+		            return a;
+		        }
+		        return new classs(a);
+		    }
+		    return a;
+		}
+	}
 	export class Storage {
 	    volumes: library.Volume[];
 	    prefixes: epic.PrefixUsage[];
@@ -799,6 +833,41 @@ export namespace main {
 		    }
 		    return a;
 		}
+	}
+
+}
+
+export namespace steamapi {
+	
+	export class Overview {
+	    steamId: string;
+	    name: string;
+	    avatar: string;
+	    profileUrl: string;
+	    level: number;
+	    owned: number;
+	    played: number;
+	    totalMinutes: number;
+	    twoWeekMinutes: number;
+	    gamesPrivate: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Overview(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.steamId = source["steamId"];
+	        this.name = source["name"];
+	        this.avatar = source["avatar"];
+	        this.profileUrl = source["profileUrl"];
+	        this.level = source["level"];
+	        this.owned = source["owned"];
+	        this.played = source["played"];
+	        this.totalMinutes = source["totalMinutes"];
+	        this.twoWeekMinutes = source["twoWeekMinutes"];
+	        this.gamesPrivate = source["gamesPrivate"];
+	    }
 	}
 
 }

@@ -11,7 +11,7 @@ import {
 import { update } from "../../../wailsjs/go/models"
 import { BrowserOpenURL, EventsOn } from "../../../wailsjs/runtime/runtime"
 import { ToggleRow } from "@/components/toggle-row"
-import { Panel, PillButton, SectionHeading } from "@/components/settings/ui"
+import { Bar, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { formatLastPlayed } from "@/lib/format"
 import { toast } from "@/lib/toast"
 
@@ -118,12 +118,7 @@ export function AboutSection() {
 
 						{installing && (
 							<div className="space-y-2">
-								<div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-									<div
-										className="h-full rounded-full bg-white transition-[width]"
-										style={{ width: `${pct ?? 8}%` }}
-									/>
-								</div>
+								<Bar accent value={pct ?? 8} />
 								<p className="text-xs text-white/45">{pct === null ? "Starting…" : `Downloading ${pct}%`}</p>
 							</div>
 						)}

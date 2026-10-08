@@ -75,7 +75,7 @@ export function Shelf({ title, count, games, favorites, onSelect, onToggleFavori
 				className="shelf -mx-8 -mt-3 -mb-8 flex snap-x snap-proximity scroll-px-8 gap-5 overflow-x-auto px-8 pt-3 pb-8"
 			>
 				{games.map((g, i) => (
-					<div key={g.id} className="w-40 shrink-0 snap-start">
+					<div key={g.id} className="w-[var(--poster-min)] shrink-0 snap-start">
 						<GameCard
 							game={g}
 							index={i}

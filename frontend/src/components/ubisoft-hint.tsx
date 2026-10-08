@@ -37,7 +37,7 @@ export function UbisoftHint({ onSettings }: { onSettings: () => void }) {
 
 	const pill =
 		"inline-flex h-10 items-center justify-center gap-2 rounded-full px-5 text-xs font-medium ring-1 transition"
-	const solid = `${pill} bg-white text-black ring-transparent hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]`
+	const solid = `${pill} bg-solid text-solid-foreground ring-transparent accent-glow`
 	const soft = `${pill} bg-white/5 text-white ring-white/10 hover:bg-white/10`
 
 	if (!status.connectInstalled) {

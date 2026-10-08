@@ -246,7 +246,7 @@ function Form({ game, onClose }: { game: library.Game; onClose: () => void }) {
 				onClick={save}
 				disabled={saving}
 				className={cn(
-					"h-11 w-full rounded-full bg-white text-sm font-medium text-black transition",
+					"h-11 w-full rounded-full bg-solid text-sm font-medium text-solid-foreground transition",
 					"hover:shadow-[0_0_40px_rgba(255,255,255,0.3)] disabled:opacity-50"
 				)}
 			>

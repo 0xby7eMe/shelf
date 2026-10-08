@@ -8,7 +8,7 @@ import {
 	DialogDescription,
 	DialogTitle,
 } from "@/components/ui/dialog"
-import { PillButton } from "@/components/settings/ui"
+import { Bar, PillButton } from "@/components/settings/ui"
 import { useAchievements } from "@/lib/use-achievements"
 import { cn } from "@/lib/utils"
 
@@ -84,7 +84,7 @@ export function AchievementsDialog({ open, games, onOpenChange, onSelect, onSetu
 
 						{scanning && (
 							<div className="space-y-2">
-								<Bar value={overview.pending > 0 ? overview.done / overview.pending : 0} />
+								<Bar accent value={overview.pending > 0 ? (overview.done / overview.pending) * 100 : 0} />
 								<p className="text-xs text-white/45">
 									Scanning your games… {overview.done} of {overview.pending}
 								</p>
@@ -112,7 +112,7 @@ export function AchievementsDialog({ open, games, onOpenChange, onSelect, onSetu
 													<div className="min-w-0 flex-1">
 														<p className="truncate text-sm font-medium">{g.name}</p>
 														<div className="mt-1.5 flex items-center gap-3">
-															<Bar value={g.unlocked / g.total} className="flex-1" />
+															<Bar accent value={(g.unlocked / g.total) * 100} className="flex-1" />
 															<span className="shrink-0 text-xs text-white/45 tabular-nums">
 																{g.unlocked}/{g.total}
 															</span>
@@ -177,14 +177,6 @@ function Tile({ label, value, hint }: { label: string; value: string; hint?: str
 			<p className="text-lg font-semibold tracking-tight tabular-nums">{value}</p>
 			<p className="text-[11px] tracking-wide text-white/45 uppercase">{label}</p>
 			{hint && <p className="text-[11px] text-white/30">{hint}</p>}
-		</div>
-	)
-}
-
-function Bar({ value, className }: { value: number; className?: string }) {
-	return (
-		<div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", className)}>
-			<div className="h-full rounded-full bg-white transition-[width]" style={{ width: `${Math.round(Math.min(1, value) * 100)}%` }} />
 		</div>
 	)
 }

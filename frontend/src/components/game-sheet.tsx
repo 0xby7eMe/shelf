@@ -258,7 +258,7 @@ function Body({
 									"flex h-11 min-w-0 flex-1 items-center justify-center gap-2 rounded-full text-sm font-medium transition duration-300",
 									running
 										? "bg-white/10 text-white/80 ring-1 ring-white/10"
-										: "bg-white text-black hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]"
+										: "bg-solid text-solid-foreground accent-glow"
 								)}
 							>
 								{running ? (

@@ -37,7 +37,7 @@ export function PillButton({
 			className={cn(
 				base,
 				variant === "solid" &&
-					"bg-white text-black ring-transparent hover:shadow-[0_0_40px_rgba(255,255,255,0.3)]",
+					"bg-solid text-solid-foreground ring-transparent accent-glow",
 				variant === "soft" && "bg-white/5 text-white/80 ring-white/10 hover:bg-white/10 hover:text-white",
 				variant === "danger" && "bg-red-500/10 text-red-300 ring-red-400/20 hover:bg-red-500/20",
 				className
@@ -64,13 +64,47 @@ export function IconButton({
 	)
 }
 
-export function Bar({ value, className }: { value: number; className?: string }) {
+// A progress bar. value is a percentage; accent paints it in the accent colour instead of a quiet white.
+export function Bar({ value, className, accent }: { value: number; className?: string; accent?: boolean }) {
 	return (
 		<div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", className)}>
 			<div
-				className="h-full rounded-full bg-white/70 transition-[width] duration-500"
+				className={cn("h-full rounded-full transition-[width] duration-500", accent ? "bg-solid" : "bg-white/70")}
 				style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
 			/>
+		</div>
+	)
+}
+
+// A row of choices, one of them selected.
+export function Segmented<T extends string | number>({
+	value,
+	options,
+	onChange,
+	label,
+}: {
+	value: T
+	options: { value: T; label: string }[]
+	onChange: (value: T) => void
+	label: string
+}) {
+	return (
+		<div role="radiogroup" aria-label={label} className="inline-flex gap-1 rounded-full bg-white/5 p-1 ring-1 ring-white/5">
+			{options.map((o) => (
+				<button
+					key={String(o.value)}
+					type="button"
+					role="radio"
+					aria-checked={value === o.value}
+					onClick={() => onChange(o.value)}
+					className={cn(
+						"h-8 rounded-full px-4 text-xs transition",
+						value === o.value ? "bg-white/10 text-white" : "text-white/55 hover:text-white"
+					)}
+				>
+					{o.label}
+				</button>
+			))}
 		</div>
 	)
 }

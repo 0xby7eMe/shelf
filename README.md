@@ -113,6 +113,7 @@ make install
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
 - **Achievements:** your progress per game and across the library, for the launchers that allow it (see [Achievements](#achievements))
+- **Appearance:** pick an accent color, the poster size and the interface size, choose which home sections show, and reduce motion (see [Appearance](#appearance))
 - **Update notifier:** Shelf tells you when a new release is out and can install it for you (see [Updates](#updates))
 
 **Epic Games**
@@ -227,6 +228,18 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
   <img src="assets/settings-downloads.png" width="49%" alt="Download queue">
   <img src="assets/settings-storage.png" width="49%" alt="Disk usage">
 </p>
+
+## Appearance
+
+**Settings, Appearance** makes Shelf look the way you like. Everything applies at once and is kept on this computer.
+
+- **Accent color:** nine presets or any color you pick. It paints buttons, switches and progress bars, and the text on them switches between black and white so it stays readable. White is the default.
+- **Poster size:** small, medium or large, for the library grid and the shelves.
+- **Interface size:** 90%, 100%, 110% or 125%, which scales text and spacing together, for small screens or a TV.
+- **Home:** show or hide the banner for your last played game, the **Continue playing** shelf and the **Never played** shelf. Without the banner, that game is listed on the shelves like any other.
+- **Reduce motion:** turns off animations. It starts on when your system asks for less motion.
+
+**Reset appearance** puts everything back.
 
 ## Collections and tags
 

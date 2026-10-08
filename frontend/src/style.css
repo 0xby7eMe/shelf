@@ -49,6 +49,8 @@
 }
 
 :root {
+	/* Settings, Appearance, Poster size changes this. */
+	--poster-min: 160px;
 	--background: oklch(1 0 0);
 	--foreground: oklch(0.145 0 0);
 	--card: oklch(1 0 0);
@@ -127,6 +129,18 @@
 	html {
 		@apply font-sans;
 	}
+}
+
+/* Settings, Appearance, Reduce motion: nothing moves, but everything still ends up where it should. */
+html[data-reduce-motion="true"] *,
+html[data-reduce-motion="true"] *::before,
+html[data-reduce-motion="true"] *::after {
+	animation-duration: 0.01ms !important;
+	animation-delay: 0ms !important;
+	animation-iteration-count: 1 !important;
+	transition-duration: 0.01ms !important;
+	transition-delay: 0ms !important;
+	scroll-behavior: auto !important;
 }
 
 .titlebar {

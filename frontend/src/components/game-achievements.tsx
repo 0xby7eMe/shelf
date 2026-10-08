@@ -3,6 +3,7 @@ import { Lock } from "lucide-react"
 
 import { GetGameAchievements } from "../../wailsjs/go/main/App"
 import { achievements, library } from "../../wailsjs/go/models"
+import { Bar } from "@/components/settings/ui"
 import { formatLastPlayed } from "@/lib/format"
 import { cn } from "@/lib/utils"
 
@@ -42,9 +43,7 @@ export function GameAchievements({ game }: { game: library.Game }) {
 					{detail.unlocked} / {detail.total} · {pct}%
 				</p>
 			</div>
-			<div className="h-1.5 overflow-hidden rounded-full bg-white/10">
-				<div className="h-full rounded-full bg-white" style={{ width: `${pct}%` }} />
-			</div>
+			<Bar bright value={pct} />
 
 			<ul className={cn("space-y-1", all && "max-h-72 overflow-y-auto pr-1")}>
 				{shown.map((a) => (

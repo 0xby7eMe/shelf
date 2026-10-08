@@ -64,13 +64,47 @@ export function IconButton({
 	)
 }
 
-export function Bar({ value, className }: { value: number; className?: string }) {
+// A progress bar. value is a percentage; bright paints it solid white instead of a quieter white.
+export function Bar({ value, className, bright }: { value: number; className?: string; bright?: boolean }) {
 	return (
 		<div className={cn("h-1.5 overflow-hidden rounded-full bg-white/10", className)}>
 			<div
-				className="h-full rounded-full bg-white/70 transition-[width] duration-500"
+				className={cn("h-full rounded-full transition-[width] duration-500", bright ? "bg-white" : "bg-white/70")}
 				style={{ width: `${Math.min(100, Math.max(0, value))}%` }}
 			/>
+		</div>
+	)
+}
+
+// A row of choices, one of them selected.
+export function Segmented<T extends string | number>({
+	value,
+	options,
+	onChange,
+	label,
+}: {
+	value: T
+	options: { value: T; label: string }[]
+	onChange: (value: T) => void
+	label: string
+}) {
+	return (
+		<div role="radiogroup" aria-label={label} className="inline-flex gap-1 rounded-full bg-white/5 p-1 ring-1 ring-white/5">
+			{options.map((o) => (
+				<button
+					key={String(o.value)}
+					type="button"
+					role="radio"
+					aria-checked={value === o.value}
+					onClick={() => onChange(o.value)}
+					className={cn(
+						"h-8 rounded-full px-4 text-xs transition",
+						value === o.value ? "bg-white/10 text-white" : "text-white/55 hover:text-white"
+					)}
+				>
+					{o.label}
+				</button>
+			))}
 		</div>
 	)
 }

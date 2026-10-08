@@ -1,8 +1,9 @@
-import { ArrowLeft, Download, FolderKanban, HardDrive, Gamepad2, Info, Monitor, Plug, SlidersHorizontal } from "lucide-react"
+import { ArrowLeft, Download, FolderKanban, HardDrive, Gamepad2, Info, Monitor, Palette, Plug, SlidersHorizontal } from "lucide-react"
 
 import { epic, library } from "../../../wailsjs/go/models"
 import { WindowControls } from "@/components/window-controls"
 import { AboutSection } from "@/components/settings/about-section"
+import { AppearanceSection } from "@/components/settings/appearance-section"
 import { AdvancedSection } from "@/components/settings/advanced-section"
 import { CollectionsSection } from "@/components/settings/collections-section"
 import { ControllerSection } from "@/components/settings/controller-section"
@@ -12,13 +13,14 @@ import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { StorageSection } from "@/components/settings/storage-section"
 import { cn } from "@/lib/utils"
 
-export type SettingsSection = "integrations" | "collections" | "downloads" | "storage" | "controller" | "desktop" | "advanced" | "about"
+export type SettingsSection = "integrations" | "collections" | "downloads" | "storage" | "appearance" | "controller" | "desktop" | "advanced" | "about"
 
 export const SECTIONS: { id: SettingsSection; label: string; icon: React.ComponentType<{ className?: string }> }[] = [
 	{ id: "integrations", label: "Integrations", icon: Plug },
 	{ id: "collections", label: "Collections", icon: FolderKanban },
 	{ id: "downloads", label: "Downloads", icon: Download },
 	{ id: "storage", label: "Storage", icon: HardDrive },
+	{ id: "appearance", label: "Appearance", icon: Palette },
 	{ id: "controller", label: "Controller", icon: Gamepad2 },
 	{ id: "desktop", label: "Desktop", icon: Monitor },
 	{ id: "advanced", label: "Advanced", icon: SlidersHorizontal },
@@ -96,6 +98,7 @@ export function SettingsPage({
 					{section === "collections" && <CollectionsSection games={games} />}
 					{section === "downloads" && <DownloadsSection queue={queue} games={games} />}
 					{section === "storage" && <StorageSection games={games} onSelect={onSelectGame} />}
+					{section === "appearance" && <AppearanceSection />}
 					{section === "controller" && <ControllerSection />}
 					{section === "desktop" && <DesktopSection />}
 					{section === "advanced" && <AdvancedSection />}

@@ -288,8 +288,10 @@ function App() {
 		return null
 	}, [playing, games])
 
+	const heroBanner = prefs.heroBanner
 	const shelves = useMemo(() => {
-		const rest = (games ?? []).filter((g) => g.installed && g.id !== featured?.id)
+		// The game in the banner isn't repeated on the shelves; without a banner it is just a game.
+		const rest = (games ?? []).filter((g) => g.installed && !(heroBanner && g.id === featured?.id))
 
 		const recent = rest
 		.filter((g) => g.lastPlayed > 0)
@@ -300,15 +302,19 @@ function App() {
 		const unplayed = [...unplayedAll].sort(sorters.name).slice(0, 15)
 
 		return { recent, unplayed, unplayedTotal: unplayedAll.length }
-	}, [games, featured])
+	}, [games, featured, heroBanner])
 
 	const totalMinutes = useMemo(
 		() => (games ?? []).reduce((n, g) => n + g.playtimeMinutes, 0),
 		[games]
 	)
 
-	const showHero = !!featured && !query.trim() && !activeGroup
-	const showShelves = showHero && filter === "all"
+	// The home view: no search and no collection narrowing the library down.
+	const homeView = !!featured && !query.trim() && !activeGroup
+	const showHero = homeView && prefs.heroBanner
+	const showRecent = homeView && filter === "all" && prefs.shelfRecent && shelves.recent.length > 0
+	const showUnplayed = homeView && filter === "all" && prefs.shelfUnplayed && shelves.unplayed.length > 0
+	const showShelves = showRecent || showUnplayed
 
 	function play(game: library.Game) {
 		// Epic and Ubisoft games have to be installed through Shelf first.
@@ -519,7 +525,7 @@ function App() {
 			<main className={cn("relative px-8 pb-16", showHero ? "pt-8" : "pt-6")}>
 				{showShelves && games && (
 					<>
-						{shelves.recent.length > 0 && (
+						{showRecent && (
 						<Shelf
 							title="Continue playing"
 							games={shelves.recent}
@@ -529,7 +535,7 @@ function App() {
 							playing={playingIds}
 						/>
 						)}
-						{shelves.unplayed.length > 0 && (
+						{showUnplayed && (
 						<Shelf
 							title="Never played"
 							count={shelves.unplayedTotal}
@@ -649,7 +655,7 @@ function App() {
 
 function Grid({ children }: { children: React.ReactNode }) {
 	return (
-		<div className="grid grid-cols-[repeat(auto-fill,minmax(160px,1fr))] gap-6">
+		<div className="grid grid-cols-[repeat(auto-fill,minmax(var(--poster-min),1fr))] gap-6">
 			{children}
 		</div>
 	)

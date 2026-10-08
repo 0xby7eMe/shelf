@@ -11,6 +11,12 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
 
 </div>
 
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+<p align="center">Linux, x86_64. Arch gets the native binary, everything else the AppImage. <a href="#install">More install options</a></p>
+
 <p align="center">
   <img src="assets/library.png" alt="Library with hero banner, shelves and poster grid">
 </p>
@@ -19,6 +25,76 @@ A minimal, good-looking desktop library for your Steam, Epic Games and Ubisoft g
   <img src="assets/detail.png" width="49%" alt="Game detail sheet">
   <img src="assets/favorites.png" width="49%" alt="Favorites filter">
 </p>
+
+## Install
+
+### Quick install
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
+
+- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
+- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
+
+Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
+```
+
+Only x86_64 Linux builds are published.
+
+### Manual download
+
+Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
+
+**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
+
+```bash
+sudo pacman -S gtk3 webkit2gtk-4.1
+tar -xzf shelf-arch-x86_64.tar.gz
+install -Dm755 shelf ~/.local/bin/shelf
+install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
+install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
+```
+
+**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
+
+```bash
+chmod +x shelf-linux-x86_64.AppImage
+./shelf-linux-x86_64.AppImage
+```
+
+### Requirements for the games
+
+For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
+
+Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
+
+### From source
+
+Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
+
+```bash
+# Arch
+sudo pacman -S gtk3 webkit2gtk-4.1
+# Debian/Ubuntu
+sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
+```
+
+```bash
+git clone https://github.com/0xby7eMe/shelf
+cd shelf
+cd frontend && npm install && cd ..
+make install
+```
+
+`make install` builds the app and installs the binary, icon and launcher entry for your user.
 
 ## Features
 
@@ -224,76 +300,6 @@ Everything is read from `/proc` and `/sys`, once a second, so it needs no extra 
 | `/` | Focus search |
 | `Esc` | Clear search, or leave the settings page |
 | `R` | Open a random game from the current view |
-
-## Install
-
-### Quick install
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
-```
-
-The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
-
-- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
-- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
-
-Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
-
-```bash
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
-curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
-```
-
-Only x86_64 Linux builds are published.
-
-### Manual download
-
-Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
-
-**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
-
-```bash
-sudo pacman -S gtk3 webkit2gtk-4.1
-tar -xzf shelf-arch-x86_64.tar.gz
-install -Dm755 shelf ~/.local/bin/shelf
-install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
-install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
-```
-
-**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
-
-```bash
-chmod +x shelf-linux-x86_64.AppImage
-./shelf-linux-x86_64.AppImage
-```
-
-### Requirements for the games
-
-For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
-
-Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
-
-### From source
-
-Requires Go 1.25+, Node 18+ and the [Wails CLI](https://wails.io), plus the development packages:
-
-```bash
-# Arch
-sudo pacman -S gtk3 webkit2gtk-4.1
-# Debian/Ubuntu
-sudo apt install libgtk-3-dev libwebkit2gtk-4.1-dev
-```
-
-```bash
-git clone https://github.com/0xby7eMe/shelf
-cd shelf
-cd frontend && npm install && cd ..
-make install
-```
-
-`make install` builds the app and installs the binary, icon and launcher entry for your user.
 
 ## Development
 

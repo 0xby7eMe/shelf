@@ -72,7 +72,7 @@ func renderEntry(exe string, e Entry) string {
 	b.WriteString("Name=" + textValue(e.Name) + "\n")
 	b.WriteString("Comment=Play with Shelf\n")
 	b.WriteString("Exec=" + execQuote(exe) + " " + execQuote(LaunchURL(e.ID)) + "\n")
-	b.WriteString("Icon=shelf\n")
+	b.WriteString("Icon=io.github.0xby7eme.shelf\n")
 	b.WriteString("Categories=Game;\n")
 	b.WriteString("Terminal=false\n")
 	b.WriteString("StartupNotify=false\n")
@@ -159,7 +159,7 @@ func RegisterURLHandler(dir, exe string, env []string) error {
 		"Name=Shelf\n" +
 		"Comment=Opens shelf:// links\n" +
 		"Exec=" + execQuote(exe) + " %u\n" +
-		"Icon=shelf\n" +
+		"Icon=io.github.0xby7eme.shelf\n" +
 		"Terminal=false\n" +
 		"NoDisplay=true\n" +
 		"MimeType=" + handlerMime + ";\n"

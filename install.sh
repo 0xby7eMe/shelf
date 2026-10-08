@@ -17,7 +17,9 @@ REPO=0xby7eMe/shelf
 BIN_DIR=${XDG_BIN_HOME:-$HOME/.local/bin}
 DATA_DIR=${XDG_DATA_HOME:-$HOME/.local/share}
 APP_FILE=$DATA_DIR/applications/shelf.desktop
-ICON_FILE=$DATA_DIR/icons/hicolor/512x512/apps/shelf.png
+# A unique icon name: icon themes may ship their own "shelf", and they win over hicolor.
+ICON_FILE=$DATA_DIR/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
+OLD_ICON_FILE=$DATA_DIR/icons/hicolor/512x512/apps/shelf.png
 TARGET=$BIN_DIR/shelf
 
 VERSION=latest
@@ -147,7 +149,7 @@ Name=Shelf
 Exec=$TARGET
 Type=Application
 Comment=A minimal library for your Steam, Epic and Ubisoft games
-Icon=shelf
+Icon=io.github.0xby7eme.shelf
 Categories=Game;
 Keywords=games;library;steam;epic;ubisoft;
 Terminal=false
@@ -165,7 +167,7 @@ refresh_caches() {
 
 uninstall() {
 	banner
-	step "Removing Shelf" "Removed Shelf" rm -f "$TARGET" "$APP_FILE" "$ICON_FILE"
+	step "Removing Shelf" "Removed Shelf" rm -f "$TARGET" "$APP_FILE" "$ICON_FILE" "$OLD_ICON_FILE"
 	refresh_caches
 	note "Your settings in ~/.config/shelf and ~/.local/share/shelf were left alone"
 	printf '\n'
@@ -248,6 +250,7 @@ install_shelf() {
 		install_appimage
 	fi
 
+	rm -f "$OLD_ICON_FILE" # from versions that used the plain name
 	step "Adding Shelf to your application menu" "Launcher entry added" write_desktop_file
 	refresh_caches
 

@@ -228,7 +228,7 @@ Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases)
 sudo pacman -S gtk3 webkit2gtk-4.1
 tar -xzf shelf-arch-x86_64.tar.gz
 install -Dm755 shelf ~/.local/bin/shelf
-install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/shelf.png
+install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
 install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
 ```
 

@@ -39,7 +39,7 @@ install -m755 "$BIN" "$APPDIR/usr/bin/shelf"
 # Launcher entry and icon, as AppImage wants them (relative Exec, sized icon).
 sed -e 's|^Exec=.*|Exec=shelf|' "$ROOT/build/linux/shelf.desktop" > "$WORK/shelf.desktop"
 if command -v magick >/dev/null; then IM=(magick); else IM=(convert); fi
-"${IM[@]}" "$ROOT/build/appicon.png" -resize 512x512 "$WORK/shelf.png"
+"${IM[@]}" "$ROOT/build/appicon.png" -resize 512x512 "$WORK/io.github.0xby7eme.shelf.png"
 
 # WebKit starts its helper processes from a path fixed at compile time, which
 # won't exist on the user's machine. Bundle them where the same path, made
@@ -53,7 +53,7 @@ for helper in WebKitWebProcess WebKitNetworkProcess WebKitGPUProcess; do
 done
 [ -d "$LIBEXEC/injected-bundle" ] && cp -r "$LIBEXEC/injected-bundle" "$APPDIR/usr/$REL/"
 
-ARGS=(--appdir "$APPDIR" --desktop-file "$WORK/shelf.desktop" --icon-file "$WORK/shelf.png" --plugin gtk)
+ARGS=(--appdir "$APPDIR" --desktop-file "$WORK/shelf.desktop" --icon-file "$WORK/io.github.0xby7eme.shelf.png" --plugin gtk)
 for exe in "$APPDIR/usr/bin/shelf" "$APPDIR/usr/$REL"/WebKit*Process; do ARGS+=(--executable "$exe"); done
 for lib in "$APPDIR/usr/$REL"/injected-bundle/*.so; do [ -f "$lib" ] && ARGS+=(--library "$lib"); done
 linuxdeploy-$ARCH.AppImage "${ARGS[@]}"

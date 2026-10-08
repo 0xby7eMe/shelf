@@ -197,47 +197,53 @@ Everything is read from `/proc` and `/sys`, once a second, so it needs no extra 
 
 ## Install
 
-### From a release
-
-Download `shelf-linux-amd64.tar.gz` from the [releases page](https://github.com/0xby7eMe/shelf/releases), then:
+### Quick install
 
 ```bash
-tar -xzf shelf-linux-amd64.tar.gz
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
+```
+
+The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
+
+- **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
+- **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
+
+Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --appimage   # AppImage even on Arch
+curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
+```
+
+Only x86_64 Linux builds are published.
+
+### Manual download
+
+Everything is on the [releases page](https://github.com/0xby7eMe/shelf/releases).
+
+**Arch:** `shelf-arch-x86_64.tar.gz` needs GTK 3 and WebKitGTK 4.1:
+
+```bash
+sudo pacman -S gtk3 webkit2gtk-4.1
+tar -xzf shelf-arch-x86_64.tar.gz
 install -Dm755 shelf ~/.local/bin/shelf
 install -Dm644 appicon.png ~/.local/share/icons/hicolor/512x512/apps/shelf.png
 install -Dm644 shelf.desktop ~/.local/share/applications/shelf.desktop
 ```
 
-The binary needs GTK 3 and WebKitGTK 4.1 at runtime:
-
-```bash
-# Arch
-sudo pacman -S gtk3 webkit2gtk-4.1
-# Debian/Ubuntu
-sudo apt install libgtk-3-0 libwebkit2gtk-4.1-0
-```
-
-For Epic Games you also need legendary, and a Proton build from Steam or ProtonUp-Qt:
-
-```bash
-# Arch
-sudo pacman -S legendary
-```
-
-Ubisoft needs only a Proton build. Shelf can install GE-Proton for you from the Ubisoft tab.
-
-Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
-
-### AppImage
-
-`shelf-linux-x86_64.AppImage` runs on most distros, including Ubuntu 22.04 and later, with GTK and WebKitGTK bundled, so nothing else needs installing:
+**Ubuntu, Debian and others:** `shelf-linux-x86_64.AppImage` runs on Ubuntu 22.04 and later, Debian 12 and most other distros. Nothing else needs installing, except FUSE 2 (`sudo apt install libfuse2`) on systems that lack it:
 
 ```bash
 chmod +x shelf-linux-x86_64.AppImage
 ./shelf-linux-x86_64.AppImage
 ```
 
-For Epic Games you still need `legendary` and a Proton build on the system. Ubisoft needs only Proton.
+### Requirements for the games
+
+For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). Ubisoft needs only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
+
+Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
 
 ### From source
 
@@ -263,7 +269,8 @@ make install
 
 ```bash
 make dev      # run with hot reload
-make build    # production binary in build/bin/
+make icon     # render build/appicon.png from build/appicon.svg
+make build    # production binary in build/bin/ (renders the icon first)
 go test ./internal/...
 ```
 
@@ -290,6 +297,10 @@ Finished sessions of every store feed the activity heatmap.
 | Downloaded art | `~/.cache/shelf/covers` |
 
 Built with Go, [Wails v2](https://wails.io), React, Tailwind CSS v4 and shadcn/ui.
+
+## Releases
+
+Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a release: the binary on an Arch container, and the AppImage on Ubuntu 22.04 so it runs on anything newer. Both builds render the app icon from `build/appicon.svg` first, so the icon in the window, the launcher and the AppImage always matches the SVG.
 
 ## Limitations
 

@@ -15,32 +15,32 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  # A plain binary for Arch Linux and friends, built on Arch itself so it links
+  # against the same GTK 3 and WebKitGTK 4.1 the user has installed.
+  arch:
     runs-on: ubuntu-latest
+    container: archlinux:latest
 
     steps:
+      - name: Install dependencies
+        run: |
+          pacman -Syu --noconfirm --needed base-devel git go nodejs npm gtk3 webkit2gtk-4.1 librsvg
+
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-go@v5
-        with:
-          go-version: stable
-
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install Linux dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev
+      - name: Trust the checkout
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Test
         run: go test ./...
 
       - name: Install Wails CLI
-        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+        run: |
+          go install github.com/wailsapp/wails/v2/cmd/wails@latest
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+
+      - name: Render the app icon
+        run: scripts/icon.sh
 
       - name: Build
         run: wails build -tags webkit2_41
@@ -49,19 +49,19 @@ jobs:
         run: |
           mkdir -p dist stage
           cp build/bin/shelf build/appicon.png build/linux/shelf.desktop stage/
-          tar -czf dist/shelf-linux-amd64.tar.gz -C stage .
-          sha256sum dist/shelf-linux-amd64.tar.gz > dist/shelf-linux-amd64.tar.gz.sha256
+          tar -czf dist/shelf-arch-x86_64.tar.gz -C stage .
+          cd dist && sha256sum shelf-arch-x86_64.tar.gz > shelf-arch-x86_64.tar.gz.sha256
 
       - uses: actions/upload-artifact@v4
         with:
-          name: shelf-linux-amd64
+          name: shelf-arch
           path: dist/*
           if-no-files-found: error
 
-  # A self-contained AppImage with GTK and WebKitGTK bundled, for distros that
-  # don't have them. It is built on the oldest runner we can: an AppImage runs
-  # on anything with the same or a newer glibc, so building on 22.04 covers
-  # Ubuntu 22.04 and later, Debian 12, Fedora and friends.
+  # A self-contained AppImage with GTK and WebKitGTK bundled, for Ubuntu,
+  # Debian, Fedora and the rest. It is built on the oldest runner we can: an
+  # AppImage runs on anything with the same or a newer glibc, so building on
+  # 22.04 covers Ubuntu 22.04 and later, Debian 12 and friends.
   appimage:
     runs-on: ubuntu-22.04
 
@@ -81,10 +81,13 @@ jobs:
       - name: Install Linux dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick file
+          sudo apt-get install -y libgtk-3-dev libwebkit2gtk-4.1-dev imagemagick librsvg2-bin file
 
       - name: Install Wails CLI
         run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Render the app icon
+        run: scripts/icon.sh
 
       - name: Build
         run: wails build -tags webkit2_41
@@ -93,7 +96,7 @@ jobs:
         run: |
           mkdir -p dist
           scripts/build-appimage.sh build/bin/shelf dist/shelf-linux-x86_64.AppImage
-          sha256sum dist/shelf-linux-x86_64.AppImage > dist/shelf-linux-x86_64.AppImage.sha256
+          cd dist && sha256sum shelf-linux-x86_64.AppImage > shelf-linux-x86_64.AppImage.sha256
 
       - uses: actions/upload-artifact@v4
         with:
@@ -103,11 +106,13 @@ jobs:
 
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [build, appimage]
+    needs: [arch, appimage]
     runs-on: ubuntu-latest
     permissions:
       contents: write
     steps:
+      - uses: actions/checkout@v4
+
       - uses: actions/download-artifact@v4
         with:
           pattern: shelf-*

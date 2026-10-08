@@ -83,14 +83,14 @@ func (o *Organizer) load() {
 		seen[c.ID] = true
 		games := []string{}
 		for _, g := range c.Games {
-			if validGameID(g) {
+			if ValidGameID(g) {
 				games = append(games, g)
 			}
 		}
 		o.data.Collections = append(o.data.Collections, Collection{ID: c.ID, Name: name, Games: dedupe(games)})
 	}
 	for id, tags := range saved.Tags {
-		if !validGameID(id) {
+		if !ValidGameID(id) {
 			continue
 		}
 		if clean := cleanTags(tags); len(clean) > 0 {
@@ -99,8 +99,8 @@ func (o *Organizer) load() {
 	}
 }
 
-// validGameID accepts the ids Shelf hands out: a store, a colon and the store's own id.
-func validGameID(id string) bool {
+// ValidGameID accepts the ids Shelf hands out: a store, a colon and the store's own id.
+func ValidGameID(id string) bool {
 	store, ext, ok := strings.Cut(id, ":")
 	if !ok {
 		return false
@@ -124,12 +124,17 @@ func cleanCollectionName(name string) (string, error) {
 	return name, nil
 }
 
+// normalizeTag collapses whitespace and lowercases a tag.
+func normalizeTag(t string) string {
+	return strings.ToLower(strings.Join(strings.Fields(t), " "))
+}
+
 // cleanTags trims and lowercases tags, drops empty, overlong and repeated ones, and sorts the rest.
 func cleanTags(tags []string) []string {
 	seen := map[string]bool{}
 	out := []string{}
 	for _, t := range tags {
-		t = strings.ToLower(strings.Join(strings.Fields(t), " "))
+		t = normalizeTag(t)
 		if t == "" || utf8.RuneCountInString(t) > maxTagLength || seen[t] {
 			continue
 		}
@@ -249,7 +254,7 @@ func (o *Organizer) DeleteCollection(id string) (Organization, error) {
 
 // SetGameCollections files one game under exactly the given collections.
 func (o *Organizer) SetGameCollections(gameID string, collectionIDs []string) (Organization, error) {
-	if !validGameID(gameID) {
+	if !ValidGameID(gameID) {
 		return Organization{}, fmt.Errorf("invalid game id")
 	}
 	want := map[string]bool{}
@@ -286,7 +291,7 @@ func (o *Organizer) SetGameCollections(gameID string, collectionIDs []string) (O
 
 // SetTags replaces a game's tags.
 func (o *Organizer) SetTags(gameID string, tags []string) (Organization, error) {
-	if !validGameID(gameID) {
+	if !ValidGameID(gameID) {
 		return Organization{}, fmt.Errorf("invalid game id")
 	}
 	clean := cleanTags(tags)
@@ -302,7 +307,7 @@ func (o *Organizer) SetTags(gameID string, tags []string) (Organization, error) 
 
 // DeleteTag removes a tag from every game that has it.
 func (o *Organizer) DeleteTag(tag string) (Organization, error) {
-	tag = strings.ToLower(strings.Join(strings.Fields(tag), " "))
+	tag = normalizeTag(tag)
 	return o.change(func(d *Organization) error {
 		for id, tags := range d.Tags {
 			kept := tags[:0]

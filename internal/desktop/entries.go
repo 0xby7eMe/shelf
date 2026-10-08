@@ -6,6 +6,8 @@ import (
 	"path/filepath"
 	"sort"
 	"strings"
+
+	"shelf/internal/library"
 )
 
 const (
@@ -91,7 +93,7 @@ func SyncEntries(dir, exe string, games []Entry) (written, removed int, err erro
 
 	wanted := map[string]bool{}
 	for _, g := range games {
-		if !gameIDRe.MatchString(g.ID) {
+		if !library.ValidGameID(g.ID) {
 			continue
 		}
 		name := entryFileName(g.ID)

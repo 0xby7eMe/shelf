@@ -1,4 +1,4 @@
-import { useRef, useState } from "react"
+import { useMemo, useRef, useState } from "react"
 import { Check, Plus, X } from "lucide-react"
 
 import { library } from "../../wailsjs/go/models"
@@ -23,7 +23,8 @@ export function GameOrganizer({ game }: { game: library.Game }) {
 
 	const mine = org.collections.filter((c) => c.games.includes(game.id)).map((c) => c.id)
 	const tags = org.tags[game.id] ?? []
-	const suggestions = tagCounts(org)
+	const counts = useMemo(() => tagCounts(org), [org])
+	const suggestions = counts
 		.map((t) => t.tag)
 		.filter((t) => !tags.includes(t))
 		.slice(0, 6)

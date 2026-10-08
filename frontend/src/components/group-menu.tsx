@@ -13,7 +13,8 @@ export function GroupMenu({ group, onGroup }: { group: Group; onGroup: (g: Group
 	const label = groupLabel(org, group)
 	const empty = org.collections.length === 0 && tags.length === 0
 
-	const same = (g: NonNullable<Group>) => JSON.stringify(g) === JSON.stringify(group)
+	const isCollection = (id: string) => group?.kind === "collection" && group.id === id
+	const isTag = (tag: string) => group?.kind === "tag" && group.tag === tag
 
 	function pick(g: Group) {
 		onGroup(g)
@@ -49,7 +50,7 @@ export function GroupMenu({ group, onGroup }: { group: Group; onGroup: (g: Group
 							key={c.id}
 							icon={<Folder className="size-3.5" />}
 							hint={String(c.games.length)}
-							checked={same({ kind: "collection", id: c.id })}
+							checked={isCollection(c.id)}
 							onClick={() => pick({ kind: "collection", id: c.id })}
 						>
 							{c.name}
@@ -61,7 +62,7 @@ export function GroupMenu({ group, onGroup }: { group: Group; onGroup: (g: Group
 							key={tag}
 							icon={<Tag className="size-3.5" />}
 							hint={String(count)}
-							checked={same({ kind: "tag", tag })}
+							checked={isTag(tag)}
 							onClick={() => pick({ kind: "tag", tag })}
 						>
 							{tag}

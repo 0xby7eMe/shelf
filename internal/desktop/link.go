@@ -2,12 +2,10 @@ package desktop
 
 import (
 	"net/url"
-	"regexp"
 	"strings"
-)
 
-// A game id is a store and the store's own id, e.g. "steam:620".
-var gameIDRe = regexp.MustCompile(`^(steam|epic|ubisoft):[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`)
+	"shelf/internal/library"
+)
 
 // LaunchURL is the link that starts a game: shelf://launch/steam:620.
 func LaunchURL(gameID string) string { return "shelf://launch/" + gameID }
@@ -19,7 +17,7 @@ func ParseLaunchURL(arg string) (string, bool) {
 		return "", false
 	}
 	id := strings.TrimPrefix(u.Path, "/")
-	if !gameIDRe.MatchString(id) {
+	if !library.ValidGameID(id) {
 		return "", false
 	}
 	return id, true

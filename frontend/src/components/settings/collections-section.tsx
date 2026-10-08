@@ -3,7 +3,7 @@ import { Check, Folder, Pencil, Plus, Tag, Trash2, X } from "lucide-react"
 
 import { library } from "../../../wailsjs/go/models"
 import { Input } from "@/components/ui/input"
-import { IconButton, Panel, PillButton, SectionHeading, inputClass } from "@/components/settings/ui"
+import { IconButton, Label, Panel, PillButton, SectionHeading, inputClass } from "@/components/settings/ui"
 import { confirm } from "@/lib/confirm"
 import {
 	createCollection,
@@ -136,7 +136,7 @@ export function CollectionsSection({ games }: { games: library.Game[] }) {
 			</Panel>
 
 			<Panel>
-				<p className="text-[11px] tracking-wide text-white/45 uppercase">Tags</p>
+				<Label>Tags</Label>
 				{tags.length === 0 ? (
 					<p className="text-sm text-white/40">No tags yet.</p>
 				) : (

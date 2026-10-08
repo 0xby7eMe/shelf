@@ -95,8 +95,7 @@ func (a *App) toggleWindow() {
 	a.hidden = !hidden
 	a.winMu.Unlock()
 	if hidden {
-		runtime.WindowShow(a.ctx)
-		runtime.WindowUnminimise(a.ctx)
+		a.showWindow()
 	} else {
 		runtime.WindowHide(a.ctx)
 	}
@@ -179,16 +178,21 @@ func (a *App) syncDesktop(games []library.Game) {
 			games = append(games, g)
 		}
 		a.mu.RUnlock()
+		if len(games) == 0 {
+			return // nothing scanned yet; the first GetGames syncs
+		}
+	}
+
+	installed := make([]library.Game, 0, len(games))
+	for _, g := range games {
+		if g.Installed {
+			installed = append(installed, g)
+		}
 	}
 
 	s := a.desk.Get()
 	if s.MenuEntries {
-		entries := make([]desktop.Entry, 0, len(games))
-		for _, g := range games {
-			if g.Installed {
-				entries = append(entries, desktop.Entry{ID: g.ID, Name: g.Name})
-			}
-		}
+		entries := toEntries(installed)
 		exe, err := desktop.Executable()
 		if err == nil {
 			_, _, err = desktop.SyncEntries(desktop.ApplicationsDir(), exe, entries)
@@ -199,19 +203,23 @@ func (a *App) syncDesktop(games []library.Game) {
 	}
 
 	if a.tray != nil {
-		recent := make([]library.Game, 0, len(games))
-		for _, g := range games {
-			if g.Installed && g.LastPlayed > 0 {
+		recent := make([]library.Game, 0, len(installed))
+		for _, g := range installed {
+			if g.LastPlayed > 0 {
 				recent = append(recent, g)
 			}
 		}
 		sort.Slice(recent, func(i, j int) bool { return recent[i].LastPlayed > recent[j].LastPlayed })
-		entries := make([]desktop.Entry, 0, len(recent))
-		for _, g := range recent {
-			entries = append(entries, desktop.Entry{ID: g.ID, Name: g.Name})
-		}
-		a.tray.SetRecent(entries)
+		a.tray.SetRecent(toEntries(recent))
 	}
+}
+
+func toEntries(games []library.Game) []desktop.Entry {
+	entries := make([]desktop.Entry, 0, len(games))
+	for _, g := range games {
+		entries = append(entries, desktop.Entry{ID: g.ID, Name: g.Name})
+	}
+	return entries
 }
 
 func nameOr(g library.Game, fallback string) string {

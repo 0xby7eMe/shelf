@@ -64,6 +64,9 @@ func protonInstallDir() (string, error) {
 
 // InstallProtonGE downloads the newest GE-Proton and unpacks it.
 func (m *Manager) InstallProtonGE() error {
+	if macOS {
+		return errNeedsProton("GE-Proton")
+	}
 	m.ubiMu.Lock()
 	if m.protonInstall.State == "running" {
 		m.ubiMu.Unlock()

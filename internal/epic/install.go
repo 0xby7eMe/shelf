@@ -445,9 +445,9 @@ func (m *Manager) Install(appName string) error {
 	if err := os.MkdirAll(base, 0o755); err != nil {
 		return fmt.Errorf("install folder: %w", err)
 	}
-	// Windows build: Epic has no Linux builds.
+	// Epic has no Linux builds, so Linux gets the Windows one; macOS its own.
 	return m.startJob(KindInstall, appName, []string{
-		"install", appName, "--base-path", base, "--platform", "Windows", "--skip-sdl", "-y"})
+		"install", appName, "--base-path", base, "--platform", epicPlatform(), "--skip-sdl", "-y"})
 }
 
 // Update brings an installed game up to the latest version.

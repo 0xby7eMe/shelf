@@ -108,12 +108,7 @@ func findSteamRoot() (string, error) {
 	if err != nil {
 		return "", err
 	}
-	candidates := []string{
-		filepath.Join(home, ".local/share/Steam"),
-		filepath.Join(home, ".steam/steam"),
-		filepath.Join(home, ".var/app/com.valvesoftware.Steam/.local/share/Steam"), // Flatpak
-	}
-	for _, c := range candidates {
+	for _, c := range steamRootCandidates(home) {
 		if st, err := os.Stat(filepath.Join(c, "steamapps")); err == nil && st.IsDir() {
 			return c, nil
 		}

@@ -935,6 +935,26 @@ export namespace main {
 		    return a;
 		}
 	}
+	export class Platform {
+	    os: string;
+	    proton: boolean;
+	    hardwareMonitor: boolean;
+	    desktop: boolean;
+	    cloudSaves: boolean;
+	
+	    static createFrom(source: any = {}) {
+	        return new Platform(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.os = source["os"];
+	        this.proton = source["proton"];
+	        this.hardwareMonitor = source["hardwareMonitor"];
+	        this.desktop = source["desktop"];
+	        this.cloudSaves = source["cloudSaves"];
+	    }
+	}
 	export class SteamAPIStatus {
 	    configured: boolean;
 	    message?: string;

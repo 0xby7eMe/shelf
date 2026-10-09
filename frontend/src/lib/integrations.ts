@@ -11,6 +11,11 @@ export const INTEGRATIONS: { id: Integration; label: string }[] = [
 	{ id: "ubisoft", label: "Ubisoft" },
 ]
 
+// The tabs this system has: Ubisoft Connect runs through Proton, so it needs Linux.
+export function integrationsFor(proton: boolean) {
+	return INTEGRATIONS.filter((i) => i.id !== "ubisoft" || proton)
+}
+
 let tab: Integration = "epic"
 const listeners = new Set<() => void>()
 

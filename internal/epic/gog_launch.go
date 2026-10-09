@@ -98,6 +98,9 @@ func gogTarget(dir, key string) (gogLaunchTarget, error) {
 
 // GogLaunch starts an installed GOG game through Proton, in its own prefix.
 func (m *Manager) GogLaunch(key string) error {
+	if macOS {
+		return errNeedsProton("Playing GOG games")
+	}
 	if !gogKeyRe.MatchString(key) {
 		return fmt.Errorf("invalid game id")
 	}

@@ -2,7 +2,6 @@ package epic
 
 import (
 	"bufio"
-	"bytes"
 	"context"
 	"fmt"
 	"os"
@@ -69,6 +68,9 @@ func (m *Manager) LaunchInfo(appName string) (LaunchInfo, error) {
 	if !appNameRe.MatchString(appName) {
 		return LaunchInfo{}, fmt.Errorf("invalid game id")
 	}
+	if macOS {
+		return LaunchInfo{Proton: "macOS"}, nil
+	}
 	build, ok := m.protonFor(m.games.get(appName))
 	if !ok {
 		return LaunchInfo{}, fmt.Errorf("no Proton found")
@@ -118,9 +120,12 @@ func (m *Manager) Launch(appName string) error {
 	}
 	gs := m.games.get(appName)
 
-	build, ok := m.protonFor(gs)
-	if !ok {
-		return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
+	var build ProtonBuild
+	if !macOS {
+		var ok bool
+		if build, ok = m.protonFor(gs); !ok {
+			return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
+		}
 	}
 	if m.isRunningGame(appName) {
 		return fmt.Errorf("already running")
@@ -135,10 +140,6 @@ func (m *Manager) Launch(appName string) error {
 		return fmt.Errorf("%s needs an update (%s to %s) before it can start. Update it, or allow outdated launches in its settings", u.Title, u.Installed, u.Latest)
 	}
 
-	wrapper, err := wrapperFor(gs, build)
-	if err != nil {
-		return err
-	}
 	env, err := parseEnv(gs.Env)
 	if err != nil {
 		return err
@@ -153,8 +154,10 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	prefix := prefixDir(appName)
-	if err := os.MkdirAll(prefix, 0o755); err != nil {
-		return err
+	if !macOS {
+		if err := os.MkdirAll(prefix, 0o755); err != nil {
+			return err
+		}
 	}
 
 	// Cloud saves first, but never block the game on them.
@@ -164,8 +167,15 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	// --no-wine stops legendary from using Wine itself; the wrapper becomes
-	// the command prefix, giving `proton run <game.exe> …`.
-	args := []string{"launch", appName, "--no-wine", "--wrapper", wrapper}
+	// the command prefix, giving `proton run <game.exe> …`. A Mac build runs as it is.
+	args := []string{"launch", appName}
+	if !macOS {
+		wrapper, err := wrapperFor(gs, build)
+		if err != nil {
+			return err
+		}
+		args = append(args, "--no-wine", "--wrapper", wrapper)
+	}
 	if gs.Offline {
 		args = append(args, "--offline")
 	} else if gs.SkipUpdateCheck {
@@ -177,7 +187,9 @@ func (m *Manager) Launch(appName string) error {
 	if err != nil {
 		return err
 	}
-	cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
+	if !macOS {
+		cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
+	}
 	cmd.Env = append(cmd.Env, beEnv...)
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
 	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
@@ -194,7 +206,9 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	m.logf("launch", appName, "$ %s", commandLine(args))
-	m.logf("launch", appName, "proton: %s, prefix: %s", build.Name, prefix)
+	if !macOS {
+		m.logf("launch", appName, "proton: %s, prefix: %s", build.Name, prefix)
+	}
 	if err := cmd.Start(); err != nil {
 		if perr == nil {
 			pr.Close()
@@ -256,20 +270,8 @@ func epicAppArg(args []string) (string, bool) {
 // scanRunning finds running Epic games by process, so it also catches games
 // that Shelf did not start or that outlived a previous Shelf session.
 func scanRunning() []string {
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil
-	}
 	var out []string
-	for _, e := range entries {
-		if n := e.Name(); n == "" || n[0] < '0' || n[0] > '9' {
-			continue
-		}
-		data, err := os.ReadFile("/proc/" + e.Name() + "/cmdline")
-		if err != nil || !bytes.Contains(data, []byte("-epicapp=")) {
-			continue
-		}
-		args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
+	for _, args := range library.ProcessArgs() {
 		if name, ok := epicAppArg(args); ok {
 			out = append(out, name)
 		}

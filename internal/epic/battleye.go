@@ -100,7 +100,7 @@ func antiCheatOf(installDir string) string {
 // battleyeEnvFor returns the variable a BattlEye game needs, or an error that
 // says what to do when the runtime is missing. Games without BattlEye get nothing.
 func battleyeEnvFor(installDir, gameName string) ([]string, error) {
-	if !needsBattlEye(installDir) {
+	if macOS || !needsBattlEye(installDir) {
 		return nil, nil
 	}
 	rt := findBattlEyeRuntime()
@@ -125,6 +125,9 @@ func (m *Manager) setBattlEyeInstall(s ProtonInstallState) {
 
 // InstallBattlEyeRuntime downloads the runtime into Shelf's own folder.
 func (m *Manager) InstallBattlEyeRuntime() error {
+	if macOS {
+		return errNeedsProton("the BattlEye runtime")
+	}
 	m.ubiMu.Lock()
 	if m.battleyeInstall.State == "running" {
 		m.ubiMu.Unlock()

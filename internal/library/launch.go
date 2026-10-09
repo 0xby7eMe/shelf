@@ -7,7 +7,7 @@ import (
 )
 
 func openExternal(target string) error {
-	cmd := exec.Command("xdg-open", target)
+	cmd := exec.Command(openCommand, target)
 	cmd.Env = ChildEnv()
 	if err := cmd.Start(); err != nil {
 		return err

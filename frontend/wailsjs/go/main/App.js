@@ -190,6 +190,10 @@ export function GetOrganization() {
   return window['go']['main']['App']['GetOrganization']();
 }
 
+export function GetPlatform() {
+  return window['go']['main']['App']['GetPlatform']();
+}
+
 export function GetProtonBuilds() {
   return window['go']['main']['App']['GetProtonBuilds']();
 }

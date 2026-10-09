@@ -29,6 +29,7 @@ esac
 `
 
 func TestFakeLegendaryFlow(t *testing.T) {
+	linuxOnly(t)
 	root := t.TempDir()
 	games := filepath.Join(root, "games")
 	bin := filepath.Join(root, "bin")

@@ -24,6 +24,7 @@ import {
 import { formatDuration, formatLastPlayed, formatPlaytime, relativeTime } from "@/lib/format"
 import { heroSrc } from "@/lib/cover"
 import { jobLabel } from "@/lib/use-epic"
+import { usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 import { BattlEyeNotice, needsBattlEyeNotice } from "@/components/battleye-notice"
 import { useBattlEyeRuntime } from "@/lib/use-battleye"
@@ -145,6 +146,9 @@ function Body({
 	const isEpic = game.source === "epic"
 	const isUbisoft = game.source === "ubisoft"
 	const isGog = game.source === "gog"
+	const platform = usePlatform()
+	// GOG's installers are Windows programs, run through Proton, which macOS doesn't have.
+	const noGogInstall = isGog && !platform.proton
 	const battleye = useBattlEyeRuntime()
 	const needsInstall = (isEpic || isGog || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
@@ -233,7 +237,7 @@ function Body({
 								</button>
 							)}
 						</div>
-					) : (isEpic || isUbisoft) && !game.installed && game.thirdParty ? (
+					) : !game.installed && (((isEpic || isUbisoft) && game.thirdParty) || noGogInstall) ? (
 						<div className="space-y-3">
 							<button
 								disabled
@@ -243,7 +247,9 @@ function Body({
 								Can't be installed here
 							</button>
 							<p className="rounded-xl bg-white/5 px-4 py-3 text-xs leading-relaxed text-white/55 ring-1 ring-white/[0.06]">
-								{isUbisoft
+								{noGogInstall
+									? `Shelf installs GOG games from their Windows installers through Proton, which only exists on Linux. On a Mac, install ${game.name} with GOG Galaxy for now.`
+									: isUbisoft
 									? `${game.name} belongs to ${game.thirdParty}, so it has to be installed and started there. Shelf lists it because it's in your Ubisoft library.`
 									: `${game.name} has to be installed through ${game.thirdParty}. Epic doesn't let other launchers download it, so Shelf can't install it for you.`}
 							</p>

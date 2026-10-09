@@ -27,6 +27,7 @@ import {
 	PillButton,
 	SectionHeading,
 } from "@/components/settings/ui"
+import { usePlatform } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
@@ -44,6 +45,7 @@ export function EpicSection({ account, onAccountChange }: Props) {
 	const [importable, setImportable] = useState<epic.Importable[] | null>(null)
 
 	const loggedIn = !!account?.loggedIn
+	const platform = usePlatform()
 
 	useEffect(() => {
 		GetEpicSettings().then(setSettings).catch(() => {})
@@ -121,8 +123,15 @@ export function EpicSection({ account, onAccountChange }: Props) {
 			{account && !account.legendaryFound && (
 				<Panel>
 					<p className="text-sm text-white/70">
-						Shelf uses <span className="text-white">legendary</span> to talk to Epic. Install it first
-						(Arch: <code className="text-white/90">pacman -S legendary</code>), then reopen this page.
+						Shelf uses <span className="text-white">legendary</span> to talk to Epic. Install it first (
+						{platform.os === "darwin" ? (
+							<code className="text-white/90">brew install legendary</code>
+						) : (
+							<>
+								Arch: <code className="text-white/90">pacman -S legendary</code>
+							</>
+						)}
+						), then reopen this page.
 					</p>
 				</Panel>
 			)}
@@ -194,12 +203,14 @@ export function EpicSection({ account, onAccountChange }: Props) {
 									disabled={!settings.autoCheckUpdates}
 									onChange={(v) => save(new epic.Settings({ ...settings, autoUpdate: v }))}
 								/>
-								<ToggleRow
-									label="Sync cloud saves"
-									hint="Download newer saves before a game starts and upload after it closes"
-									checked={settings.cloudSaves}
-									onChange={(v) => save(new epic.Settings({ ...settings, cloudSaves: v }))}
-								/>
+								{platform.cloudSaves && (
+									<ToggleRow
+										label="Sync cloud saves"
+										hint="Download newer saves before a game starts and upload after it closes"
+										checked={settings.cloudSaves}
+										onChange={(v) => save(new epic.Settings({ ...settings, cloudSaves: v }))}
+									/>
+								)}
 								<PillButton disabled={busy} onClick={checkUpdates}>
 									<RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
 									Check for updates now
@@ -208,7 +219,7 @@ export function EpicSection({ account, onAccountChange }: Props) {
 						</>
 					)}
 
-					<BattlEyePanel />
+					{platform.proton && <BattlEyePanel />}
 
 					<Panel>
 						<div className="flex items-center justify-between">

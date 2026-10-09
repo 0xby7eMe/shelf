@@ -1,6 +1,6 @@
 import { ArrowLeft, Download, FolderKanban, HardDrive, Gamepad2, Info, Monitor, Palette, Plug, SlidersHorizontal } from "lucide-react"
 
-import { epic, library } from "../../../wailsjs/go/models"
+import { epic, library, main } from "../../../wailsjs/go/models"
 import { WindowControls } from "@/components/window-controls"
 import { AboutSection } from "@/components/settings/about-section"
 import { AppearanceSection } from "@/components/settings/appearance-section"
@@ -11,6 +11,7 @@ import { DesktopSection } from "@/components/settings/desktop-section"
 import { DownloadsSection } from "@/components/settings/downloads-section"
 import { IntegrationsSection } from "@/components/settings/integrations-section"
 import { StorageSection } from "@/components/settings/storage-section"
+import { usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
 export type SettingsSection = "integrations" | "collections" | "downloads" | "storage" | "appearance" | "controller" | "desktop" | "advanced" | "about"
@@ -26,6 +27,11 @@ export const SECTIONS: { id: SettingsSection; label: string; icon: React.Compone
 	{ id: "advanced", label: "Advanced", icon: SlidersHorizontal },
 	{ id: "about", label: "About", icon: Info },
 ]
+
+// The sections this system has: the Desktop page needs freedesktop menus, so it is Linux only.
+export function sectionsFor(p: main.Platform) {
+	return SECTIONS.filter((s) => s.id !== "desktop" || p.desktop)
+}
 
 interface Props {
 	section: SettingsSection
@@ -48,6 +54,7 @@ export function SettingsPage({
 	games,
 	onSelectGame,
 }: Props) {
+	const platform = usePlatform()
 	return (
 		<div
 			data-scroll-root
@@ -69,7 +76,7 @@ export function SettingsPage({
 
 			<div className="mx-auto flex max-w-4xl flex-col gap-8 px-8 py-10 md:flex-row md:gap-12">
 				<nav aria-label="Settings sections" className="flex shrink-0 gap-1 md:sticky md:top-28 md:h-fit md:w-48 md:flex-col">
-					{SECTIONS.map(({ id, label, icon: Icon }) => {
+					{sectionsFor(platform).map(({ id, label, icon: Icon }) => {
 						const count = id === "downloads" ? queue.jobs.length : 0
 						return (
 							<button

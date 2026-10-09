@@ -130,6 +130,7 @@ func waitBattlEye(t *testing.T, m *Manager) ProtonInstallState {
 }
 
 func TestInstallBattlEyeRuntime(t *testing.T) {
+	linuxOnly(t)
 	m := ubiTestManager(t)
 	archive := battleyeArchive(t, map[string]string{
 		battleyeArchiveDir + "/BEClient_x64.so":                   "so64",
@@ -165,6 +166,7 @@ func TestInstallBattlEyeRuntime(t *testing.T) {
 }
 
 func TestInstallBattlEyeRuntimeRejectsBadDownloads(t *testing.T) {
+	linuxOnly(t)
 	good := battleyeArchive(t, map[string]string{battleyeArchiveDir + "/BEClient_x64.so": "x"})
 	cases := map[string]struct {
 		archive []byte
@@ -199,6 +201,7 @@ func TestInstallBattlEyeRuntimeRejectsBadDownloads(t *testing.T) {
 }
 
 func TestBattlEyeEnvFor(t *testing.T) {
+	linuxOnly(t)
 	ubiTestManager(t)
 	home, _ := os.UserHomeDir()
 	os.MkdirAll(filepath.Join(home, ".local", "share", "Steam", "steamapps"), 0o755)
@@ -222,6 +225,7 @@ func TestBattlEyeEnvFor(t *testing.T) {
 
 // Playing a BattlEye game through Connect needs the runtime, and hands it to Proton.
 func TestUbisoftLaunchBattlEye(t *testing.T) {
+	linuxOnly(t)
 	m, _, games, gameDir := installedEnv(t, true)
 	defer stopPrefixProcesses(ubisoftPrefix())
 	os.MkdirAll(filepath.Join(gameDir, "BattlEye"), 0o755)
@@ -252,6 +256,7 @@ func TestUbisoftLaunchBattlEye(t *testing.T) {
 
 // A game without BattlEye is left as it was.
 func TestUbisoftLaunchWithoutBattlEyeGetsNoRuntime(t *testing.T) {
+	linuxOnly(t)
 	m, _, games, _ := installedEnv(t, true)
 	defer stopPrefixProcesses(ubisoftPrefix())
 	fakeRuntimeDir(t, battleyeShelfDir())

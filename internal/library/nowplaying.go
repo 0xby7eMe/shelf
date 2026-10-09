@@ -1,9 +1,7 @@
 package library
 
 import (
-	"bytes"
 	"context"
-	"os"
 	"sort"
 	"strings"
 	"sync"
@@ -26,33 +24,6 @@ func appIDFromArgs(args []string) (string, bool) {
 		}
 	}
 	return id, launch && id != ""
-}
-
-func runningAppIDs() []string {
-	entries, err := os.ReadDir("/proc")
-	if err != nil {
-		return nil
-	}
-	seen := map[string]bool{}
-	for _, e := range entries {
-		name := e.Name()
-		if name == "" || name[0] < '0' || name[0] > '9' {
-			continue
-		}
-		data, err := os.ReadFile("/proc/" + name + "/cmdline")
-		if err != nil || !bytes.Contains(data, []byte("SteamLaunch")) {
-			continue
-		}
-		args := strings.Split(strings.TrimRight(string(data), "\x00"), "\x00")
-		if id, ok := appIDFromArgs(args); ok {
-			seen[id] = true
-		}
-	}
-	ids := make([]string, 0, len(seen))
-	for id := range seen {
-		ids = append(ids, id)
-	}
-	return ids
 }
 
 type Monitor struct {

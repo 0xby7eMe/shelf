@@ -10,5 +10,10 @@
   "author": {
     "name": "Your Name",
     "email": "you@example.com"
+  },
+  "info": {
+    "productName": "Shelf",
+    "productVersion": "0.6.0",
+    "comments": "A game library for Steam, Epic Games, GOG and Ubisoft"
   }
 }

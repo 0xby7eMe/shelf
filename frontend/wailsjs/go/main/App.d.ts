@@ -104,6 +104,8 @@ export function GetNowPlaying():Promise<Array<library.Session>>;
 
 export function GetOrganization():Promise<library.Organization>;
 
+export function GetPlatform():Promise<main.Platform>;
+
 export function GetProtonBuilds():Promise<Array<epic.ProtonBuild>>;
 
 export function GetProtonInstall():Promise<epic.ProtonInstallState>;

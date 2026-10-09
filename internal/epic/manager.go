@@ -25,7 +25,12 @@ import (
 var appNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
 // ErrNoLegendary means the legendary binary is not installed.
-var ErrNoLegendary = fmt.Errorf("legendary is not installed. Install it with your package manager (Arch: pacman -S legendary)")
+var ErrNoLegendary = func() error {
+	if macOS {
+		return fmt.Errorf("legendary is not installed. Install it with Homebrew (brew install legendary) or pipx (pipx install legendary-gl)")
+	}
+	return fmt.Errorf("legendary is not installed. Install it with your package manager (Arch: pacman -S legendary)")
+}()
 
 type Manager struct {
 	settings *settingsStore

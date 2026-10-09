@@ -309,6 +309,7 @@ func waitSetup(t *testing.T, m *Manager) UbisoftSetupState {
 }
 
 func TestUbisoftSetup(t *testing.T) {
+	linuxOnly(t)
 	m, games := ubisoftEnv(t)
 
 	installer := append([]byte("MZ"), make([]byte, 64)...)
@@ -338,6 +339,7 @@ func TestUbisoftSetup(t *testing.T) {
 }
 
 func TestUbisoftSetupRejectsBadDownloads(t *testing.T) {
+	linuxOnly(t)
 	m, _ := ubisoftEnv(t)
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Write([]byte("<html>not found</html>"))
@@ -370,6 +372,7 @@ func writeConnect(t *testing.T, owned ...uint64) {
 }
 
 func TestUbisoftLibrary(t *testing.T) {
+	linuxOnly(t)
 	m, _ := ubisoftEnv(t)
 
 	if g, err := m.UbisoftProvider().Scan(); err != nil || len(g) != 0 {
@@ -426,6 +429,7 @@ func TestUbisoftLibrary(t *testing.T) {
 }
 
 func TestUbisoftLaunchAndInstall(t *testing.T) {
+	linuxOnly(t)
 	m, games := ubisoftEnv(t)
 	key := "uplay-5487"
 
@@ -504,6 +508,7 @@ func TestConnectDataDirLegacy(t *testing.T) {
 
 // A Steam game is listed, but Connect can't install or start it.
 func TestUbisoftSteamGame(t *testing.T) {
+	linuxOnly(t)
 	m, _ := ubisoftEnv(t)
 	os.MkdirAll(connectDir(), 0o755)
 	os.WriteFile(connectExe(), nil, 0o644)
@@ -602,6 +607,7 @@ func installing(m *Manager) map[string]int64 {
 }
 
 func TestUbisoftInstallingState(t *testing.T) {
+	linuxOnly(t)
 	m, _, _, gameDir := installedEnv(t, false)
 	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 1<<20), 0o644)
 
@@ -645,6 +651,7 @@ func TestUbisoftInstallingState(t *testing.T) {
 }
 
 func TestUbisoftInstallPendingAndWatcher(t *testing.T) {
+	linuxOnly(t)
 	m, ev, games, _ := installedEnv(t, false)
 	// Nothing recorded yet: the registry key for 5487 is missing.
 	os.WriteFile(filepath.Join(ubisoftPrefix(), "pfx", "system.reg"), nil, 0o644)
@@ -699,6 +706,7 @@ func TestUbisoftUninstall(t *testing.T) {
 }
 
 func TestUbisoftLaunchFailureIsReported(t *testing.T) {
+	linuxOnly(t)
 	m, ev, _, _ := installedEnv(t, true)
 	defer stopPrefixProcesses(ubisoftPrefix())
 	t.Setenv("FAIL_LAUNCH", "1")
@@ -727,6 +735,7 @@ func ubiGameSize(m *Manager, key string) int64 {
 }
 
 func TestUbisoftInstallSizeIsMeasuredInTheBackground(t *testing.T) {
+	linuxOnly(t)
 	m, ev, _, gameDir := installedEnv(t, true)
 	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 2<<20), 0o644)
 

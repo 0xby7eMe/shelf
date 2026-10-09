@@ -10,6 +10,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options"
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
+	"github.com/wailsapp/wails/v2/pkg/options/mac"
 
 	"shelf/internal/library"
 )
@@ -29,6 +30,7 @@ var icon []byte
 
 func main() {
 	library.EnterAppImage()
+	library.UsualPath()
 
 	app := NewApp()
 
@@ -40,7 +42,7 @@ func main() {
 	app.covers = covers
 
 	ds := app.desk.Get()
-	closeToTray := ds.Tray && ds.CloseToTray
+	closeToTray := platform.Desktop && ds.Tray && ds.CloseToTray
 
 	err = wails.Run(&options.App{
 		Title:     "Shelf",
@@ -57,6 +59,13 @@ func main() {
 		Linux: &linux.Options{
 			Icon:             icon,
 			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
+		},
+		Mac: &mac.Options{
+			About: &mac.AboutInfo{
+				Title:   "Shelf",
+				Message: "Your Steam, Epic Games and GOG games in one library.\n" + version,
+				Icon:    icon,
+			},
 		},
 		// One Shelf at a time: a shelf:// link or menu entry reaches the running one.
 		SingleInstanceLock: &options.SingleInstanceLock{

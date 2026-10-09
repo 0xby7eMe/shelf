@@ -296,6 +296,9 @@ func (m *Manager) Running() []string {
 	for _, id := range m.runningUbisoft() {
 		seen[id] = true
 	}
+	for _, id := range m.runningGog() {
+		seen[id] = true
+	}
 
 	out := make([]string, 0, len(seen))
 	for name := range seen {
@@ -306,7 +309,11 @@ func (m *Manager) Running() []string {
 }
 
 func logPath(appName string) string {
-	return filepath.Join(dataDir(), "logs", "epic-"+appName+".log")
+	name := "epic-" + appName
+	if gogKeyRe.MatchString(appName) {
+		name = appName // already says which store
+	}
+	return filepath.Join(dataDir(), "logs", name+".log")
 }
 
 func openLog(appName string) (*os.File, error) {

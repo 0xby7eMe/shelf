@@ -6,13 +6,15 @@ import {
 	EpicUninstall,
 	EpicUpdate,
 	EpicVerify,
-	UbisoftInstall,
-	UbisoftUninstall,
 	GetFavorites,
 	GetGames,
 	GetNowPlaying,
+	GogInstall,
+	GogUninstall,
 	Launch,
 	ToggleFavorite,
+	UbisoftInstall,
+	UbisoftUninstall,
 } from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
 import { library } from "../wailsjs/go/models"
@@ -43,6 +45,7 @@ import { PadHints } from "@/components/pad-hints"
 import { FilterMenu, MoreMenu, headerButton, type MoreItem, type SortKey, type SourceFilter } from "@/components/header-menus"
 import { MonitorPage } from "@/components/monitor/monitor-page"
 import { UbisoftHint } from "@/components/ubisoft-hint"
+import { GogHint } from "@/components/gog-hint"
 import { GroupMenu } from "@/components/group-menu"
 import { groupLabel, groupMembers, useOrganizer, type Group } from "@/lib/organizer"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
@@ -317,8 +320,8 @@ function App() {
 	const showShelves = showRecent || showUnplayed
 
 	function play(game: library.Game) {
-		// Epic and Ubisoft games have to be installed through Shelf first.
-		if ((game.source === "epic" || game.source === "ubisoft") && !game.installed) {
+		// Epic, GOG and Ubisoft games have to be installed through Shelf first.
+		if ((game.source === "epic" || game.source === "gog" || game.source === "ubisoft") && !game.installed) {
 			setSelected(game)
 			return
 		}
@@ -331,7 +334,7 @@ function App() {
 	}
 
 	const epicActions: EpicActions = {
-		install: (g) => epicTask(g, "install", () => EpicInstall(g.externalId)),
+		install: (g) => epicTask(g, "install", () => (g.source === "gog" ? GogInstall(g.externalId) : EpicInstall(g.externalId))),
 		installUbisoft: (g) =>
 			epicTask(g, "install", async () => {
 				await UbisoftInstall(g.externalId)
@@ -351,7 +354,9 @@ function App() {
 				title: "Uninstall this game?",
 				description: ubisoft
 					? "Ubisoft Connect removes the game files and asks you to confirm in its own window. Your saves and your Ubisoft library are kept."
-					: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+					: g.source === "gog"
+						? "The game's folder is deleted from this PC, including any saves the game keeps there. Saves in its Proton prefix are kept, and you can install it again any time."
+						: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
 				confirmLabel: "Uninstall",
 				destructive: true,
 				game: { name: g.name, cover: g.cover },
@@ -365,7 +370,7 @@ function App() {
 					.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
 				return
 			}
-			EpicUninstall(g.externalId)
+			;(g.source === "gog" ? GogUninstall(g.externalId) : EpicUninstall(g.externalId))
 				.then(() => toast.success(`${g.name} uninstalled`))
 				.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
 		},
@@ -569,6 +574,8 @@ function App() {
 					</Grid>
 				) : visible.length === 0 && source === "ubisoft" && !games.some((g) => g.source === "ubisoft") ? (
 					<UbisoftHint onSettings={() => openIntegration("ubisoft")} />
+				) : visible.length === 0 && source === "gog" && !games.some((g) => g.source === "gog") ? (
+					<GogHint onSettings={() => openIntegration("gog")} />
 				) : visible.length === 0 ? (
 					<p className="pt-24 text-center text-sm text-muted-foreground">
 						{games.length === 0

@@ -67,6 +67,12 @@ func (m *Manager) Prefixes() []PrefixUsage {
 	for _, o := range owned {
 		titles[o.AppName] = o.AppTitle
 	}
+	m.gogMu.Lock()
+	for _, g := range m.gogOwned {
+		titles[g.key()] = g.Title
+	}
+	m.gogMu.Unlock()
+	gogInstalled := m.gogInstalled()
 
 	out := make([]PrefixUsage, len(entries))
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
@@ -90,6 +96,12 @@ func (m *Manager) Prefixes() []PrefixUsage {
 			title = name
 		}
 		_, isInstalled := installed[name]
+		if g, ok := gogInstalled[name]; ok {
+			isInstalled = true
+			if g.Title != "" {
+				title = g.Title
+			}
+		}
 		shared := name == ubisoftPrefixName
 		if shared {
 			title, isInstalled = "Ubisoft Connect", connectInstalled()

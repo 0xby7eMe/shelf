@@ -1,9 +1,10 @@
 import { useCallback, useEffect, useState } from "react"
 
-import { GetSteamAPI, GetUbisoftStatus } from "../../../wailsjs/go/main/App"
+import { GetGogAccount, GetSteamAPI, GetUbisoftStatus } from "../../../wailsjs/go/main/App"
 import { epic, main } from "../../../wailsjs/go/models"
 import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { EpicSection } from "@/components/settings/epic-section"
+import { GogSection } from "@/components/settings/gog-section"
 import { SectionHeading } from "@/components/settings/ui"
 import { SteamSection } from "@/components/settings/steam-section"
 import { UbisoftSection } from "@/components/settings/ubisoft-section"
@@ -19,6 +20,7 @@ interface Props {
 export function IntegrationsSection({ account, onAccountChange }: Props) {
 	const tab = useIntegrationTab()
 	const [ubisoft, setUbisoft] = useState<epic.UbisoftStatus | null>(null)
+	const [gog, setGog] = useState<epic.GogAccount | null>(null)
 
 	// Asking Steam is a few web requests, so it happens once when the page opens
 	// and after the key changes, not with every library change.
@@ -27,7 +29,11 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 		GetSteamAPI().then(setSteam).catch(() => {})
 	}, [])
 
-	const reload = useCallback(() => GetUbisoftStatus().then(setUbisoft).catch(() => {}), [])
+	const reloadGog = useCallback(() => GetGogAccount().then(setGog).catch(() => {}), [])
+	const reload = useCallback(() => {
+		GetUbisoftStatus().then(setUbisoft).catch(() => {})
+		reloadGog()
+	}, [reloadGog])
 	useEffect(() => {
 		reload()
 		const off = EventsOn("library:changed", reload)
@@ -42,6 +48,7 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 	const connected: Record<Integration, boolean> = {
 		steam: !!steam?.overview,
 		epic: !!account?.loggedIn,
+		gog: !!gog?.loggedIn,
 		ubisoft: !!ubisoft?.signedIn,
 	}
 
@@ -74,6 +81,7 @@ export function IntegrationsSection({ account, onAccountChange }: Props) {
 			<div key={tab} className="animate-in duration-200 fade-in">
 				{tab === "steam" && <SteamSection status={steam} onChange={setSteam} />}
 				{tab === "epic" && <EpicSection account={account} onAccountChange={onAccountChange} />}
+				{tab === "gog" && <GogSection account={gog} onAccountChange={reloadGog} />}
 				{tab === "ubisoft" && <UbisoftSection />}
 			</div>
 		</div>

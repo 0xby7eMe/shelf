@@ -5,7 +5,7 @@ import { Check, MoreHorizontal, SlidersHorizontal } from "lucide-react"
 import { cn } from "@/lib/utils"
 
 export type SortKey = "name" | "playtime" | "recent"
-export type SourceFilter = "all" | "steam" | "epic" | "ubisoft"
+export type SourceFilter = "all" | "steam" | "epic" | "gog" | "ubisoft"
 
 export const SORTS: { id: SortKey; label: string }[] = [
 	{ id: "name", label: "Name" },
@@ -17,6 +17,7 @@ export const SOURCES: { id: SourceFilter; label: string }[] = [
 	{ id: "all", label: "All stores" },
 	{ id: "steam", label: "Steam" },
 	{ id: "epic", label: "Epic Games" },
+	{ id: "gog", label: "GOG" },
 	{ id: "ubisoft", label: "Ubisoft" },
 ]
 

@@ -12,6 +12,7 @@ func TestParseLaunchURL(t *testing.T) {
 	good := map[string]string{
 		"shelf://launch/steam:620":          "steam:620",
 		"shelf://launch/epic:Fortnite":      "epic:Fortnite",
+		"shelf://launch/gog:gog-1207658924": "gog:gog-1207658924",
 		"shelf://launch/ubisoft:5059":       "ubisoft:5059",
 		"shelf://launch/epic:Some.Game_1-x": "epic:Some.Game_1-x",
 	}
@@ -21,7 +22,7 @@ func TestParseLaunchURL(t *testing.T) {
 		}
 	}
 	for _, in := range []string{
-		"", "shelf://launch/", "shelf://launch/steam", "shelf://launch/gog:1",
+		"", "shelf://launch/", "shelf://launch/steam", "shelf://launch/itch:1",
 		"shelf://open/steam:620", "http://launch/steam:620", "shelf://launch/steam:../x",
 		"shelf://launch/steam:1/extra", "--flag", "shelf://launch/steam:%20", "shelf://launch/steam:1;rm",
 	} {

@@ -66,7 +66,7 @@ func NewApp() *App {
 
 	a := &App{
 		steam:   steam,
-		lib:     library.New(library.NewSteam(steam), ep.Provider(), ep.UbisoftProvider()),
+		lib:     library.New(library.NewSteam(steam), ep.Provider(), ep.UbisoftProvider(), ep.GogProvider()),
 		favs:    library.NewFavorites(),
 		org:     library.NewOrganizer(),
 		monitor: monitor,
@@ -78,6 +78,7 @@ func NewApp() *App {
 			friends.NewSteam(steam),
 			friends.NewUnsupported("epic", "Epic Games", "Epic only shares who is online over a private channel that other apps can't use, and legendary has no friends feature."),
 			friends.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no way for other apps to read your friends."),
+			friends.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG friends yet."),
 		),
 
 		desk:  desktop.NewStore(),
@@ -89,6 +90,7 @@ func NewApp() *App {
 		achievements.NewSteam(steam),
 		achievements.NewUnsupported("epic", "Epic Games", "Epic only serves achievements to a game's own developer, with credentials issued per game, so other apps can't read them."),
 		achievements.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no public way for other apps to read your achievements."),
+		achievements.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG achievements yet."),
 	)
 	return a
 }
@@ -513,6 +515,12 @@ func (a *App) OpenStorePage(id string) error {
 			return err
 		}
 		return library.OpenURL(u)
+	case library.SourceGog:
+		u, err := a.epic.GogStoreURL(ext)
+		if err != nil {
+			return err
+		}
+		return library.OpenURL(u)
 	}
 	return fmt.Errorf("unknown game")
 }
@@ -548,6 +556,8 @@ func (a *App) Launch(id string) error {
 		return a.epic.Launch(ext)
 	case library.SourceUbisoft:
 		return a.epic.UbisoftLaunch(ext)
+	case library.SourceGog:
+		return a.epic.GogLaunch(ext)
 	}
 	return fmt.Errorf("unknown game")
 }
@@ -571,6 +581,22 @@ func (a *App) UbisoftInstall(id string) error { return a.epic.UbisoftInstall(id)
 func (a *App) UbisoftUninstall(id string) error { return a.epic.UbisoftUninstall(id) }
 
 func (a *App) UbisoftInstalling() []epic.UbisoftInstalling { return a.epic.UbisoftInstallStates() }
+
+func (a *App) GetGogAccount() epic.GogAccount { return a.epic.GogAccount() }
+
+func (a *App) GogOpenLogin() error { return library.OpenURL(epic.GogLoginURL) }
+
+func (a *App) GogLogin(code string) error { return a.epic.GogLogin(code) }
+
+func (a *App) GogLogout() error { return a.epic.GogLogout() }
+
+func (a *App) GogSync() error { return a.epic.GogSync() }
+
+// GogInstall queues a GOG game's download; it shows in the same queue as Epic's.
+// Cancel it with EpicCancelInstall.
+func (a *App) GogInstall(key string) error { return a.epic.GogInstall(key) }
+
+func (a *App) GogUninstall(key string) error { return a.epic.GogUninstall(key) }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 

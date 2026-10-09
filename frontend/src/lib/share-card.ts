@@ -8,6 +8,7 @@ const TOP_COUNT = 5
 const STORES: { id: string; label: string; color: string }[] = [
 	{ id: "steam", label: "Steam", color: "#66c0f4" },
 	{ id: "epic", label: "Epic", color: "#e5e5e5" },
+	{ id: "gog", label: "GOG", color: "#b06ce8" },
 	{ id: "ubisoft", label: "Ubisoft", color: "#4a90ff" },
 ]
 

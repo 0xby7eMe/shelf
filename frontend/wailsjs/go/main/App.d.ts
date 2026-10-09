@@ -96,6 +96,8 @@ export function GetGameAchievements(arg1:string):Promise<achievements.Detail>;
 
 export function GetGames():Promise<Array<library.Game>>;
 
+export function GetGogAccount():Promise<epic.GogAccount>;
+
 export function GetLogs():Promise<Array<applog.Line>>;
 
 export function GetNowPlaying():Promise<Array<library.Session>>;
@@ -117,6 +119,18 @@ export function GetUbisoftSetup():Promise<epic.UbisoftSetupState>;
 export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
 
 export function GetUpdateStatus():Promise<update.Status>;
+
+export function GogInstall(arg1:string):Promise<void>;
+
+export function GogLogin(arg1:string):Promise<void>;
+
+export function GogLogout():Promise<void>;
+
+export function GogOpenLogin():Promise<void>;
+
+export function GogSync():Promise<void>;
+
+export function GogUninstall(arg1:string):Promise<void>;
 
 export function Greet(arg1:string):Promise<string>;
 

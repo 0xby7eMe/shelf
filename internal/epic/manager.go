@@ -7,6 +7,7 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"net/http"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -59,6 +60,12 @@ type Manager struct {
 
 	announcedUpdates map[string]string // app -> version already shown to the user
 	announcedImport  bool
+
+	// GOG: the login, and the library as GOG last listed it.
+	gogMu    sync.Mutex
+	gogTok   *gogToken
+	gogOwned []gogProduct // nil until loaded
+	gogHTTP  *http.Client
 }
 
 // New creates a Manager. emit publishes frontend events and may be nil.
@@ -76,6 +83,7 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 		running:  map[string]*exec.Cmd{},
 
 		announcedUpdates: map[string]string{},
+		gogHTTP:          &http.Client{Timeout: 60 * time.Second},
 	}
 	if dir := configDir(); dir != "" {
 		m.cfgDir = filepath.Join(dir, "legendary")

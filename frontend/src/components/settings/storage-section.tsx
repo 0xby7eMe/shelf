@@ -14,7 +14,17 @@ interface Props {
 	onSelect: (game: library.Game) => void
 }
 
-type Store = "all" | "steam" | "epic" | "ubisoft"
+type Store = "all" | "steam" | "epic" | "gog" | "ubisoft"
+
+const STORE_LABELS: Record<Store, string> = { all: "All", steam: "Steam", epic: "Epic", gog: "GOG", ubisoft: "Ubisoft" }
+
+const STAT_COLUMNS: Record<number, string> = {
+	1: "sm:grid-cols-1",
+	2: "sm:grid-cols-2",
+	3: "sm:grid-cols-3",
+	4: "sm:grid-cols-4",
+	5: "sm:grid-cols-5",
+}
 
 const sizeOf = (g: library.Game) => g.sizeBytes ?? 0
 
@@ -41,7 +51,7 @@ export function StorageSection({ games, onSelect }: Props) {
 		() =>
 			games
 				.filter((g) => g.installed && (store === "all" || g.source === store))
-				.map((g) => ({ game: g, prefix: g.source === "epic" ? (prefixes.get(g.externalId)?.bytes ?? 0) : 0 }))
+				.map((g) => ({ game: g, prefix: g.source === "epic" || g.source === "gog" ? (prefixes.get(g.externalId)?.bytes ?? 0) : 0 }))
 				.sort((a, b) => sizeOf(b.game) + b.prefix - (sizeOf(a.game) + a.prefix)),
 		[games, prefixes, store]
 	)
@@ -49,6 +59,10 @@ export function StorageSection({ games, onSelect }: Props) {
 
 	const sum = (src: string) =>
 		games.filter((g) => g.installed && g.source === src).reduce((n, g) => n + sizeOf(g), 0)
+	// Only stores with something installed get a total, so the row stays one line.
+	const stats = (["steam", "epic", "gog", "ubisoft"] as const)
+		.map((id) => ({ id, bytes: sum(id) }))
+		.filter((st) => st.bytes > 0)
 	const prefixTotal = (storage?.prefixes ?? []).reduce((n, p) => n + p.bytes, 0)
 	// Ubisoft's games all live inside one prefix, shown on its own: deleting it
 	// removes every one of them, so it is never offered as a leftover.
@@ -97,10 +111,10 @@ export function StorageSection({ games, onSelect }: Props) {
 		<div className="space-y-6">
 			<SectionHeading title="Storage" hint="What your installed games and their Proton prefixes take up." />
 
-			<div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-				<Stat label="Steam games" value={formatBytes(sum("steam"))} />
-				<Stat label="Epic games" value={formatBytes(sum("epic"))} />
-				<Stat label="Ubisoft games" value={formatBytes(sum("ubisoft"))} />
+			<div className={cn("grid grid-cols-2 gap-3", STAT_COLUMNS[stats.length + 1])}>
+				{stats.map((st) => (
+					<Stat key={st.id} label={`${STORE_LABELS[st.id]} games`} value={formatBytes(st.bytes)} />
+				))}
 				<Stat label="Proton prefixes" value={formatBytes(prefixTotal)} />
 			</div>
 
@@ -129,16 +143,16 @@ export function StorageSection({ games, onSelect }: Props) {
 
 			<div className="flex items-center justify-between">
 				<div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5">
-					{(["all", "steam", "epic", "ubisoft"] as const).map((s) => (
+					{(["all", "steam", "epic", "gog", "ubisoft"] as const).map((s) => (
 						<button
 							key={s}
 							onClick={() => setStore(s)}
 							className={cn(
-								"rounded-full px-3 py-1 text-xs capitalize transition",
+								"rounded-full px-3 py-1 text-xs transition",
 								store === s ? "bg-white/10 text-foreground" : "text-muted-foreground hover:text-foreground"
 							)}
 						>
-							{s}
+							{STORE_LABELS[s]}
 						</button>
 					))}
 				</div>

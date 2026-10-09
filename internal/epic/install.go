@@ -301,10 +301,17 @@ func (m *Manager) startJob(kind, appName string, args []string) error {
 		}
 	}
 
+	return m.enqueue(job, exclusive)
+}
+
+// enqueue adds a job to the downloads: exclusive ones wait their turn in the
+// queue, the rest start at once.
+func (m *Manager) enqueue(job *installJob, exclusive bool) error {
+	appName := job.p.AppName
 	m.mu.Lock()
 	if _, busy := m.installs[appName]; busy {
 		m.mu.Unlock()
-		cancel()
+		job.cancel()
 		return fmt.Errorf("this game is already being worked on")
 	}
 	m.installs[appName] = job

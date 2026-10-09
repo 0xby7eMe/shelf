@@ -22,7 +22,7 @@ interface Props {
 }
 
 // Launchers whose achievements need something set up on a settings tab.
-const SETUP_TABS = new Set(["steam"])
+const SETUP_TABS = new Set(["steam", "gog"])
 const CLOSEST = 8
 
 export function AchievementsDialog({ open, games, onOpenChange, onSelect, onSetup }: Props) {

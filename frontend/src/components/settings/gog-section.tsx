@@ -4,6 +4,7 @@ import { ExternalLink, LogOut, RefreshCw } from "lucide-react"
 import {
 	GetEpicSettings,
 	GetProtonBuilds,
+	GogCheckUpdates,
 	GogLogin,
 	GogLogout,
 	GogOpenLogin,
@@ -14,6 +15,8 @@ import { epic } from "../../../wailsjs/go/models"
 import { Input } from "@/components/ui/input"
 import { IconButton, inputClass, Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { InstallSettings } from "@/components/settings/install-settings"
+import { ToggleRow } from "@/components/toggle-row"
+import { usePlatform } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
@@ -28,6 +31,8 @@ export function GogSection({ account, onAccountChange }: Props) {
 	const [error, setError] = useState("")
 	const [settings, setSettings] = useState<epic.Settings | null>(null)
 	const [builds, setBuilds] = useState<epic.ProtonBuild[]>([])
+	const [checking, setChecking] = useState(false)
+	const platform = usePlatform()
 	const loggedIn = !!account?.loggedIn
 
 	useEffect(() => {
@@ -53,9 +58,33 @@ export function GogSection({ account, onAccountChange }: Props) {
 		}
 	}
 
+	async function checkUpdates() {
+		setChecking(true)
+		setError("")
+		try {
+			const found = (await GogCheckUpdates()) ?? []
+			if (found.length === 0) toast.success("All your GOG games are up to date")
+			else
+				toast.info(found.length === 1 ? "1 game update available" : `${found.length} game updates available`, {
+					description: found.map((u) => u.title).join(", "),
+				})
+		} catch (e) {
+			setError(String(e))
+		} finally {
+			setChecking(false)
+		}
+	}
+
 	return (
 		<div className="space-y-6">
-			<SectionHeading title="GOG" hint="Your GOG library, installed from GOG's own installers and run with Proton." />
+			<SectionHeading
+				title="GOG"
+				hint={
+					platform.proton
+						? "Your GOG library, installed from GOG's own installers and run with Proton. Friends and achievements come from GOG Galaxy."
+						: "Your GOG library, with friends and achievements from GOG Galaxy."
+				}
+			/>
 
 			{account && !loggedIn && (
 				<Panel>
@@ -114,6 +143,32 @@ export function GogSection({ account, onAccountChange }: Props) {
 					<p className="px-1 text-xs text-white/40">
 						Shared with Epic games. Each game gets a Proton prefix of its own.
 					</p>
+
+					{settings && platform.proton && (
+						<Panel>
+							<ToggleRow
+								label="Check for updates automatically"
+								hint="At startup and every few hours, against the installer GOG offers now"
+								checked={settings.gogAutoCheckUpdates}
+								onChange={(v) =>
+									save(
+										new epic.Settings({ ...settings, gogAutoCheckUpdates: v, gogAutoUpdate: v && settings.gogAutoUpdate })
+									)
+								}
+							/>
+							<ToggleRow
+								label="Install updates automatically"
+								hint="Runs the new installer over the game. Games you're playing are skipped."
+								checked={settings.gogAutoUpdate}
+								disabled={!settings.gogAutoCheckUpdates}
+								onChange={(v) => save(new epic.Settings({ ...settings, gogAutoUpdate: v }))}
+							/>
+							<PillButton disabled={checking} onClick={checkUpdates}>
+								<RefreshCw className={cn("size-3.5", checking && "animate-spin")} />
+								Check for updates now
+							</PillButton>
+						</Panel>
+					)}
 				</>
 			)}
 

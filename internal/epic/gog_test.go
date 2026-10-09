@@ -2,6 +2,7 @@ package epic
 
 import (
 	"bytes"
+	"compress/zlib"
 	"crypto/md5"
 	"encoding/hex"
 	"encoding/json"
@@ -118,14 +119,17 @@ type fakeGog struct {
 	setup   []byte
 	bin     []byte
 	md5     map[string]string // file name -> checksum served
+	version string            // of the Windows installer
+	builds  []string          // paths asked for a game's builds
 }
 
 func newFakeGog(t *testing.T) *fakeGog {
 	t.Helper()
 	f := &fakeGog{
-		setup: bytes.Repeat([]byte("MZsetup"), 4000),
-		bin:   bytes.Repeat([]byte("data"), 9000),
-		md5:   map[string]string{},
+		setup:   bytes.Repeat([]byte("MZsetup"), 4000),
+		bin:     bytes.Repeat([]byte("data"), 9000),
+		md5:     map[string]string{},
+		version: "1.2 (gog-3)",
 	}
 	for name, data := range map[string][]byte{"setup_test game.exe": f.setup, "setup_test game-1.bin": f.bin} {
 		sum := md5.Sum(data)
@@ -146,6 +150,17 @@ func newFakeGog(t *testing.T) *fakeGog {
 		f.grants = append(f.grants, q.Get("grant_type"))
 		bad := f.badCode
 		f.mu.Unlock()
+		// A game's own client, as Galaxy asks for when the game starts.
+		if q.Get("client_id") == "game-client" {
+			if q.Get("client_secret") != "game-secret" || q.Get("without_new_session") != "1" ||
+				q.Get("grant_type") != "refresh_token" || !strings.HasPrefix(q.Get("refresh_token"), "refresh-") {
+				w.WriteHeader(http.StatusBadRequest)
+				fmt.Fprint(w, `{"error":"invalid_client"}`)
+				return
+			}
+			fmt.Fprint(w, `{"access_token":"game-access","refresh_token":"game-refresh","expires_in":3600,"user_id":"9"}`)
+			return
+		}
 		if q.Get("client_id") != gogClientID || q.Get("client_secret") != gogClientSecret {
 			http.Error(w, `{"error":"invalid_client"}`, http.StatusUnauthorized)
 			return
@@ -183,12 +198,15 @@ func newFakeGog(t *testing.T) *fakeGog {
 	})
 	mux.HandleFunc("/products/42", func(w http.ResponseWriter, r *http.Request) {
 		base := f.srv.URL + "/products/42/downlink/installer/"
+		f.mu.Lock()
+		version := f.version
+		f.mu.Unlock()
 		fmt.Fprintf(w, `{"title":"Test Game","downloads":{"installers":[
 			{"id":"installer_mac_en","os":"mac","language":"en","version":"1","files":[{"id":"en2installer0","size":5,"downlink":%q}]},
-			{"id":"installer_windows_en","os":"windows","language":"en","version":"1.2 (gog-3)","total_size":%d,"files":[
+			{"id":"installer_windows_en","os":"windows","language":"en","version":%q,"total_size":%d,"files":[
 				{"id":"en1installer0","size":%d,"downlink":%q},
 				{"id":"en1installer1","size":%d,"downlink":%q}]}]}}`,
-			base+"en2installer0", len(f.setup)+len(f.bin), len(f.setup), base+"en1installer0", len(f.bin), base+"en1installer1")
+			base+"en2installer0", version, len(f.setup)+len(f.bin), len(f.setup), base+"en1installer0", len(f.bin), base+"en1installer1")
 	})
 	mux.HandleFunc("/products/42/downlink/installer/", func(w http.ResponseWriter, r *http.Request) {
 		if !auth(w, r) {
@@ -217,19 +235,47 @@ func newFakeGog(t *testing.T) *fakeGog {
 		f.mu.Unlock()
 		fmt.Fprintf(w, `<file name=%q available="1" md5=%q chunks="1" total_size="1"></file>`, name, sum)
 	})
+	// Game 42 uses Galaxy and has achievements; 43 has no builds at all.
+	mux.HandleFunc("/products/", func(w http.ResponseWriter, r *http.Request) {
+		f.mu.Lock()
+		f.builds = append(f.builds, r.URL.Path)
+		f.mu.Unlock()
+		if !auth(w, r) {
+			return
+		}
+		if r.URL.Path != "/products/42/os/windows/builds" || r.URL.Query().Get("generation") != "2" {
+			http.NotFound(w, r)
+			return
+		}
+		fmt.Fprintf(w, `{"total_count":1,"items":[{"build_id":"1","link":%q}]}`, f.srv.URL+"/meta/42")
+	})
+	mux.HandleFunc("/meta/42", func(w http.ResponseWriter, r *http.Request) {
+		zw := zlib.NewWriter(w)
+		fmt.Fprint(zw, `{"baseProductId":"42","clientId":"game-client","clientSecret":"game-secret","depots":[]}`)
+		zw.Close()
+	})
+	mux.HandleFunc("/clients/game-client/users/9/achievements", func(w http.ResponseWriter, r *http.Request) {
+		if r.Header.Get("Authorization") != "Bearer game-access" {
+			http.Error(w, "no", http.StatusUnauthorized)
+			return
+		}
+		fmt.Fprint(w, `{"total_count":1,"items":[{"achievement_key":"first","name":"First"}]}`)
+	})
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 
-	oldAuth, oldEmbed, oldAPI, oldDB := gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase
-	gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase = f.srv.URL, f.srv.URL, f.srv.URL, f.srv.URL
-	t.Cleanup(func() { gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase = oldAuth, oldEmbed, oldAPI, oldDB })
+	oldAuth, oldEmbed, oldAPI, oldDB, oldContent := gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase, gogContentBase
+	gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase, gogContentBase = f.srv.URL, f.srv.URL, f.srv.URL, f.srv.URL, f.srv.URL
+	t.Cleanup(func() {
+		gogAuthBase, gogEmbedBase, gogAPIBase, gogGamesDBBase, gogContentBase = oldAuth, oldEmbed, oldAPI, oldDB, oldContent
+	})
 	return f
 }
 
 // signedIn saves a login as GogLogin would, without the background library sync.
 func signedIn(t *testing.T, m *Manager, expires int64) {
 	t.Helper()
-	if err := m.setGogLogin(&gogToken{AccessToken: "access-1", RefreshToken: "refresh-1", Expires: expires, Username: "geralt"}); err != nil {
+	if err := m.setGogLogin(&gogToken{AccessToken: "access-1", RefreshToken: "refresh-1", Expires: expires, UserID: "9", Username: "geralt"}); err != nil {
 		t.Fatal(err)
 	}
 }

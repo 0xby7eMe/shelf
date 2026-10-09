@@ -78,7 +78,7 @@ func NewApp() *App {
 			friends.NewSteam(steam),
 			friends.NewUnsupported("epic", "Epic Games", "Epic only shares who is online over a private channel that other apps can't use, and legendary has no friends feature."),
 			friends.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no way for other apps to read your friends."),
-			friends.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG friends yet."),
+			friends.NewGOG(ep),
 		),
 
 		desk:  desktop.NewStore(),
@@ -90,7 +90,7 @@ func NewApp() *App {
 		achievements.NewSteam(steam),
 		achievements.NewUnsupported("epic", "Epic Games", "Epic only serves achievements to a game's own developer, with credentials issued per game, so other apps can't read them."),
 		achievements.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no public way for other apps to read your achievements."),
-		achievements.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG achievements yet."),
+		achievements.NewGOG(ep),
 	)
 	return a
 }
@@ -344,7 +344,8 @@ func (a *App) ScanAchievements(force bool) achievements.Overview {
 	a.mu.RLock()
 	refs := make([]achievements.GameRef, 0, len(a.known))
 	for _, g := range a.known {
-		if g.PlaytimeMinutes > 0 {
+		// GOG keeps achievements of games played anywhere, so installed GOG games count too.
+		if g.PlaytimeMinutes > 0 || (g.Source == library.SourceGog && g.Installed) {
 			refs = append(refs, achievements.GameRef{Source: string(g.Source), GameID: g.ExternalID, Name: g.Name})
 		}
 	}
@@ -597,6 +598,15 @@ func (a *App) GogSync() error { return a.epic.GogSync() }
 func (a *App) GogInstall(key string) error { return a.epic.GogInstall(key) }
 
 func (a *App) GogUninstall(key string) error { return a.epic.GogUninstall(key) }
+
+// GogUpdate queues a GOG game's newer installer, run over the installed game.
+func (a *App) GogUpdate(key string) error { return a.epic.GogUpdate(key) }
+
+// GogUpdates lists installed GOG games with a newer version, as last checked.
+func (a *App) GogUpdates() []epic.UpdateInfo { return a.epic.GogUpdates() }
+
+// GogCheckUpdates asks GOG for the current versions and returns the games that are behind.
+func (a *App) GogCheckUpdates() ([]epic.UpdateInfo, error) { return a.epic.GogCheckUpdates() }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 

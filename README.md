@@ -88,7 +88,7 @@ On a Mac, Shelf does less than on Linux, because there is no Proton to run Windo
 | --- | --- |
 | Steam | Everything: library, play time, now playing, launching and installing through Steam |
 | Epic Games | Library, and games with a Mac version install and run natively through legendary, which Shelf can install for you. No cloud saves yet |
-| GOG | Library and store pages. Installing needs GOG Galaxy for now |
+| GOG | Library, store pages, friends and achievements. Installing (and so updating) needs GOG Galaxy for now |
 | Ubisoft | Not available: Ubisoft Connect runs through Proton |
 | Hardware monitor, menu entries, `shelf://` links, tray icon | Not available |
 | Updates | Shelf says when a new version is out; download it from the release page |
@@ -154,8 +154,10 @@ make install
 **GOG**
 
 - Your whole GOG library, installed or not, with GOG's poster and banner art
-- Install and uninstall from Shelf, with GOG's own offline installers run silently through Proton, in the same download queue as Epic games
+- Install, update and uninstall from Shelf, with GOG's own offline installers run silently through Proton, in the same download queue as Epic games
+- Updates checked at startup and every few hours, and installed by themselves if you like
 - Each game runs in a Proton prefix of its own, with no extra tools to install
+- Your GOG friends and what they play, and your GOG achievements, on Linux and macOS
 
 **Ubisoft**
 
@@ -241,6 +243,9 @@ Shelf talks to GOG directly, so there is nothing extra to install besides Proton
 2. GOG then shows an almost empty page. Copy that page's whole address (it contains `code=`), paste it into Shelf and press **Connect**. Your GOG games appear in the library.
 3. Open a game and press **Install**. Shelf downloads GOG's offline Windows installer into the download queue, checks every file against GOG's checksum, then runs the installer silently through Proton. Its files are deleted once the game is installed. A cancelled download carries on where it stopped.
 4. **Play** starts the program the game's own `goggame-<id>.info` names, through Proton. **Uninstall** deletes the game's folder.
+5. When GOG offers a newer installer than the one a game was installed from, the game shows **Update**. Updating downloads the new installer and runs it over the game's folder, so saves and settings kept there stay. The GOG tab checks for updates at startup and every few hours, and can install them by itself; **Check for updates now** checks on demand. Games you're playing are skipped.
+
+The same sign-in brings your GOG [friends](#friends) and [achievements](#achievements) into Shelf, on Linux and macOS alike.
 
 GOG games use the install folder and Proton build from the Epic Games tab, which the GOG tab shows too. Each game gets its own prefix in `~/.local/share/shelf/prefixes/gog-<id>`. The login is kept in `~/.config/shelf/gog.json`, readable only by you, and is only ever sent to GOG. Play time is recorded while Shelf is running, as with Epic.
 
@@ -316,10 +321,12 @@ Everything is saved in `~/.config/shelf/organizer.json`, separate from your favo
 | --- | --- | --- |
 | Steam | Yes | Through Steam's Web API |
 | Epic Games | No | Epic only shares who is online over a private channel that other apps can't use |
-| GOG | No | Not supported by Shelf yet |
+| GOG | Yes | Through GOG Galaxy's friends and presence services, with your GOG sign-in |
 | Ubisoft | No | Ubisoft Connect has no way for other apps to read your friends |
 
-Epic, GOG and Ubisoft are listed in the window with the reason, so you know why they are empty.
+Epic and Ubisoft are listed in the window with the reason, so you know why they are empty.
+
+**GOG setup.** Sign in under **Settings, Integrations, GOG**; nothing else is needed. A friend shows as playing when their launcher tells GOG which game they are in, which GOG Galaxy and Heroic do.
 
 **Steam setup.** The friends list uses the same Web API key as the [Steam integration](#steam), so it is set up once under **Settings, Integrations, Steam**. Your friends list has to be visible to you in Steam's privacy settings, which it is by default.
 
@@ -327,16 +334,16 @@ New launchers plug in by implementing one small `Provider` interface in `interna
 
 ## Achievements
 
-**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a Steam game and its sheet lists that game's achievements: the newest unlocks first, then what is still locked, easiest first, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
+**More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a Steam or GOG game and its sheet lists that game's achievements: the newest unlocks first, then what is still locked, easiest first, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
 
 | Launcher | Achievements | Why |
 | --- | --- | --- |
 | Steam | Yes | Through the Steam Web API key from [Steam](#steam) |
 | Epic Games | No | Epic only serves achievements to a game's own developer, with credentials issued per game |
-| GOG | No | Not supported by Shelf yet |
+| GOG | Yes | Through GOG Galaxy's achievements service, with your GOG sign-in |
 | Ubisoft | No | Ubisoft Connect has no public way to read them |
 
-Epic, GOG and Ubisoft are listed in the window with the reason. For Steam, your **Game details** have to be public in Steam's privacy settings, and Shelf says so if they aren't. Like [Friends](#friends), each launcher is a small `Provider` in `internal/achievements`, so a store that gains an API later is one file.
+Epic and Ubisoft are listed in the window with the reason. GOG keeps the achievements of a game wherever you played it, so the scan looks at your installed GOG games as well as the ones played in Shelf, and every GOG game's sheet shows its achievements. For Steam, your **Game details** have to be public in Steam's privacy settings, and Shelf says so if they aren't. Like [Friends](#friends), each launcher is a small `Provider` in `internal/achievements`, so a store that gains an API later is one file.
 
 ## Updates
 
@@ -425,7 +432,7 @@ go test ./internal/...
 
 **Epic.** Shelf runs legendary with its own config folder and reads its files for the library and installed games. Games start as `legendary launch` with Proton as the wrapper, with `STEAM_COMPAT_DATA_PATH` pointing at the game's own prefix. Legendary exits right after starting the game, so "now playing" finds the game by the `-epicapp=<name>` argument on its processes. Downloads are one legendary process at a time, with progress read from its output.
 
-**GOG.** Shelf signs in with the same login GOG Galaxy uses and keeps its refresh token. The library is GOG's account product list, with posters and banners from GOG's GamesDB. An install fetches the Windows installer files named by GOG's product API, resuming partial files with HTTP ranges and checking each against GOG's MD5, and runs the installer as `proton run setup.exe /VERYSILENT /DIR=…` in the game's own prefix. The game's `goggame-<id>.info` says which program to start. Since each GOG game has a prefix of its own, any process running in it means the game is running.
+**GOG.** Shelf signs in with the same login GOG Galaxy uses and keeps its refresh token. The library is GOG's account product list, with posters and banners from GOG's GamesDB. An install fetches the Windows installer files named by GOG's product API, resuming partial files with HTTP ranges and checking each against GOG's MD5, and runs the installer as `proton run setup.exe /VERYSILENT /DIR=…` in the game's own prefix. The game's `goggame-<id>.info` says which program to start. Since each GOG game has a prefix of its own, any process running in it means the game is running. An update check compares the version of the installer the product API offers now with the one installed, and an update runs the new installer with the same `/DIR`. Friends come from `chat.gog.com` and who is online from `presence.gog.com`. Achievements belong to each game's own Galaxy client: Shelf reads its id and secret from the manifest of the game's newest build on GOG's content system, turns your refresh token into a token for that client (without opening a new session, as Galaxy does when a game starts) and reads `gameplay.gog.com`.
 
 **Ubisoft.** Shelf runs Ubisoft Connect through Proton in its own prefix and reads what Connect writes there: `cache/configuration/configurations` (every game it knows, with names and art) and `cache/ownership/<account id>` (the ids your account owns), both protobuf. The library is the games in both. Poster and banner art come from Ubisoft's launcher CDN. Install, uninstall and play are `uplay://` links handed to Connect through `proton run start`. Connect's registry marks the start of a download with an `Installs` key and its end with an `Uninstall` key, which is how Shelf tells installing from installed. Games are found running by their install folder in the process list.
 
@@ -441,6 +448,7 @@ Finished sessions of every store feed the activity heatmap.
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |
 | Epic login and metadata | `~/.config/shelf/legendary` |
 | GOG login, library and installed games | `~/.config/shelf/gog.json`, `gog-library.json` and `gog-installed.json` |
+| GOG latest versions and games' Galaxy clients | `~/.config/shelf/gog-updates.json` and `gog-clients.json` |
 | Proton prefixes (Ubisoft's is `ubisoft-connect`) | `~/.local/share/shelf/prefixes` |
 | BattlEye runtime (downloaded by Shelf) | `~/.local/share/shelf/runtimes/battleye_runtime` |
 | GE-Proton (installed by Shelf) | `compatibilitytools.d` in your Steam folder |
@@ -463,7 +471,7 @@ Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a
 - Ubisoft can't be signed in from Shelf: you sign in inside Connect once, and Shelf reads the library from it. Connect's files are only read, never changed. The reading is built from Connect's current file format and tested against one account, so please open an issue if your library comes out empty.
 - Ubisoft installs show activity and bytes written, not a percentage or time left, and can't be cancelled from Shelf. Playing or restarting Connect during a download is refused, since it would end the download.
 - Ubisoft's play time is counted only while Shelf sees the game running, as with Epic.
-- GOG games are installed from GOG's full offline installer, so there are no updates, DLC, cloud saves or per-game settings from Shelf yet, and existing GOG Galaxy, Heroic or Lutris installs aren't picked up. To update a game, uninstall and install it again. Games without a Windows build can't be installed.
+- GOG games are installed from GOG's full offline installer, so an update downloads the whole new installer, not a patch. There are no DLC, cloud saves or per-game settings for GOG games from Shelf yet, and existing GOG Galaxy, Heroic or Lutris installs aren't picked up. Games without a Windows build can't be installed, and on macOS GOG games can't be installed or updated from Shelf yet.
 - The download queue is kept in memory only, so it's empty after a restart. A cancelled download resumes where it stopped.
 - Cloud saves rely on legendary finding the save folder in the game's Proton prefix. If it can't, set the save folder in the game's settings.
 - Controller sounds depend on the webview allowing audio, which can need one click or key press after launch.

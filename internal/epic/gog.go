@@ -50,6 +50,9 @@ var gogCodeRe = regexp.MustCompile(`^[A-Za-z0-9_-]{16,1000}$`)
 // errGogSignedOut means GOG no longer accepts the saved login.
 var errGogSignedOut = errors.New("sign in to GOG again (Settings, Integrations, GOG)")
 
+// errGogNotFound is GOG's 404: it has nothing at that address for the game.
+var errGogNotFound = errors.New("GOG doesn't know this game")
+
 func gogKey(id int64) string { return fmt.Sprintf("gog-%d", id) }
 
 // GogAccount is the GOG connection shown in the UI.
@@ -149,10 +152,13 @@ func ExtractGogCode(input string) (string, error) {
 	return in, nil
 }
 
-// gogTokenRequest asks GOG's login service for a token.
+// gogTokenRequest asks GOG's login service for a token, for GOG Galaxy's
+// client unless params name another.
 func (m *Manager) gogTokenRequest(ctx context.Context, params url.Values) (*gogToken, error) {
-	params.Set("client_id", gogClientID)
-	params.Set("client_secret", gogClientSecret)
+	if params.Get("client_id") == "" {
+		params.Set("client_id", gogClientID)
+		params.Set("client_secret", gogClientSecret)
+	}
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, gogAuthBase+"/token?"+params.Encode(), nil)
 	if err != nil {
 		return nil, err
@@ -219,6 +225,7 @@ func (m *Manager) GogLogin(input string) error {
 	m.logf("gog", "", "signed in to GOG as %s", t.Username)
 
 	m.invalidateGogOwned()
+	m.forgetGogGameTokens()
 	go func() {
 		if err := m.GogSync(); err != nil {
 			m.logf("gog", "", "ERROR: library: %v", err)
@@ -233,12 +240,15 @@ func (m *Manager) GogLogout() error {
 		return err
 	}
 	m.invalidateGogOwned()
+	m.forgetGogGameTokens()
 	m.send("library:changed", nil)
 	return nil
 }
 
 // gogAccessToken returns a token that is good for a while yet, refreshing it if need be.
 func (m *Manager) gogAccessToken(ctx context.Context) (string, error) {
+	m.gogRefreshMu.Lock()
+	defer m.gogRefreshMu.Unlock()
 	t := m.gogLogin()
 	if t == nil {
 		return "", fmt.Errorf("not signed in to GOG")
@@ -294,7 +304,7 @@ func (m *Manager) gogGet(ctx context.Context, rawURL string, auth bool, out any)
 	case resp.StatusCode == http.StatusUnauthorized && auth:
 		return errGogSignedOut
 	case resp.StatusCode == http.StatusNotFound:
-		return fmt.Errorf("GOG doesn't know this game")
+		return errGogNotFound
 	case resp.StatusCode != http.StatusOK:
 		return fmt.Errorf("GOG answered %s", resp.Status)
 	}

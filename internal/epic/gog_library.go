@@ -241,6 +241,7 @@ func (p gogProvider) Scan() ([]library.Game, error) {
 		return nil, err
 	}
 	installed := m.gogInstalled()
+	updates := pendingGogUpdates(installed)
 
 	games := make([]library.Game, 0, len(owned))
 	seen := map[string]bool{}
@@ -264,6 +265,7 @@ func (p gogProvider) Scan() ([]library.Game, error) {
 			g.Version = in.Version
 			g.SizeBytes = in.InstallSize
 			g.AntiCheat = antiCheatOf(in.InstallPath)
+			_, g.UpdateAvailable = updates[key]
 		}
 		g.PlaytimeMinutes, g.LastPlayed = m.hist.Totals(key)
 		games = append(games, g)

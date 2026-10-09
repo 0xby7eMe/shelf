@@ -285,7 +285,7 @@ function Body({
 									</>
 								)}
 							</button>
-							{isEpic && game.installed && game.updateAvailable && (
+							{(isEpic || isGog) && game.installed && game.updateAvailable && (
 								<button
 									onClick={() => epicActions.update(game)}
 									disabled={running}
@@ -373,7 +373,7 @@ function Body({
 					)}
 				</Reveal>
 
-				{game.source === "steam" && (
+				{(game.source === "steam" || isGog) && (
 					<Reveal i={6}>
 						<GameAchievements game={game} />
 					</Reveal>
@@ -403,7 +403,7 @@ function Body({
 					</Reveal>
 				)}
 
-				{isEpic && game.installed && (proton || game.version) && (
+				{(isEpic || isGog) && game.installed && (proton || game.version) && (
 					<Reveal i={6}>
 						<p className="text-[11px] text-white/30">
 							{[game.version && `Version ${game.version}`, proton && `Runs with ${proton}`]

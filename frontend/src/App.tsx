@@ -11,6 +11,7 @@ import {
 	GetNowPlaying,
 	GogInstall,
 	GogUninstall,
+	GogUpdate,
 	Launch,
 	ToggleFavorite,
 	UbisoftInstall,
@@ -346,7 +347,7 @@ function App() {
 				toast.info(`Installing ${g.name}`, { description: "Ubisoft Connect is downloading it. Shelf will notice when it's done." })
 			}),
 		cancel: (g) => EpicCancelInstall(g.externalId),
-		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
+		update: (g) => epicTask(g, "update", () => (g.source === "gog" ? GogUpdate(g.externalId) : EpicUpdate(g.externalId))),
 		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
 		syncSaves: (g) =>
 			epicTask(g, "sync saves for", async () => {

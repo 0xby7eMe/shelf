@@ -432,6 +432,8 @@ export namespace epic {
 	    protonPath: string;
 	    autoCheckUpdates: boolean;
 	    autoUpdate: boolean;
+	    gogAutoCheckUpdates: boolean;
+	    gogAutoUpdate: boolean;
 	    cloudSaves: boolean;
 	    ubisoftSoftwareRendering: boolean;
 	
@@ -445,6 +447,8 @@ export namespace epic {
 	        this.protonPath = source["protonPath"];
 	        this.autoCheckUpdates = source["autoCheckUpdates"];
 	        this.autoUpdate = source["autoUpdate"];
+	        this.gogAutoCheckUpdates = source["gogAutoCheckUpdates"];
+	        this.gogAutoUpdate = source["gogAutoUpdate"];
 	        this.cloudSaves = source["cloudSaves"];
 	        this.ubisoftSoftwareRendering = source["ubisoftSoftwareRendering"];
 	    }

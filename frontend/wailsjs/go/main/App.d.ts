@@ -124,6 +124,8 @@ export function GetUbisoftStatus():Promise<epic.UbisoftStatus>;
 
 export function GetUpdateStatus():Promise<update.Status>;
 
+export function GogCheckUpdates():Promise<Array<epic.UpdateInfo>>;
+
 export function GogInstall(arg1:string):Promise<void>;
 
 export function GogLogin(arg1:string):Promise<void>;
@@ -135,6 +137,10 @@ export function GogOpenLogin():Promise<void>;
 export function GogSync():Promise<void>;
 
 export function GogUninstall(arg1:string):Promise<void>;
+
+export function GogUpdate(arg1:string):Promise<void>;
+
+export function GogUpdates():Promise<Array<epic.UpdateInfo>>;
 
 export function Greet(arg1:string):Promise<string>;
 

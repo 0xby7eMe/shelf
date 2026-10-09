@@ -18,7 +18,7 @@ type UpdatesEvent struct {
 	Auto bool `json:"auto"`
 }
 
-// Start runs the periodic update check until ctx ends.
+// Start runs the periodic update checks, for Epic and GOG, until ctx ends.
 func (m *Manager) Start(ctx context.Context) {
 	go func() {
 		select {
@@ -29,6 +29,7 @@ func (m *Manager) Start(ctx context.Context) {
 		m.announceImportable()
 		for {
 			m.autoUpdateRound()
+			m.gogAutoUpdateRound()
 			select {
 			case <-ctx.Done():
 				return

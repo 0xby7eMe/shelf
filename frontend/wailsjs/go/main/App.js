@@ -230,6 +230,10 @@ export function GetUpdateStatus() {
   return window['go']['main']['App']['GetUpdateStatus']();
 }
 
+export function GogCheckUpdates() {
+  return window['go']['main']['App']['GogCheckUpdates']();
+}
+
 export function GogInstall(arg1) {
   return window['go']['main']['App']['GogInstall'](arg1);
 }
@@ -252,6 +256,14 @@ export function GogSync() {
 
 export function GogUninstall(arg1) {
   return window['go']['main']['App']['GogUninstall'](arg1);
+}
+
+export function GogUpdate(arg1) {
+  return window['go']['main']['App']['GogUpdate'](arg1);
+}
+
+export function GogUpdates() {
+  return window['go']['main']['App']['GogUpdates']();
 }
 
 export function Greet(arg1) {

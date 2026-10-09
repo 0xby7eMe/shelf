@@ -50,7 +50,8 @@ import { GroupMenu } from "@/components/group-menu"
 import { groupLabel, groupMembers, useOrganizer, type Group } from "@/lib/organizer"
 import { setLogOpen, startLogs, useLogOpen } from "@/lib/logs"
 import { usePrefs } from "@/lib/prefs"
-import { SECTIONS, SettingsPage, type SettingsSection } from "@/components/settings/settings-page"
+import { SettingsPage, sectionsFor, type SettingsSection } from "@/components/settings/settings-page"
+import { platformNow, usePlatform } from "@/lib/platform"
 import { useGamepad } from "@/lib/gamepad"
 import { useStableHover } from "@/lib/hover"
 
@@ -245,11 +246,14 @@ function App() {
 	useStableHover()
 
 	const prefs = usePrefs()
-	monitorEnabledRef.current = prefs.hardwareMonitor
+	const platform = usePlatform()
+	// The monitor reads /proc and /sys, so it is Linux only, whatever was saved.
+	const monitorOn = prefs.hardwareMonitor && platform.hardwareMonitor
+	monitorEnabledRef.current = monitorOn
 	// Switching the monitor off closes it.
 	useEffect(() => {
-		if (!prefs.hardwareMonitor) setMonitorOpen(false)
-	}, [prefs.hardwareMonitor])
+		if (!monitorOn) setMonitorOpen(false)
+	}, [monitorOn])
 	const logOpen = useLogOpen()
 	useEffect(() => startLogs(), [])
 
@@ -261,8 +265,9 @@ function App() {
 		},
 		onTab: (dir) => {
 			if (settingsRef.current) {
-				const i = SECTIONS.findIndex((s) => s.id === settingsRef.current)
-				setSettings(SECTIONS[(i + dir + SECTIONS.length) % SECTIONS.length].id)
+				const sections = sectionsFor(platformNow())
+				const i = sections.findIndex((s) => s.id === settingsRef.current)
+				setSettings(sections[(i + dir + sections.length) % sections.length].id)
 			} else {
 				setFilter((f) => filters[(filters.indexOf(f) + dir + filters.length) % filters.length])
 			}
@@ -389,7 +394,7 @@ function App() {
 		{ id: "friends", label: "Friends", icon: <Users className="size-3.5" />, onSelect: () => setFriendsOpen(true) },
 		{ id: "achievements", label: "Achievements", icon: <Trophy className="size-3.5" />, onSelect: () => setAchievementsOpen(true) },
 		{ id: "share", label: "Share card", icon: <Share2 className="size-3.5" />, onSelect: () => setShareOpen(true) },
-		...(prefs.hardwareMonitor
+		...(monitorOn
 			? [{ id: "performance", label: "Performance", icon: <Gauge className="size-3.5" />, hint: "P", onSelect: () => setMonitorOpen(true) }]
 			: []),
 		...(prefs.logWindow
@@ -407,7 +412,7 @@ function App() {
 
 	return (
 		<>
-		{monitorOpen && prefs.hardwareMonitor && !settings && <MonitorPage onBack={() => setMonitorOpen(false)} />}
+		{monitorOpen && monitorOn && !settings && <MonitorPage onBack={() => setMonitorOpen(false)} />}
 		{settings && (
 			<SettingsPage
 				section={settings}
@@ -431,7 +436,7 @@ function App() {
 			className={cn(
 				"relative h-screen overflow-y-auto bg-background text-foreground",
 				// Kept mounted while settings are open so the scroll position survives.
-				(settings || (monitorOpen && prefs.hardwareMonitor)) && "invisible"
+				(settings || (monitorOpen && monitorOn)) && "invisible"
 			)}
 		>
 			<header
@@ -655,7 +660,7 @@ function App() {
 		{prefs.logWindow && <LogPanel games={games ?? NO_GAMES} />}
 		<ConfirmDialog />
 		<Toaster />
-		<PadHints inSettings={settings !== null || (monitorOpen && prefs.hardwareMonitor)} />
+		<PadHints inSettings={settings !== null || (monitorOpen && monitorOn)} />
 		</>
 	)
 }

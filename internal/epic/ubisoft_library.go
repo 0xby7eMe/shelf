@@ -409,6 +409,9 @@ type ubiProvider struct{ m *Manager }
 func (ubiProvider) Source() library.Source { return library.SourceUbisoft }
 
 func (p ubiProvider) Scan() ([]library.Game, error) {
+	if macOS {
+		return nil, nil // Ubisoft Connect runs through Proton
+	}
 	m := p.m
 	if !connectInstalled() {
 		return nil, nil

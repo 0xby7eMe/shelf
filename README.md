@@ -15,7 +15,7 @@ A minimal, good-looking desktop library for your Steam, Epic Games, GOG and Ubis
 curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
 ```
 
-<p align="center">Linux, x86_64. Arch gets the native binary, everything else the AppImage. <a href="#install">More install options</a></p>
+<p align="center">Linux (x86_64) and macOS (Apple Silicon and Intel). Arch gets the native binary, other Linux systems the AppImage, a Mac Shelf.app. <a href="#install">More install options</a></p>
 
 <p align="center">
   <img src="assets/library.png" alt="Library with hero banner, shelves and poster grid">
@@ -36,10 +36,12 @@ curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | ba
 
 The script installs the latest release for your user, with no root needed. It picks the right build for your system, checks its SHA-256, and adds Shelf to your application menu:
 
+- **macOS** gets `Shelf.app` (`shelf-macos-universal.zip`) in `~/Applications`, for Apple Silicon and Intel Macs. See [macOS](#macos).
+
 - **Arch, Manjaro, EndeavourOS and other Arch-based distros** get the native binary (`shelf-arch-x86_64.tar.gz`), built on Arch against the system GTK and WebKitGTK.
 - **Ubuntu, Debian, Fedora and everything else** get the AppImage (`shelf-linux-x86_64.AppImage`), with GTK and WebKitGTK bundled.
 
-Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
+On Linux, Shelf ends up in `~/.local/bin/shelf`. Run the installer again to update. Options go after `bash -s --`:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --version v1.2.3
@@ -47,7 +49,7 @@ curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | ba
 curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash -s -- --uninstall  # keeps your settings
 ```
 
-Only x86_64 Linux builds are published.
+Only x86_64 Linux builds are published for Linux. For a Mac, see [macOS](#macos).
 
 ### Manual download
 
@@ -70,9 +72,34 @@ chmod +x shelf-linux-x86_64.AppImage
 ./shelf-linux-x86_64.AppImage
 ```
 
+### macOS
+
+The [quick install](#quick-install) command works on a Mac too and puts **Shelf.app** in `~/Applications`. It runs on Apple Silicon and Intel Macs with macOS 11 or later. Run it again to update, or with `--uninstall` to remove Shelf.
+
+You can also download `shelf-macos-universal.zip` from the [releases page](https://github.com/0xby7eMe/shelf/releases) and move **Shelf.app** to Applications yourself. Shelf isn't signed with an Apple developer certificate, so macOS refuses the first start of a downloaded copy. Either right-click Shelf.app, choose **Open** and confirm, or run once:
+
+```bash
+xattr -dr com.apple.quarantine /Applications/Shelf.app
+```
+
+On a Mac, Shelf does less than on Linux, because there is no Proton to run Windows games:
+
+| | macOS |
+| --- | --- |
+| Steam | Everything: library, play time, now playing, launching and installing through Steam |
+| Epic Games | Library, and games with a Mac version install and run natively through legendary, which Shelf can install for you. No cloud saves yet |
+| GOG | Library and store pages. Installing needs GOG Galaxy for now |
+| Ubisoft | Not available: Ubisoft Connect runs through Proton |
+| Hardware monitor, menu entries, `shelf://` links, tray icon | Not available |
+| Updates | Shelf says when a new version is out; download it from the release page |
+
+Settings and data live in `~/Library/Application Support/shelf`, and downloaded art in `~/Library/Caches/shelf`.
+
+To build it on a Mac, install Go, Node and the Wails CLI, then run `make build` (a universal `build/bin/Shelf.app`) or `make install` (copies it to Applications).
+
 ### Requirements for the games
 
-For Epic Games you also need legendary and a Proton build from Steam or ProtonUp-Qt (Arch: `sudo pacman -S legendary`). GOG and Ubisoft need only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
+For Epic Games you also need legendary, which Shelf can install for you (see [Epic Games](#epic-games)), and a Proton build from Steam or ProtonUp-Qt. GOG and Ubisoft need only a Proton build, and Shelf can install GE-Proton for you from the Ubisoft tab.
 
 Controller support relies on WebKitGTK being built with gamepad support (libmanette), which is the case on Arch.
 
@@ -170,7 +197,7 @@ The key is kept in `~/.config/shelf/steam.json`, readable only by you, and is on
 
 ## Epic Games
 
-Shelf drives [legendary](https://github.com/derrod/legendary), the same CLI Heroic uses, so it needs to be installed (Arch: `pacman -S legendary`). Shelf keeps its own legendary login, separate from any existing one.
+Shelf drives [legendary](https://github.com/legendary-gl/legendary), the same CLI Heroic uses. If it isn't installed, the **Epic Games** tab has an **Install legendary** button: Shelf downloads legendary's standalone build for your system from its GitHub releases (it needs no Python), checks it against GitHub's SHA-256 and keeps it in Shelf's own folder (`~/.config/shelf/bin`, or `~/Library/Application Support/shelf/bin` on a Mac). A legendary from your package manager or on your `PATH` (Arch: `pacman -S legendary`) is used first. To install it by hand, download the `legendary_<system>_<cpu>` file from the [latest release](https://github.com/legendary-gl/legendary/releases/latest), `chmod +x` it and put it in your `PATH`. Shelf keeps its own legendary login, separate from any existing one.
 
 1. Click the gear in the header, open **Integrations** and pick the **Epic Games** tab. Choose **Open Epic login**, sign in and paste the code Epic shows you.
 2. Your Epic games appear in the library. Open one and press **Install**.
@@ -428,11 +455,11 @@ Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a
 
 ## Limitations
 
-- Linux only for now. The Steam provider only knows Linux paths, including the Flatpak one.
+- Linux has every feature; macOS has the ones that don't need Proton (see [macOS](#macos)). The macOS build is new and not signed by Apple.
 - Without a Steam Web API key only installed Steam games are listed, because Steam doesn't store names of uninstalled games locally. With a key, and Epic always, your whole library shows.
 - "Now playing" and session history work with native Steam, not the Flatpak version.
 - Sessions are only recorded while Shelf is open, so the heatmap fills from first use. Playtime from Steam can lag until Steam writes its files, and Epic playtime counts only what Shelf saw.
-- Epic needs legendary and a Proton build. Epic games that must be installed through Ubisoft Connect or the EA app can't be installed from the Epic side.
+- Epic needs legendary (Shelf can install it) and, on Linux, a Proton build. Epic games that must be installed through Ubisoft Connect or the EA app can't be installed from the Epic side.
 - Ubisoft can't be signed in from Shelf: you sign in inside Connect once, and Shelf reads the library from it. Connect's files are only read, never changed. The reading is built from Connect's current file format and tested against one account, so please open an issue if your library comes out empty.
 - Ubisoft installs show activity and bytes written, not a percentage or time left, and can't be cancelled from Shelf. Playing or restarting Connect during a download is refused, since it would end the download.
 - Ubisoft's play time is counted only while Shelf sees the game running, as with Epic.

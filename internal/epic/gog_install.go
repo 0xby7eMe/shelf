@@ -148,6 +148,9 @@ func gogInfoFile(dir, key string) string {
 // GogInstall downloads a game's Windows installer and runs it through Proton.
 // It waits its turn in the downloads queue like any other install.
 func (m *Manager) GogInstall(key string) error {
+	if macOS {
+		return errNeedsProton("Installing GOG games from their Windows installers")
+	}
 	if !gogKeyRe.MatchString(key) {
 		return fmt.Errorf("invalid game id")
 	}

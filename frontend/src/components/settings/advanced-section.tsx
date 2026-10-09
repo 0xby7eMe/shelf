@@ -4,11 +4,13 @@ import { OpenLogsFolder } from "../../../wailsjs/go/main/App"
 import { ToggleRow } from "@/components/toggle-row"
 import { Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { setLogOpen, useLogOpen } from "@/lib/logs"
+import { usePlatform } from "@/lib/platform"
 import { setPrefs, usePrefs } from "@/lib/prefs"
 
 export function AdvancedSection() {
 	const prefs = usePrefs()
 	const logOpen = useLogOpen()
+	const platform = usePlatform()
 
 	return (
 		<div className="space-y-6">
@@ -42,6 +44,7 @@ export function AdvancedSection() {
 				</p>
 			</Panel>
 
+			{platform.hardwareMonitor && (
 			<Panel>
 				<ToggleRow
 					label="Hardware monitor"
@@ -50,6 +53,7 @@ export function AdvancedSection() {
 					onChange={(v) => setPrefs({ hardwareMonitor: v })}
 				/>
 			</Panel>
+			)}
 		</div>
 	)
 }

@@ -7,6 +7,7 @@ import { Bar, IconButton, Label, Panel, PillButton, SectionHeading } from "@/com
 import { formatBytes } from "@/lib/format"
 import { confirm } from "@/lib/confirm"
 import { toast } from "@/lib/toast"
+import { usePlatform } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
 interface Props {
@@ -32,6 +33,7 @@ export function StorageSection({ games, onSelect }: Props) {
 	const [storage, setStorage] = useState<main.Storage | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [store, setStore] = useState<Store>("all")
+	const { proton } = usePlatform()
 
 	const load = useCallback(() => {
 		setLoading(true)
@@ -111,11 +113,11 @@ export function StorageSection({ games, onSelect }: Props) {
 		<div className="space-y-6">
 			<SectionHeading title="Storage" hint="What your installed games and their Proton prefixes take up." />
 
-			<div className={cn("grid grid-cols-2 gap-3", STAT_COLUMNS[stats.length + 1])}>
+			<div className={cn("grid grid-cols-2 gap-3", STAT_COLUMNS[stats.length + (proton ? 1 : 0)])}>
 				{stats.map((st) => (
 					<Stat key={st.id} label={`${STORE_LABELS[st.id]} games`} value={formatBytes(st.bytes)} />
 				))}
-				<Stat label="Proton prefixes" value={formatBytes(prefixTotal)} />
+				{proton && <Stat label="Proton prefixes" value={formatBytes(prefixTotal)} />}
 			</div>
 
 			{storage && storage.volumes.length > 0 && (
@@ -143,7 +145,7 @@ export function StorageSection({ games, onSelect }: Props) {
 
 			<div className="flex items-center justify-between">
 				<div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5">
-					{(["all", "steam", "epic", "gog", "ubisoft"] as const).map((s) => (
+					{(["all", "steam", "epic", "gog", "ubisoft"] as const).filter((s) => s !== "ubisoft" || proton).map((s) => (
 						<button
 							key={s}
 							onClick={() => setStore(s)}

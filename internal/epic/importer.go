@@ -34,6 +34,7 @@ func otherLaunchers() []foundGame {
 		{"legendary", filepath.Join(home, ".config", "legendary", "installed.json")},
 		{"Heroic", filepath.Join(home, ".config", "heroic", "legendaryConfig", "legendary", "installed.json")},
 		{"Heroic", filepath.Join(home, ".var", "app", "com.heroicgameslauncher.hgl", "config", "heroic", "legendaryConfig", "legendary", "installed.json")},
+		{"Heroic", filepath.Join(home, "Library", "Application Support", "heroic", "legendaryConfig", "legendary", "installed.json")}, // macOS
 	}
 
 	var out []foundGame

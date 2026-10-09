@@ -25,7 +25,7 @@ import (
 var appNameRe = regexp.MustCompile(`^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`)
 
 // ErrNoLegendary means the legendary binary is not installed.
-var ErrNoLegendary = fmt.Errorf("legendary is not installed. Install it with your package manager (Arch: pacman -S legendary)")
+var ErrNoLegendary = fmt.Errorf("legendary is not installed. Install it from Settings, Integrations, Epic Games")
 
 type Manager struct {
 	settings *settingsStore
@@ -46,17 +46,18 @@ type Manager struct {
 	paused   bool
 
 	// Ubisoft Connect: the launcher in its prefix, and what it has recorded.
-	ubiMu           sync.Mutex
-	ubiCache        *ubiLocalCache
-	ubiSetup        UbisoftSetupState
-	protonInstall   ProtonInstallState
-	battleyeInstall ProtonInstallState
-	connect         *exec.Cmd
-	watching        bool
-	ubiSizes        map[string]ubiSizeEntry // install folder -> last measured size
-	ubiSizing       map[string]bool         // folders being measured now
-	ubiPending      map[string]time.Time    // game key -> when Install was pressed
-	reg             *regCache
+	ubiMu            sync.Mutex
+	ubiCache         *ubiLocalCache
+	ubiSetup         UbisoftSetupState
+	protonInstall    ProtonInstallState
+	battleyeInstall  ProtonInstallState
+	legendaryInstall ProtonInstallState
+	connect          *exec.Cmd
+	watching         bool
+	ubiSizes         map[string]ubiSizeEntry // install folder -> last measured size
+	ubiSizing        map[string]bool         // folders being measured now
+	ubiPending       map[string]time.Time    // game key -> when Install was pressed
+	reg              *regCache
 
 	announcedUpdates map[string]string // app -> version already shown to the user
 	announcedImport  bool

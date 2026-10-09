@@ -86,6 +86,9 @@ func (m *Manager) setSetup(s UbisoftSetupState) {
 // UbisoftSetup downloads Ubisoft's installer and runs it silently in the
 // shared prefix. It can be run again to repair a broken install.
 func (m *Manager) UbisoftSetup() error {
+	if macOS {
+		return errNeedsProton("Ubisoft Connect")
+	}
 	m.ubiMu.Lock()
 	if m.ubiSetup.State == "running" {
 		m.ubiMu.Unlock()
@@ -316,6 +319,9 @@ func (m *Manager) ubisoftBuild() (ProtonBuild, error) {
 // UbisoftOpenConnect starts Ubisoft Connect so the user can log in or install
 // games. While it runs, Shelf notices games being installed.
 func (m *Manager) UbisoftOpenConnect() error {
+	if macOS {
+		return errNeedsProton("Ubisoft Connect")
+	}
 	build, err := m.ubisoftBuild()
 	if err != nil {
 		return err
@@ -601,6 +607,9 @@ func lastLogLine(key string) string {
 
 // UbisoftLaunch starts an installed Ubisoft game through Connect.
 func (m *Manager) UbisoftLaunch(key string) error {
+	if macOS {
+		return errNeedsProton("Playing Ubisoft games")
+	}
 	g, ok := m.ubiLookup(key)
 	if !ok {
 		return fmt.Errorf("unknown game")
@@ -684,6 +693,9 @@ func (m *Manager) sendLink(uri string) error {
 // UbisoftInstall asks Connect to install a game. Connect does the download;
 // Shelf shows it as installing until Connect marks the game complete.
 func (m *Manager) UbisoftInstall(key string) error {
+	if macOS {
+		return errNeedsProton("Installing Ubisoft games")
+	}
 	g, ok := m.ubiLookup(key)
 	if !ok {
 		return fmt.Errorf("unknown game")

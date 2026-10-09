@@ -38,6 +38,9 @@ func (a *App) SetDesktopSettings(s desktop.Settings) (DesktopStatus, error) {
 }
 
 func (a *App) applyDesktop(s desktop.Settings) {
+	if !platform.Desktop {
+		return
+	}
 	dir := desktop.ApplicationsDir()
 	if s.URLHandler {
 		exe, err := desktop.Executable()
@@ -64,7 +67,7 @@ func (a *App) startDesktop() {
 	s := a.desk.Get()
 	a.applyDesktop(s)
 
-	if s.Tray {
+	if s.Tray && platform.Desktop {
 		a.tray = &desktop.Tray{
 			Icon:     icon,
 			OnToggle: a.toggleWindow,
@@ -169,6 +172,9 @@ func (a *App) gameByExternalID(ext string) (library.Game, bool) {
 // syncDesktop brings the menu entries and the tray's recent games up to date.
 // With nil games it uses the last scan.
 func (a *App) syncDesktop(games []library.Game) {
+	if !platform.Desktop {
+		return
+	}
 	a.syncMu.Lock()
 	defer a.syncMu.Unlock()
 

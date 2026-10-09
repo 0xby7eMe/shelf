@@ -171,7 +171,7 @@ func New(current, repo string, store *Store) *Updater {
 
 func (u *Updater) supported() bool {
 	_, ok := parseVersion(u.current)
-	return ok && runtime.GOOS == "linux"
+	return ok && (runtime.GOOS == "linux" || runtime.GOOS == "darwin")
 }
 
 // Status describes the current state without asking the network.
@@ -280,6 +280,10 @@ type installTarget struct {
 // target finds what to replace. If this copy can't update itself, the second
 // result says why, in words for the user.
 func (u *Updater) target() (installTarget, string) {
+	if runtime.GOOS == "darwin" {
+		// An app bundle is swapped by hand: macOS checks it when it is first opened.
+		return installTarget{}, "Download the new Shelf.app from the release page and replace the old one."
+	}
 	if runtime.GOARCH != "amd64" {
 		return installTarget{}, "Releases are only built for x86_64."
 	}

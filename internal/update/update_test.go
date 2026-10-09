@@ -12,6 +12,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -143,6 +144,7 @@ func TestDevBuildsNeverCheck(t *testing.T) {
 }
 
 func TestInstallReplacesTheBinaryFromTheTarball(t *testing.T) {
+	linuxOnly(t)
 	archive := tarball(t, "./shelf", fakeELF)
 	srv := newServer(t, "v0.5.0", map[string][]byte{
 		binaryAsset:             archive,
@@ -175,6 +177,7 @@ func TestInstallReplacesTheBinaryFromTheTarball(t *testing.T) {
 }
 
 func TestInstallReplacesAnAppImage(t *testing.T) {
+	linuxOnly(t)
 	srv := newServer(t, "v0.5.0", map[string][]byte{
 		appImageAsset:             fakeELF,
 		appImageAsset + ".sha256": []byte(sum(fakeELF)),
@@ -199,6 +202,7 @@ func TestInstallReplacesAnAppImage(t *testing.T) {
 }
 
 func TestInstallRefusesAnythingFishy(t *testing.T) {
+	linuxOnly(t)
 	archive := tarball(t, "./shelf", fakeELF)
 	dir := t.TempDir()
 	exe := filepath.Join(dir, "shelf")
@@ -237,6 +241,7 @@ func TestInstallRefusesAnythingFishy(t *testing.T) {
 }
 
 func TestPackageManagerAndReadOnlyInstallsAreExplained(t *testing.T) {
+	linuxOnly(t)
 	srv := newServer(t, "v0.5.0", nil)
 	u := testUpdater(t, srv, "v0.4.1", "/usr/bin/shelf")
 	u.Check(context.Background())
@@ -252,5 +257,23 @@ func TestPackageManagerAndReadOnlyInstallsAreExplained(t *testing.T) {
 	u.Check(context.Background())
 	if st := u.Status(); st.CanInstall || st.InstallNote == "" {
 		t.Errorf("unwritable: %+v", st)
+	}
+}
+
+// linuxOnly skips tests of replacing the running copy, which only Linux does.
+func linuxOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "darwin" {
+		t.Skip("macOS updates are downloaded from the release page")
+	}
+}
+
+func TestMacUpdatesPointAtTheReleasePage(t *testing.T) {
+	if runtime.GOOS != "darwin" {
+		t.Skip("macOS only")
+	}
+	u := New("v0.4.1", "o/r", memStore())
+	if _, why := u.target(); !strings.Contains(why, "release page") {
+		t.Errorf("note = %q", why)
 	}
 }

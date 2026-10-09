@@ -97,6 +97,7 @@ func goodBuild(tag string) []tarEntry {
 }
 
 func TestInstallProtonGE(t *testing.T) {
+	linuxOnly(t)
 	m := geEnv(t)
 	tag := "GE-Proton10-99"
 	fakeGE(t, tag, tag, makeTarGz(t, goodBuild(tag)), "")
@@ -134,6 +135,7 @@ func TestInstallProtonGE(t *testing.T) {
 }
 
 func TestInstallProtonGERejectsBadDownloads(t *testing.T) {
+	linuxOnly(t)
 	cases := map[string]struct {
 		entries []tarEntry
 		sum     string
@@ -168,6 +170,7 @@ func TestInstallProtonGERejectsBadDownloads(t *testing.T) {
 }
 
 func TestInstallProtonGERejectsOddTags(t *testing.T) {
+	linuxOnly(t)
 	m := geEnv(t)
 	fakeGE(t, "../../etc", "../../etc", makeTarGz(t, nil), "")
 	m.InstallProtonGE()
@@ -179,6 +182,7 @@ func TestInstallProtonGERejectsOddTags(t *testing.T) {
 // Current releases name everything per architecture, including the folder
 // inside the archive. It is installed under the plain name.
 func TestInstallProtonGEPerArchitecture(t *testing.T) {
+	linuxOnly(t)
 	arch, ok := geArch()
 	if !ok {
 		t.Skip("no GE-Proton build for this CPU")
@@ -205,6 +209,7 @@ func TestInstallProtonGEPerArchitecture(t *testing.T) {
 
 // A release with no download for this CPU says so instead of failing oddly.
 func TestInstallProtonGENoMatchingDownload(t *testing.T) {
+	linuxOnly(t)
 	m := geEnv(t)
 	fakeGE(t, "GE-Proton11-7", "GE-Proton11-7-riscv64", makeTarGz(t, nil), "")
 	m.InstallProtonGE()

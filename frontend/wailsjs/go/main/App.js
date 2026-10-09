@@ -178,6 +178,10 @@ export function GetGogAccount() {
   return window['go']['main']['App']['GetGogAccount']();
 }
 
+export function GetLegendaryInstall() {
+  return window['go']['main']['App']['GetLegendaryInstall']();
+}
+
 export function GetLogs() {
   return window['go']['main']['App']['GetLogs']();
 }
@@ -188,6 +192,10 @@ export function GetNowPlaying() {
 
 export function GetOrganization() {
   return window['go']['main']['App']['GetOrganization']();
+}
+
+export function GetPlatform() {
+  return window['go']['main']['App']['GetPlatform']();
 }
 
 export function GetProtonBuilds() {
@@ -268,6 +276,10 @@ export function HardwareStop() {
 
 export function InstallBattlEyeRuntime() {
   return window['go']['main']['App']['InstallBattlEyeRuntime']();
+}
+
+export function InstallLegendary() {
+  return window['go']['main']['App']['InstallLegendary']();
 }
 
 export function InstallProtonGE() {

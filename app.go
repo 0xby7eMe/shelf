@@ -600,6 +600,12 @@ func (a *App) GogUninstall(key string) error { return a.epic.GogUninstall(key) }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 
+// InstallLegendary downloads legendary's standalone build for this system.
+// Progress comes as "legendary:install" events.
+func (a *App) InstallLegendary() error { return a.epic.InstallLegendary() }
+
+func (a *App) GetLegendaryInstall() epic.ProtonInstallState { return a.epic.LegendaryInstallState() }
+
 func (a *App) EpicLoginURL() string { return epic.LoginURL }
 
 func (a *App) EpicOpenLogin() error { return library.OpenURL(epic.LoginURL) }

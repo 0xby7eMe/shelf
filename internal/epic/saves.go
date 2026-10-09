@@ -43,7 +43,8 @@ func (m *Manager) supportsCloudSaves(appName string) bool {
 }
 
 func (m *Manager) cloudSavesEnabled(appName string) bool {
-	return choose(m.games.get(appName).CloudSaves, m.settings.get().CloudSaves) && m.supportsCloudSaves(appName)
+	// Saves are looked for inside the game's Proton prefix, which Mac games don't have.
+	return !macOS && choose(m.games.get(appName).CloudSaves, m.settings.get().CloudSaves) && m.supportsCloudSaves(appName)
 }
 
 // setConfigValue sets key in a section of legendary's config.ini, creating

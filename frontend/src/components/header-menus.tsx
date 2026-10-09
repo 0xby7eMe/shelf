@@ -2,6 +2,7 @@ import { useState } from "react"
 import { Popover } from "@base-ui/react/popover"
 import { Check, MoreHorizontal, SlidersHorizontal } from "lucide-react"
 
+import { platformNow } from "@/lib/platform"
 import { cn } from "@/lib/utils"
 
 export type SortKey = "name" | "playtime" | "recent"
@@ -138,7 +139,7 @@ export function FilterMenu({
 			}
 		>
 			<Heading>Store</Heading>
-			{SOURCES.map((s) => (
+			{SOURCES.filter((s) => s.id !== "ubisoft" || platformNow().proton).map((s) => (
 				<Row key={s.id} checked={source === s.id} onClick={() => onSource(s.id)}>
 					{s.label}
 				</Row>

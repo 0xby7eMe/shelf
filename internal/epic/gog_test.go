@@ -373,6 +373,7 @@ func gogInstallEnv(t *testing.T) (*Manager, *recorder, *fakeGog, string) {
 }
 
 func TestGogInstallPlayUninstall(t *testing.T) {
+	linuxOnly(t)
 	m, rec, f, games := gogInstallEnv(t)
 	base := m.settings.get().InstallDir
 
@@ -452,6 +453,7 @@ func TestGogInstallPlayUninstall(t *testing.T) {
 }
 
 func TestGogInstallFailures(t *testing.T) {
+	linuxOnly(t)
 	m, rec, f, _ := gogInstallEnv(t)
 
 	if err := m.GogInstall("gog-999"); err == nil {
@@ -478,6 +480,7 @@ func TestGogInstallFailures(t *testing.T) {
 }
 
 func TestGogSetupThatInstallsNothing(t *testing.T) {
+	linuxOnly(t)
 	m, rec, _, _ := gogInstallEnv(t)
 	t.Setenv("FAIL_SETUP", "1")
 	if err := m.GogInstall("gog-42"); err != nil {

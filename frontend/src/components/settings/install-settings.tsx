@@ -2,6 +2,7 @@ import { epic } from "../../../wailsjs/go/models"
 import { Input } from "@/components/ui/input"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { inputClass, Label, Panel, selectContentClass, triggerClass } from "@/components/settings/ui"
+import { usePlatform } from "@/lib/platform"
 
 const AUTO = "auto" // Select items can't have an empty value
 
@@ -16,6 +17,7 @@ export function InstallSettings({
 	builds: epic.ProtonBuild[]
 	onChange: (next: epic.Settings) => void
 }) {
+	const { proton } = usePlatform()
 	return (
 		<Panel>
 			<label className="block space-y-2">
@@ -31,6 +33,7 @@ export function InstallSettings({
 				/>
 			</label>
 
+			{proton && (
 			<div className="space-y-2">
 				<Label>Proton version</Label>
 				<Select
@@ -53,6 +56,7 @@ export function InstallSettings({
 					<p className="text-xs text-white/40">Install Proton through Steam or ProtonUp-Qt to run Epic and GOG games.</p>
 				)}
 			</div>
+			)}
 		</Panel>
 	)
 }

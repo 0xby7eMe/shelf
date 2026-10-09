@@ -168,6 +168,12 @@ export function SetSteamAPIKey(arg1:string):Promise<main.SteamAPIStatus>;
 
 export function SkipUpdate(arg1:string):Promise<update.Status>;
 
+export function SteamDownloads():Promise<Array<library.SteamDownload>>;
+
+export function SteamOpenDownloads():Promise<void>;
+
+export function SteamUninstall(arg1:string):Promise<void>;
+
 export function ToggleFavorite(arg1:string):Promise<Array<string>>;
 
 export function UbisoftCloseConnect():Promise<void>;

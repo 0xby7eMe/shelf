@@ -866,6 +866,28 @@ export namespace library {
 		    return a;
 		}
 	}
+	export class SteamDownload {
+	    appId: string;
+	    update: boolean;
+	    paused: boolean;
+	    done: number;
+	    total: number;
+	    percent: number;
+	
+	    static createFrom(source: any = {}) {
+	        return new SteamDownload(source);
+	    }
+	
+	    constructor(source: any = {}) {
+	        if ('string' === typeof source) source = JSON.parse(source);
+	        this.appId = source["appId"];
+	        this.update = source["update"];
+	        this.paused = source["paused"];
+	        this.done = source["done"];
+	        this.total = source["total"];
+	        this.percent = source["percent"];
+	    }
+	}
 	export class Volume {
 	    path: string;
 	    total: number;

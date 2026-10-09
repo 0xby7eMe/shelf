@@ -65,3 +65,34 @@ func TestAddOwnedLeavesGamesAloneWithoutAKeyOrOnError(t *testing.T) {
 		}
 	}
 }
+
+func TestSteamDownloadOf(t *testing.T) {
+	cases := []struct {
+		name         string
+		flags        int
+		done, total  int64
+		want, update bool
+		paused       bool
+		percent      float64
+	}{
+		{name: "installed", flags: 4},
+		{name: "update pending, not started", flags: 6},
+		{name: "first install", flags: 1026, done: 250, total: 1000, want: true, percent: 25},
+		{name: "queued install, size unknown", flags: 2, want: true, percent: -1},
+		{name: "update running", flags: 1030, done: 1, total: 4, want: true, update: true, percent: 25},
+		{name: "update paused", flags: 1542, done: 1, total: 2, want: true, update: true, paused: true, percent: 50},
+	}
+	for _, c := range cases {
+		d, ok := steamDownloadOf("620", c.flags, c.done, c.total)
+		if ok != c.want {
+			t.Errorf("%s: downloading = %v, want %v", c.name, ok, c.want)
+			continue
+		}
+		if ok && (d.Update != c.update || d.Paused != c.paused || d.Percent != c.percent || d.AppID != "620") {
+			t.Errorf("%s: got %+v", c.name, d)
+		}
+	}
+	if _, ok := steamDownloadOf("", 1026, 0, 0); ok {
+		t.Error("no app id: want no download")
+	}
+}

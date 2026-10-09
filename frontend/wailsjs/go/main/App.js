@@ -318,6 +318,18 @@ export function SkipUpdate(arg1) {
   return window['go']['main']['App']['SkipUpdate'](arg1);
 }
 
+export function SteamDownloads() {
+  return window['go']['main']['App']['SteamDownloads']();
+}
+
+export function SteamOpenDownloads() {
+  return window['go']['main']['App']['SteamOpenDownloads']();
+}
+
+export function SteamUninstall(arg1) {
+  return window['go']['main']['App']['SteamUninstall'](arg1);
+}
+
 export function ToggleFavorite(arg1) {
   return window['go']['main']['App']['ToggleFavorite'](arg1);
 }

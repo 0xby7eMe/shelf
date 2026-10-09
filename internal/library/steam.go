@@ -166,17 +166,23 @@ func isSteamTool(name string) bool {
 	return false
 }
 
-func parseManifest(path, lib string) (Game, bool) {
+// readManifest returns the AppState block of an appmanifest_*.acf file.
+func readManifest(path string) (vdfNode, bool) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return Game{}, false
+		return nil, false
 	}
 	doc, err := parseVDF(data)
 	if err != nil {
-		return Game{}, false
+		return nil, false
 	}
 	app := doc.obj("appstate")
-	if app == nil {
+	return app, app != nil
+}
+
+func parseManifest(path, lib string) (Game, bool) {
+	app, ok := readManifest(path)
+	if !ok {
 		return Game{}, false
 	}
 

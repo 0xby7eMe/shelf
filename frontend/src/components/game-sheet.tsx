@@ -35,7 +35,9 @@ import { GameAchievements } from "@/components/game-achievements"
 export interface EpicActions {
 	install: (game: library.Game) => void
 	installUbisoft: (game: library.Game) => void // asks Ubisoft Connect to install it
+	installSteam: (game: library.Game) => void // opens Steam's install dialog
 	cancel: (game: library.Game) => void
+	openSteamDownloads: (game: library.Game) => void // Steam's downloads are paused or cancelled there
 	uninstall: (game: library.Game) => void
 	update: (game: library.Game) => void
 	verify: (game: library.Game) => void
@@ -144,8 +146,9 @@ function Body({
 	const [armed, setArmed] = useState(false)
 	const isEpic = game.source === "epic"
 	const isUbisoft = game.source === "ubisoft"
+	const isSteam = game.source === "steam"
 	const battleye = useBattlEyeRuntime()
-	const needsInstall = (isEpic || isUbisoft) && !game.installed
+	const needsInstall = !game.installed
 	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
 
@@ -221,8 +224,17 @@ function Body({
 									{job.eta && <span className="text-white/50">ETA {job.eta}</span>}
 								</span>
 							</div>
-							{!isUbisoft && (
-							<button
+							{isSteam ? (
+								<button
+									onClick={() => epicActions.openSteamDownloads(game)}
+									aria-label="Pause or cancel in Steam"
+									title="Pause or cancel in Steam"
+									className="grid size-11 place-items-center rounded-full bg-white/5 text-white/70 ring-1 ring-white/10 transition hover:bg-white/10 hover:text-white"
+								>
+									<ExternalLink className="size-4" />
+								</button>
+							) : !isUbisoft && (
+								<button
 									onClick={() => epicActions.cancel(game)}
 									aria-label="Cancel"
 									title="Cancel"
@@ -251,7 +263,13 @@ function Body({
 						<div className="flex gap-2">
 							<button
 								onClick={() =>
-									needsInstall ? (isUbisoft ? epicActions.installUbisoft(game) : epicActions.install(game)) : onPlay(game)
+									needsInstall
+										? isUbisoft
+											? epicActions.installUbisoft(game)
+											: isSteam
+												? epicActions.installSteam(game)
+												: epicActions.install(game)
+										: onPlay(game)
 								}
 								disabled={running}
 								className={cn(
@@ -274,7 +292,7 @@ function Body({
 								) : (
 									<>
 										<Play className="size-3.5 fill-current" />
-										{game.installed ? "Play" : "Install in Steam"}
+										Play
 									</>
 								)}
 							</button>
@@ -336,7 +354,7 @@ function Body({
 					>
 						Folder
 					</Action>
-					{(isEpic || isUbisoft) && game.installed && (
+					{game.installed && (
 						<Action icon={Trash2} disabled={running || !!job} onClick={() => epicActions.uninstall(game)}>
 							Uninstall
 						</Action>

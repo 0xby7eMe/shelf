@@ -12,6 +12,8 @@ import {
 	GetGames,
 	GetNowPlaying,
 	Launch,
+	SteamOpenDownloads,
+	SteamUninstall,
 	ToggleFavorite,
 } from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
@@ -337,7 +339,13 @@ function App() {
 				await UbisoftInstall(g.externalId)
 				toast.info(`Installing ${g.name}`, { description: "Ubisoft Connect is downloading it. Shelf will notice when it's done." })
 			}),
+		installSteam: (g) =>
+			epicTask(g, "install", async () => {
+				await Launch(g.id)
+				toast.info(`Installing ${g.name}`, { description: "Choose where in Steam's dialog. Shelf shows the download here." })
+			}),
 		cancel: (g) => EpicCancelInstall(g.externalId),
+		openSteamDownloads: (g) => epicTask(g, "open the download of", () => SteamOpenDownloads()),
 		update: (g) => epicTask(g, "update", () => EpicUpdate(g.externalId)),
 		verify: (g) => epicTask(g, "verify", () => EpicVerify(g.externalId)),
 		syncSaves: (g) =>
@@ -347,16 +355,25 @@ function App() {
 		openSettings: setSettingsGame,
 		uninstall: async (g) => {
 			const ubisoft = g.source === "ubisoft"
+			const steam = g.source === "steam"
 			const ok = await confirm({
 				title: "Uninstall this game?",
 				description: ubisoft
 					? "Ubisoft Connect removes the game files and asks you to confirm in its own window. Your saves and your Ubisoft library are kept."
-					: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+					: steam
+						? "Steam removes the game files and asks you to confirm in its own window. Your Steam Cloud saves and your Steam library are kept."
+						: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
 				confirmLabel: "Uninstall",
 				destructive: true,
 				game: { name: g.name, cover: g.cover },
 			})
 			if (!ok) return
+			if (steam) {
+				SteamUninstall(g.externalId)
+					.then(() => toast.info(`Uninstalling ${g.name}`, { description: "Confirm in Steam. Shelf updates when it's done." }))
+					.catch((e: any) => toast.error(`Couldn't uninstall ${g.name}`, { description: String(e) }))
+				return
+			}
 			if (ubisoft) {
 				UbisoftUninstall(g.externalId)
 					.then(() =>

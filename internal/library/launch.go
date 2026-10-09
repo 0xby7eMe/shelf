@@ -24,6 +24,19 @@ func InstallSteam(appID string) error {
 	return openExternal("steam://install/" + appID)
 }
 
+// UninstallSteam asks Steam to uninstall a game. Steam asks for confirmation itself.
+func UninstallSteam(appID string) error {
+	if !appIDRe.MatchString(appID) {
+		return fmt.Errorf("invalid app id")
+	}
+	return openExternal("steam://uninstall/" + appID)
+}
+
+// OpenSteamDownloads shows Steam's download page, where its downloads are paused or cancelled.
+func OpenSteamDownloads() error {
+	return openExternal("steam://open/downloads")
+}
+
 func Launch(appID string) error {
 	if !appIDRe.MatchString(appID) {
 		return fmt.Errorf("invalid app id")

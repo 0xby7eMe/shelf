@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 
-import { EpicQueue, EpicRepair, GetEpicAccount, Launch, UbisoftInstalling } from "../../wailsjs/go/main/App"
+import { EpicQueue, EpicRepair, GetEpicAccount, Launch, SteamDownloads, UbisoftInstalling } from "../../wailsjs/go/main/App"
 import { epic, library } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
 import { setLogOpen } from "@/lib/logs"
@@ -31,7 +31,9 @@ const verbs: Record<string, { doing: string; failed: string }> = {
 
 // Label for a running or queued job, e.g. "Updating".
 export function jobLabel(job: epic.Progress): string {
-	return job.state === "queued" ? "Queued" : (verbs[job.kind]?.doing ?? "Working")
+	if (job.state === "queued") return "Queued"
+	if (job.state === "paused") return "Paused"
+	return verbs[job.kind]?.doing ?? "Working"
 }
 
 // Epic account state plus the jobs running right now, keyed by app name.
@@ -41,6 +43,8 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 	const [queue, setQueue] = useState<epic.QueueState>(() => new epic.QueueState({ jobs: [], paused: false }))
 	const [ubisoft, setUbisoft] = useState<epic.UbisoftInstalling[]>([])
 	const ubisoftRef = useRef<epic.UbisoftInstalling[]>([])
+	const [steam, setSteam] = useState<library.SteamDownload[]>([])
+	const steamRef = useRef<library.SteamDownload[]>([])
 	const gamesRef = useRef(games)
 	gamesRef.current = games
 	const reviewRef = useRef(onReviewImport)
@@ -181,6 +185,25 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 		UbisoftInstalling().then((l) => ubisoftNow(l ?? [])).catch(() => {})
 		const offUbisoft = EventsOn("ubisoft:installing", (l: epic.UbisoftInstalling[]) => ubisoftNow(l ?? []))
 
+		// Steam does its own downloads too; Shelf reads their progress from Steam's files.
+		const steamNow = (list: library.SteamDownload[]) => {
+			const gone = steamRef.current.filter((p) => !list.some((n) => n.appId === p.appId))
+			steamRef.current = list
+			setSteam(list)
+			for (const d of gone) {
+				setTimeout(() => {
+					const game = gamesRef.current?.find((x) => x.externalId === d.appId && x.source === "steam")
+					if (!game?.installed) return // cancelled in Steam, or it isn't a game Shelf lists
+					toast.success(d.update ? `${game.name} is up to date` : `${game.name} is installed`, {
+						description: d.update ? undefined : "Ready to play.",
+						action: { label: "Play", onClick: () => Launch(game.id).catch((e) => toast.error(String(e))) },
+					})
+				}, 2500)
+			}
+		}
+		SteamDownloads().then((l) => steamNow(l ?? [])).catch(() => {})
+		const offSteam = EventsOn("steam:installing", (l: library.SteamDownload[]) => steamNow(l ?? []))
+
 		const offLibrary = EventsOn("library:changed", reloadAccount)
 		return () => {
 			offQueue()
@@ -191,6 +214,7 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 			offImport()
 			offLibrary()
 			offUbisoft()
+			offSteam()
 		}
 	}, [reloadAccount])
 
@@ -206,8 +230,19 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 				speed: u.bytes > 0 ? `${formatBytes(u.bytes)} downloaded` : "",
 			})
 		}
+		for (const d of steam) {
+			const known = d.percent >= 0
+			out[d.appId] = new epic.Progress({
+				appName: d.appId,
+				kind: d.update ? "update" : "install",
+				state: d.paused ? "paused" : "installing",
+				percent: known ? d.percent : 0,
+				indeterminate: !known,
+				speed: d.total > 0 ? `${formatBytes(d.done)} of ${formatBytes(d.total)}` : "",
+			})
+		}
 		return out
-	}, [queue, ubisoft])
+	}, [queue, ubisoft, steam])
 
 	return { account, installs, queue, reloadAccount }
 }

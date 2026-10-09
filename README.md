@@ -149,10 +149,18 @@ Out of the box Shelf reads Steam's own files, which only know about installed ga
 
 With a key:
 
-- **Every game you own** is listed, installed or not, with Steam's own art. **Install in Steam** opens Steam's install dialog for the ones you don't have.
+- **Every game you own** is listed, installed or not, with Steam's own art. **Install** opens Steam's install dialog for the ones you don't have.
 - **Play time and last played** use the larger of what Steam's files and the Web API report, so they are right even for games you removed.
 - **An account card** shows your profile, Steam level, number of games owned and played, total play time and the last two weeks.
 - **Friends** (see [Friends](#friends)).
+
+### Installing and uninstalling
+
+Steam does the downloading, so a game installs the way it would in Steam: **Install** opens Steam's install dialog, where you pick the library folder. Shelf then shows the download on the game's poster and in its sheet, with how much is done, and tells you when it's ready to play. Updates Steam is downloading show the same way. To pause or cancel a download, the button beside the progress bar opens Steam's downloads page.
+
+**Uninstall** in a game's sheet asks Steam to remove it. Steam asks you to confirm in its own window; your Steam Cloud saves and the game in your library are kept.
+
+Installing a game you haven't installed before needs the Web API key, since without it Shelf doesn't know about games that aren't on disk. Uninstalling works either way.
 
 The key is kept in `~/.config/shelf/steam.json`, readable only by you, and is only ever sent to Steam. **Disconnect** forgets it, and the games that aren't installed leave the library. If Steam says your game details are private, Shelf tells you; set **Game details** to Public in Steam's privacy settings. The list of owned games is kept for ten minutes between scans, and an older copy is used when Steam can't be reached.
 
@@ -392,6 +400,7 @@ Pushing a `v*` tag builds both packages in GitHub Actions and attaches them to a
 - Ubisoft can't be signed in from Shelf: you sign in inside Connect once, and Shelf reads the library from it. Connect's files are only read, never changed. The reading is built from Connect's current file format and tested against one account, so please open an issue if your library comes out empty.
 - Ubisoft installs show activity and bytes written, not a percentage or time left, and can't be cancelled from Shelf. Playing or restarting Connect during a download is refused, since it would end the download.
 - Ubisoft's play time is counted only while Shelf sees the game running, as with Epic.
+- Steam download progress comes from Steam's app manifests, which Steam updates every so often rather than continuously, so the percentage moves in steps. Steam downloads aren't in Shelf's queue and are paused or cancelled in Steam.
 - The download queue is kept in memory only, so it's empty after a restart. A cancelled download resumes where it stopped.
 - Cloud saves rely on legendary finding the save folder in the game's Proton prefix. If it can't, set the save folder in the game's settings.
 - Controller sounds depend on the webview allowing audio, which can need one click or key press after launch.

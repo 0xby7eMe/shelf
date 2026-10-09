@@ -8,6 +8,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
 	"sync"
 	"syscall"
@@ -113,9 +114,15 @@ func (a *App) startup(ctx context.Context) {
 	a.startDesktop()
 	go a.watchUpdates(ctx)
 
+	steamKick := make(chan struct{}, 1)
+	go a.watchSteamDownloads(ctx, steamKick)
 	go func() {
 		err := library.Watch(ctx, func() {
 			runtime.EventsEmit(ctx, "library:changed")
+			select {
+			case steamKick <- struct{}{}:
+			default:
+			}
 		})
 		if err != nil {
 			log.Printf("watch: %v", err)
@@ -550,6 +557,41 @@ func (a *App) Launch(id string) error {
 		return a.epic.UbisoftLaunch(ext)
 	}
 	return fmt.Errorf("unknown game")
+}
+
+func (a *App) SteamUninstall(appID string) error { return library.UninstallSteam(appID) }
+
+func (a *App) SteamDownloads() []library.SteamDownload { return library.SteamDownloads() }
+
+func (a *App) SteamOpenDownloads() error { return library.OpenSteamDownloads() }
+
+// watchSteamDownloads sends "steam:installing" whenever Steam's downloads
+// change. Manifest changes wake it; while a download runs it also looks every
+// few seconds, since Steam updates the byte counts without much else changing.
+func (a *App) watchSteamDownloads(ctx context.Context, kick <-chan struct{}) {
+	tick := time.NewTicker(3 * time.Second)
+	defer tick.Stop()
+	var last []library.SteamDownload
+	check := func() {
+		now := library.SteamDownloads()
+		if !slices.Equal(now, last) {
+			runtime.EventsEmit(ctx, "steam:installing", now)
+		}
+		last = now
+	}
+	check()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-kick:
+			check()
+		case <-tick.C:
+			if len(last) > 0 {
+				check()
+			}
+		}
+	}
 }
 
 func (a *App) UbisoftSync() error { return a.epic.UbisoftSync() }

@@ -65,6 +65,7 @@ func TestParseUbisoftInstalls(t *testing.T) {
 }
 
 func TestWinToUnix(t *testing.T) {
+	linuxOnly(t)
 	pfx := t.TempDir()
 	game := filepath.Join(pfx, "drive_c", "Program Files (x86)", "Ubisoft", "Ubisoft Game Launcher", "games", "Riders Republic")
 	os.MkdirAll(game, 0o755)
@@ -121,6 +122,7 @@ func TestConnectEnv(t *testing.T) {
 }
 
 func TestStopPrefixProcesses(t *testing.T) {
+	linuxOnly(t)
 	prefix := filepath.Join(t.TempDir(), "prefix")
 	mine := exec.Command("sleep", "30")
 	mine.Env = append(os.Environ(), "STEAM_COMPAT_DATA_PATH="+prefix)
@@ -684,6 +686,7 @@ func TestUbisoftInstallPendingAndWatcher(t *testing.T) {
 }
 
 func TestUbisoftUninstall(t *testing.T) {
+	linuxOnly(t)
 	m, _, games, _ := installedEnv(t, true)
 	defer stopPrefixProcesses(ubisoftPrefix())
 
@@ -783,6 +786,7 @@ func TestPrefixesCountUbisoftGamesOnTheirOwn(t *testing.T) {
 }
 
 func TestUbisoftReset(t *testing.T) {
+	linuxOnly(t)
 	m, _, _, _ := installedEnv(t, true)
 	fakeConnect(t)
 	if len(prefixProcesses(ubisoftPrefix())) == 0 {

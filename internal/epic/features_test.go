@@ -137,11 +137,12 @@ func TestMancpnAndEgstoreScan(t *testing.T) {
 }
 
 func TestSettingsKeepDefaultsForOldFiles(t *testing.T) {
-	cfg := t.TempDir()
-	t.Setenv("XDG_CONFIG_HOME", cfg)
-	os.MkdirAll(filepath.Join(cfg, "shelf"), 0o755)
+	root := t.TempDir()
+	t.Setenv("HOME", root) // macOS keeps settings under ~/Library and ignores XDG
+	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	os.MkdirAll(configDir(), 0o755)
 	// A file written before the update settings existed.
-	os.WriteFile(filepath.Join(cfg, "shelf", "epic.json"), []byte(`{"installDir":"/games","protonPath":""}`), 0o644)
+	os.WriteFile(filepath.Join(configDir(), "epic.json"), []byte(`{"installDir":"/games","protonPath":""}`), 0o644)
 
 	s := newSettingsStore().get()
 	if s.InstallDir != "/games" || !s.AutoCheckUpdates || s.AutoUpdate || s.CloudSaves {

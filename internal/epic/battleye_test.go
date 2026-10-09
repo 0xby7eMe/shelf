@@ -61,6 +61,7 @@ func fakeRuntimeDir(t *testing.T, dir string) {
 }
 
 func TestFindBattlEyeRuntime(t *testing.T) {
+	linuxOnly(t)
 	ubiTestManager(t)
 	home, _ := os.UserHomeDir()
 	os.MkdirAll(filepath.Join(home, ".local", "share", "Steam", "steamapps"), 0o755)

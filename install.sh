@@ -4,11 +4,12 @@
 #   curl -fsSL https://raw.githubusercontent.com/0xby7eMe/shelf/main/install.sh | bash
 #
 # Installs the latest release for your user (no root needed): the plain binary
-# on Arch and its relatives, the AppImage everywhere else.
+# on Arch and its relatives, the AppImage on other Linux systems, and Shelf.app
+# in ~/Applications on macOS.
 #
 # Options (pass them after `bash -s --`):
 #   --version vX.Y.Z   install that release instead of the latest
-#   --appimage         use the AppImage even on Arch
+#   --appimage         use the AppImage even on Arch (Linux only)
 #   --uninstall        remove Shelf again (your settings are kept)
 #   -h, --help         show this help
 set -euo pipefail
@@ -21,6 +22,9 @@ APP_FILE=$DATA_DIR/applications/shelf.desktop
 ICON_FILE=$DATA_DIR/icons/hicolor/512x512/apps/io.github.0xby7eme.shelf.png
 OLD_ICON_FILE=$DATA_DIR/icons/hicolor/512x512/apps/shelf.png
 TARGET=$BIN_DIR/shelf
+# macOS: an app bundle in the user's own Applications folder.
+MAC_APPS=$HOME/Applications
+MAC_APP=$MAC_APPS/Shelf.app
 
 VERSION=latest
 FORCE_APPIMAGE=0
@@ -124,10 +128,21 @@ release_url() { # asset
 
 download() { curl -fsSL --retry 3 --retry-delay 1 -o "$2" "$1"; }
 
+is_macos() { [ "$(uname -s)" = Darwin ]; }
+
+# sha256 of a file: sha256sum on Linux, shasum on macOS.
+sha256_of() {
+	if command -v sha256sum >/dev/null 2>&1; then
+		sha256sum "$1" | awk '{print $1}'
+	else
+		shasum -a 256 "$1" | awk '{print $1}'
+	fi
+}
+
 verify() { # file checksum-file
 	local want got
 	want=$(awk '{print $1; exit}' "$2")
-	got=$(sha256sum "$1" | awk '{print $1}')
+	got=$(sha256_of "$1")
 	[ -n "$want" ] && [ "$want" = "$got" ]
 }
 
@@ -167,6 +182,12 @@ refresh_caches() {
 
 uninstall() {
 	banner
+	if is_macos; then
+		step "Removing Shelf" "Removed Shelf" rm -rf "$MAC_APP"
+		note "Your settings in ~/Library/Application Support/shelf were left alone"
+		printf '\n'
+		return
+	fi
 	step "Removing Shelf" "Removed Shelf" rm -f "$TARGET" "$APP_FILE" "$ICON_FILE" "$OLD_ICON_FILE"
 	refresh_caches
 	note "Your settings in ~/.config/shelf and ~/.local/share/shelf were left alone"
@@ -228,12 +249,57 @@ install_appimage() {
 	fi
 }
 
+install_macos() {
+	local zip=shelf-macos-universal.zip
+	spin "Downloading Shelf for macOS"
+	download "$(release_url $zip)" "$TMP/$zip" ||
+		die "couldn't download $zip from the $VERSION release (macOS builds start with the first release after v0.6.0)"
+	download "$(release_url $zip.sha256)" "$TMP/$zip.sha256" || die "couldn't download the checksum"
+	ok "Downloaded"
+
+	step "Verifying checksum" "Checksum matches" verify "$TMP/$zip" "$TMP/$zip.sha256"
+	mkdir -p "$TMP/pkg"
+	step "Unpacking" "Unpacked" ditto -x -k "$TMP/$zip" "$TMP/pkg"
+	[ -d "$TMP/pkg/Shelf.app" ] || die "the archive has no Shelf.app"
+
+	spin "Installing"
+	mkdir -p "$MAC_APPS"
+	rm -rf "$MAC_APP"
+	ditto "$TMP/pkg/Shelf.app" "$MAC_APP"
+	# Shelf isn't signed by Apple; without this, macOS would refuse the first start
+	# for a copy that came through a browser. curl doesn't mark it, but be sure.
+	xattr -dr com.apple.quarantine "$MAC_APP" 2>/dev/null || true
+	ok "Installed Shelf.app to ${MAC_APP/#$HOME/\~}"
+
+	if [ -d /Applications/Shelf.app ]; then
+		note "There is another Shelf.app in /Applications. Remove it so you don't start the old one."
+	fi
+}
+
+finish_macos() {
+	local tag
+	tag=$(resolved_version)
+	printf '\n  %s%sShelf%s %sis ready.%s\n' "$B" "$GRN" "$R" "$B" "$R"
+	[ -n "$tag" ] && printf '  %sversion %s%s\n' "$D" "$tag" "$R"
+	printf '\n  Start it from Launchpad or Spotlight, or run %sopen -a Shelf%s.\n\n' "$B" "$R"
+}
+
 install_shelf() {
 	banner
 	need curl
+
+	if is_macos; then
+		need ditto
+		need shasum
+		TMP=$(mktemp -d)
+		install_macos
+		finish_macos
+		return
+	fi
+
 	need tar
 	need sha256sum
-	[ "$(uname -s)" = Linux ] || die "Shelf only runs on Linux"
+	[ "$(uname -s)" = Linux ] || die "Shelf runs on Linux and macOS"
 	case $(uname -m) in
 	x86_64 | amd64) ;;
 	*) die "only x86_64 builds are published (this is $(uname -m))" ;;

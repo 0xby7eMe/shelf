@@ -98,6 +98,8 @@ export function GetGames():Promise<Array<library.Game>>;
 
 export function GetGogAccount():Promise<epic.GogAccount>;
 
+export function GetLegendaryInstall():Promise<epic.ProtonInstallState>;
+
 export function GetLogs():Promise<Array<applog.Line>>;
 
 export function GetNowPlaying():Promise<Array<library.Session>>;
@@ -145,6 +147,8 @@ export function HardwareStart():Promise<void>;
 export function HardwareStop():Promise<void>;
 
 export function InstallBattlEyeRuntime():Promise<void>;
+
+export function InstallLegendary():Promise<void>;
 
 export function InstallProtonGE():Promise<void>;
 

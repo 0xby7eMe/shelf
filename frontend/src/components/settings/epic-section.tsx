@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react"
-import { ExternalLink, LogOut, RefreshCw } from "lucide-react"
+import { Download, ExternalLink, LogOut, RefreshCw } from "lucide-react"
 
 import {
 	EpicCheckUpdates,
@@ -11,10 +11,13 @@ import {
 	EpicOpenLogin,
 	EpicSync,
 	GetEpicSettings,
+	GetLegendaryInstall,
 	GetProtonBuilds,
+	InstallLegendary,
 	SetEpicSettings,
 } from "../../../wailsjs/go/main/App"
 import { epic } from "../../../wailsjs/go/models"
+import { EventsOn } from "../../../wailsjs/runtime/runtime"
 import { Input } from "@/components/ui/input"
 import { BattlEyePanel } from "@/components/settings/battleye-panel"
 import { InstallSettings } from "@/components/settings/install-settings"
@@ -120,21 +123,7 @@ export function EpicSection({ account, onAccountChange }: Props) {
 		<div className="space-y-6">
 			<SectionHeading title="Epic Games" hint="Your Epic library, installed through legendary and run with Proton." />
 
-			{account && !account.legendaryFound && (
-				<Panel>
-					<p className="text-sm text-white/70">
-						Shelf uses <span className="text-white">legendary</span> to talk to Epic. Install it first (
-						{platform.os === "darwin" ? (
-							<code className="text-white/90">brew install legendary</code>
-						) : (
-							<>
-								Arch: <code className="text-white/90">pacman -S legendary</code>
-							</>
-						)}
-						), then reopen this page.
-					</p>
-				</Panel>
-			)}
+			{account && !account.legendaryFound && <LegendarySetup onInstalled={onAccountChange} />}
 
 			{account?.legendaryFound && !loggedIn && (
 				<Panel>
@@ -267,5 +256,57 @@ export function EpicSection({ account, onAccountChange }: Props) {
 
 			{error && <p className="text-sm break-words text-destructive">{error}</p>}
 		</div>
+	)
+}
+
+// legendary isn't installed: Shelf can fetch its standalone build, which needs
+// no Python, from legendary's own GitHub releases.
+function LegendarySetup({ onInstalled }: { onInstalled: () => void }) {
+	const [state, setState] = useState<epic.ProtonInstallState | null>(null)
+	const running = state?.state === "running"
+
+	useEffect(() => {
+		GetLegendaryInstall().then(setState).catch(() => {})
+		return EventsOn("legendary:install", (s: epic.ProtonInstallState) => {
+			setState(s)
+			if (s.state === "done") onInstalled()
+		})
+	}, [onInstalled])
+
+	return (
+		<Panel>
+			<div>
+				<p className="text-sm font-medium">Install legendary</p>
+				<p className="mt-1 text-sm text-white/55">
+					Shelf uses <span className="text-white">legendary</span> to talk to Epic. Shelf can download its standalone
+					build from legendary's GitHub releases. It runs without Python, and its checksum is checked before use.
+				</p>
+			</div>
+			{running ? (
+				<div className="space-y-2">
+					<div className="h-1.5 overflow-hidden rounded-full bg-white/10">
+						<div className="h-full rounded-full bg-white/70 transition-[width]" style={{ width: `${state.percent}%` }} />
+					</div>
+					<p className="text-xs text-white/50">{state.message}</p>
+				</div>
+			) : (
+				<PillButton
+					variant="solid"
+					className="w-full"
+					onClick={() =>
+						InstallLegendary().catch((e) => setState(new epic.ProtonInstallState({ state: "failed", error: String(e) })))
+					}
+				>
+					<Download className="size-3.5" />
+					Install legendary
+				</PillButton>
+			)}
+			{state?.state === "failed" && <p className="text-sm break-words text-destructive">{state.error}</p>}
+			<p className="text-xs text-white/40">
+				Or install it yourself: download the build for your system from{" "}
+				<span className="text-white/60">github.com/legendary-gl/legendary/releases</span>, make it executable with{" "}
+				<code className="text-white/60">chmod +x</code> and put it in your PATH.
+			</p>
+		</Panel>
 	)
 }

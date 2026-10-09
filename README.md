@@ -140,7 +140,12 @@ make install
 - Frameless glass UI, dark only
 
 <p align="center">
-  <img src="assets/library-epic.png" alt="Library showing Steam and Epic games, with update and install badges">
+  <img src="assets/library-grid.png" alt="Library grid sorted by most played, with installed games in color">
+</p>
+
+<p align="center">
+  <img src="assets/activity.png" width="49%" alt="Activity heatmap and weekly stats">
+  <img src="assets/achievements.png" width="49%" alt="Achievements across the library">
 </p>
 
 ## Steam
@@ -165,7 +170,7 @@ Shelf drives [legendary](https://github.com/derrod/legendary), the same CLI Hero
 3. **Play** runs the game with Proton. Shelf finds Proton in Steam, `compatibilitytools.d` (GE-Proton) and Heroic's tools folder. Pick a version in the settings; by default the newest GE-Proton wins, then Proton Experimental.
 
 <p align="center">
-  <img src="assets/settings-epic.png" alt="Settings page, Epic Games section">
+  <img src="assets/settings-integrations.png" alt="Settings, Integrations, Epic Games tab">
 </p>
 
 Games install to `~/Games/Shelf` (changeable), each with its own Proton prefix in `~/.local/share/shelf/prefixes`. Play time for Epic games is recorded while Shelf is running, since Epic doesn't provide it.
@@ -226,8 +231,7 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
 **Settings, Storage** shows how much space each Steam, Epic and Ubisoft game uses, free space per disk, and Proton prefixes, including leftovers from uninstalled games that you can delete. Ubisoft's games are installed inside one shared Connect prefix, so that is listed on its own with the games' space taken off, and is never offered as a leftover: **Reset** there deletes Connect's login and every Ubisoft game, and says so first.
 
 <p align="center">
-  <img src="assets/settings-downloads.png" width="49%" alt="Download queue">
-  <img src="assets/settings-storage.png" width="49%" alt="Disk usage">
+  <img src="assets/settings-storage.png" alt="Disk usage per game and store">
 </p>
 
 ## Appearance
@@ -241,6 +245,10 @@ Ubisoft downloads are done by Connect, so they aren't in this queue; they show a
 
 **Reset appearance** puts everything back.
 
+<p align="center">
+  <img src="assets/settings-appearance.png" alt="Settings, Appearance">
+</p>
+
 ## Collections and tags
 
 Open a game and use **Collections** and **Tags** in its sheet. A game can be in any number of collections (press **New collection** to make one on the spot) and carry any number of tags; type a tag and press Enter or a comma. The **Collections** button in the header narrows the library to one collection or tag, and works together with the store filter, search and the Favorites tab. **Settings, Collections** renames and deletes collections and removes a tag from every game.
@@ -250,6 +258,10 @@ Everything is saved in `~/.config/shelf/organizer.json`, separate from your favo
 ## Share card
 
 **More, Share card** draws a 1200×720 image of your library: total hours played, how many games you have per store, installed and favorite counts, and your five most played games with their covers. Press **Save as PNG** to put it wherever you like. The card holds only game titles, play time and counts, no paths, accounts or dates, and nothing is uploaded.
+
+<p align="center">
+  <img src="assets/share-card.png" alt="Share card with total hours, counts per store and the five most played games">
+</p>
 
 ## Friends
 
@@ -317,9 +329,13 @@ Shelf tells which kind of controller you have, by its USB vendor id, and shows t
 
 The sounds are Steam's own Deck UI sounds, played from your Steam install (nothing is copied or bundled). Without Steam, Shelf uses a small built-in set instead. Navigation, sounds and volume are under **Settings, Controller**. Dialogs and menus trap the focus, so the controller never wanders behind them.
 
+<p align="center">
+  <img src="assets/settings-controller.png" alt="Settings, Controller">
+</p>
+
 ## Hardware monitor
 
-A task-manager-style page for seeing what your machine is doing while you play. It's off by default: turn on **Hardware monitor** under **Settings, Advanced**, which adds a button to the header (and `P` opens it). Nothing is sampled while the page is closed.
+A task-manager-style page for seeing what your machine is doing while you play. It's off by default: turn on **Hardware monitor** under **Settings, Advanced**, which adds **Performance** to the **More** menu (and `P` opens it). Nothing is sampled while the page is closed.
 
 - **CPU:** utilization over the last minute, overall or per logical processor, with clock speed, temperature, processes, threads, load average and uptime
 - **Memory:** usage, what is cached and could be reclaimed, free memory and swap
@@ -328,6 +344,10 @@ A task-manager-style page for seeing what your machine is doing while you play. 
 - **GPUs:** utilization, video memory, temperature, power and clock for AMD (read from the kernel) and NVIDIA (through `nvidia-smi`). Intel shows its clock. A card that has powered itself down to save energy is shown as such and isn't woken to take a reading. An NVIDIA card that is awake stays awake while the page is open
 
 Everything is read from `/proc` and `/sys`, once a second, so it needs no extra tools. Temperatures appear when the kernel has a sensor for them.
+
+<p align="center">
+  <img src="assets/monitor.png" alt="Hardware monitor showing CPU, memory, disk, network and GPU graphs">
+</p>
 
 ## Log window
 
@@ -339,8 +359,9 @@ Everything is read from `/proc` and `/sys`, once a second, so it needs no extra 
 | Key | Action |
 | --- | --- |
 | `/` | Focus search |
-| `Esc` | Clear search, or leave the settings page |
+| `Esc` | Clear search, or leave the settings page or hardware monitor |
 | `R` | Open a random game from the current view |
+| `P` | Open or close the hardware monitor, once it is turned on |
 
 ## Development
 

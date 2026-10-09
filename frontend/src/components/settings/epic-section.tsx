@@ -16,14 +16,8 @@ import {
 } from "../../../wailsjs/go/main/App"
 import { epic } from "../../../wailsjs/go/models"
 import { Input } from "@/components/ui/input"
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "@/components/ui/select"
 import { BattlEyePanel } from "@/components/settings/battleye-panel"
+import { InstallSettings } from "@/components/settings/install-settings"
 import { ToggleRow } from "@/components/toggle-row"
 import {
 	IconButton,
@@ -32,8 +26,6 @@ import {
 	Panel,
 	PillButton,
 	SectionHeading,
-	selectContentClass,
-	triggerClass,
 } from "@/components/settings/ui"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
@@ -42,8 +34,6 @@ interface Props {
 	account: epic.Account | null
 	onAccountChange: () => void
 }
-
-const AUTO = "auto" // Select items can't have an empty value
 
 export function EpicSection({ account, onAccountChange }: Props) {
 	const [code, setCode] = useState("")
@@ -186,49 +176,7 @@ export function EpicSection({ account, onAccountChange }: Props) {
 
 					{settings && (
 						<>
-							<Panel>
-								<label className="block space-y-2">
-									<Label>Install folder</Label>
-									<Input
-										defaultValue={settings.installDir}
-										onBlur={(e) => {
-											const v = e.target.value.trim()
-											if (v && v !== settings.installDir) save(new epic.Settings({ ...settings, installDir: v }))
-										}}
-										spellCheck={false}
-										className={inputClass}
-									/>
-								</label>
-
-								<div className="space-y-2">
-									<Label>Proton version</Label>
-									<Select
-										value={settings.protonPath || AUTO}
-										onValueChange={(v) =>
-											save(new epic.Settings({ ...settings, protonPath: !v || v === AUTO ? "" : v }))
-										}
-									>
-										<SelectTrigger className={triggerClass}>
-											<SelectValue />
-										</SelectTrigger>
-										<SelectContent className={selectContentClass}>
-											<SelectItem value={AUTO}>
-												{builds.length ? `Automatic (${builds[0].name})` : "None found"}
-											</SelectItem>
-											{builds.map((b) => (
-												<SelectItem key={b.path} value={b.path}>
-													{b.name}
-												</SelectItem>
-											))}
-										</SelectContent>
-									</Select>
-									{builds.length === 0 && (
-										<p className="text-xs text-white/40">
-											Install Proton through Steam or ProtonUp-Qt to run Epic games.
-										</p>
-									)}
-								</div>
-							</Panel>
+							<InstallSettings settings={settings} builds={builds} onChange={save} />
 
 							<Panel>
 								<ToggleRow

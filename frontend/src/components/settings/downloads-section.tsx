@@ -19,7 +19,7 @@ interface Props {
 
 export function DownloadsSection({ queue, games }: Props) {
 	const byApp = useMemo(
-		() => new Map(games.filter((g) => g.source === "epic").map((g) => [g.externalId, g])),
+		() => new Map(games.filter((g) => g.source === "epic" || g.source === "gog").map((g) => [g.externalId, g])),
 		[games]
 	)
 	const outdated = games.filter(

@@ -6,6 +6,7 @@ const (
 	SourceSteam   Source = "steam"
 	SourceEpic    Source = "epic"
 	SourceUbisoft Source = "ubisoft"
+	SourceGog     Source = "gog"
 )
 
 type Game struct {

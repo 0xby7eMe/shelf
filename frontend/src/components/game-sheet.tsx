@@ -144,8 +144,9 @@ function Body({
 	const [armed, setArmed] = useState(false)
 	const isEpic = game.source === "epic"
 	const isUbisoft = game.source === "ubisoft"
+	const isGog = game.source === "gog"
 	const battleye = useBattlEyeRuntime()
-	const needsInstall = (isEpic || isUbisoft) && !game.installed
+	const needsInstall = (isEpic || isGog || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
 	const share = totalMinutes > 0 ? (game.playtimeMinutes / totalMinutes) * 100 : 0
 
@@ -336,7 +337,7 @@ function Body({
 					>
 						Folder
 					</Action>
-					{(isEpic || isUbisoft) && game.installed && (
+					{(isEpic || isGog || isUbisoft) && game.installed && (
 						<Action icon={Trash2} disabled={running || !!job} onClick={() => epicActions.uninstall(game)}>
 							Uninstall
 						</Action>

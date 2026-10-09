@@ -174,6 +174,10 @@ export function GetGames() {
   return window['go']['main']['App']['GetGames']();
 }
 
+export function GetGogAccount() {
+  return window['go']['main']['App']['GetGogAccount']();
+}
+
 export function GetLogs() {
   return window['go']['main']['App']['GetLogs']();
 }
@@ -216,6 +220,30 @@ export function GetUbisoftStatus() {
 
 export function GetUpdateStatus() {
   return window['go']['main']['App']['GetUpdateStatus']();
+}
+
+export function GogInstall(arg1) {
+  return window['go']['main']['App']['GogInstall'](arg1);
+}
+
+export function GogLogin(arg1) {
+  return window['go']['main']['App']['GogLogin'](arg1);
+}
+
+export function GogLogout() {
+  return window['go']['main']['App']['GogLogout']();
+}
+
+export function GogOpenLogin() {
+  return window['go']['main']['App']['GogOpenLogin']();
+}
+
+export function GogSync() {
+  return window['go']['main']['App']['GogSync']();
+}
+
+export function GogUninstall(arg1) {
+  return window['go']['main']['App']['GogUninstall'](arg1);
 }
 
 export function Greet(arg1) {

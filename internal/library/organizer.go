@@ -106,7 +106,7 @@ func ValidGameID(id string) bool {
 		return false
 	}
 	switch Source(store) {
-	case SourceSteam, SourceEpic, SourceUbisoft:
+	case SourceSteam, SourceEpic, SourceGog, SourceUbisoft:
 	default:
 		return false
 	}

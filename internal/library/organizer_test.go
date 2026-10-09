@@ -57,7 +57,7 @@ func TestCollections(t *testing.T) {
 	if _, err := o.SetGameCollections("../etc", []string{id}); err == nil {
 		t.Error("invalid game id accepted")
 	}
-	if _, err := o.SetGameCollections("gog:1", []string{id}); err == nil {
+	if _, err := o.SetGameCollections("itch:1", []string{id}); err == nil {
 		t.Error("unknown store accepted")
 	}
 

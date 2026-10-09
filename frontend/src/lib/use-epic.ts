@@ -65,11 +65,13 @@ export function useEpic(games: library.Game[] | null, onReviewImport: () => void
 			setQueue(new epic.QueueState({ jobs: q.jobs ?? [], paused: q.paused }))
 		)
 
-		const titleOf = (appName: string) =>
-			gamesRef.current?.find((g) => g.id === `epic:${appName}`)?.name ?? appName
+		// Jobs are keyed by external id: an Epic app name, or gog-<id> for GOG.
+		const gameOf = (appName: string) =>
+			gamesRef.current?.find((g) => g.externalId === appName && (g.source === "epic" || g.source === "gog"))
+		const titleOf = (appName: string) => gameOf(appName)?.name ?? appName
 		const play = (appName: string) => ({
 			label: "Play",
-			onClick: () => Launch(`epic:${appName}`).catch((e) => toast.error(String(e))),
+			onClick: () => Launch(gameOf(appName)?.id ?? `epic:${appName}`).catch((e) => toast.error(String(e))),
 		})
 
 		const offInstall = EventsOn("epic:install", (p: epic.Progress) => {

@@ -1,3 +1,5 @@
+//go:build !windows
+
 package desktop
 
 import (
@@ -13,17 +15,10 @@ import (
 const (
 	entryPrefix = "shelf-"
 	// Marks the entries Shelf wrote, so it never touches anyone else's.
-	entryMarker  = "X-Shelf-Game=true"
-	handlerFile  = "shelf-url-handler.desktop"
-	handlerMime  = "x-scheme-handler/shelf"
-	maxEntryName = 120
+	entryMarker = "X-Shelf-Game=true"
+	handlerFile = "shelf-url-handler.desktop"
+	handlerMime = "x-scheme-handler/shelf"
 )
-
-// Entry is a game that gets an application menu entry.
-type Entry struct {
-	ID   string // "steam:620"
-	Name string
-}
 
 // ApplicationsDir is where the desktop looks for the current user's menu entries.
 func ApplicationsDir() string {

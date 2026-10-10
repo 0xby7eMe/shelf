@@ -7,6 +7,7 @@ import (
 	"math"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"testing"
 	"time"
@@ -190,6 +191,7 @@ func (f *fixture) counters(n int) {
 func itoa(n int) string { b, _ := json.Marshal(n); return string(b) }
 
 func TestSampleOverTime(t *testing.T) {
+	linuxOnly(t)
 	f := newFixture(t)
 	first := f.sampler.Sample()
 	if first.CPU.Usage != 0 || first.Disks[0].ReadBps != 0 {
@@ -241,6 +243,7 @@ func TestSampleOverTime(t *testing.T) {
 }
 
 func TestInfo(t *testing.T) {
+	linuxOnly(t)
 	f := newFixture(t)
 	f.write("proc/mounts", "/dev/nvme0n1p1 "+f.root+" ext4 rw 0 0\n/dev/loop3 /snap/x squashfs ro 0 0\ntmpfs /tmp tmpfs rw 0 0\n/dev/nvme0n1p1 "+f.root+" ext4 rw 0 0\n")
 	f.write("proc/sys/kernel/osrelease", "6.99.1-test\n")
@@ -313,6 +316,7 @@ func TestParseSMI(t *testing.T) {
 }
 
 func TestNVIDIACardAsleepIsNotWoken(t *testing.T) {
+	linuxOnly(t)
 	f := newFixture(t)
 	f.mkdir("sys/class/drm/card0/device/power")
 	f.write("sys/class/drm/card0/device/vendor", "0x10de\n")
@@ -346,6 +350,7 @@ func TestNVIDIACardAsleepIsNotWoken(t *testing.T) {
 }
 
 func TestAMDCard(t *testing.T) {
+	linuxOnly(t)
 	f := newFixture(t)
 	dev := "sys/class/drm/card1/device"
 	f.write(dev+"/vendor", "0x1002\n")
@@ -372,6 +377,7 @@ func TestAMDCard(t *testing.T) {
 }
 
 func TestSampleSerialises(t *testing.T) {
+	linuxOnly(t)
 	f := newFixture(t)
 	s := f.sampler.Sample()
 	data, err := json.Marshal(s)
@@ -400,6 +406,7 @@ func TestRealMachine(t *testing.T) {
 }
 
 func TestRadeonNameFromCPU(t *testing.T) {
+	linuxOnly(t)
 	if got := radeonInCPUName("model name\t: AMD Ryzen 7 250 w/ Radeon 780M Graphics\n"); got != "Radeon 780M Graphics" {
 		t.Errorf("got %q", got)
 	}
@@ -414,5 +421,13 @@ func TestRadeonNameFromCPU(t *testing.T) {
 	f.write("sys/class/drm/card1/device/device", "0x15bf\n")
 	if got := f.sampler.Sample().GPUs[0].Name; got != "AMD Radeon 780M Graphics" {
 		t.Errorf("name %q", got)
+	}
+}
+
+// linuxOnly skips tests that sample a made-up /proc and /sys, which Windows doesn't read.
+func linuxOnly(t *testing.T) {
+	t.Helper()
+	if runtime.GOOS == "windows" {
+		t.Skip("Windows is sampled through its own interfaces")
 	}
 }

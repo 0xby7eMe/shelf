@@ -186,6 +186,10 @@ export function GetLogs() {
   return window['go']['main']['App']['GetLogs']();
 }
 
+export function GetNearby() {
+  return window['go']['main']['App']['GetNearby']();
+}
+
 export function GetNowPlaying() {
   return window['go']['main']['App']['GetNowPlaying']();
 }
@@ -230,6 +234,10 @@ export function GetUpdateStatus() {
   return window['go']['main']['App']['GetUpdateStatus']();
 }
 
+export function GogCheckUpdates() {
+  return window['go']['main']['App']['GogCheckUpdates']();
+}
+
 export function GogInstall(arg1) {
   return window['go']['main']['App']['GogInstall'](arg1);
 }
@@ -252,6 +260,14 @@ export function GogSync() {
 
 export function GogUninstall(arg1) {
   return window['go']['main']['App']['GogUninstall'](arg1);
+}
+
+export function GogUpdate(arg1) {
+  return window['go']['main']['App']['GogUpdate'](arg1);
+}
+
+export function GogUpdates() {
+  return window['go']['main']['App']['GogUpdates']();
 }
 
 export function Greet(arg1) {
@@ -348,6 +364,10 @@ export function SetGameCollections(arg1, arg2) {
 
 export function SetGameTags(arg1, arg2) {
   return window['go']['main']['App']['SetGameTags'](arg1, arg2);
+}
+
+export function SetNearbySettings(arg1) {
+  return window['go']['main']['App']['SetNearbySettings'](arg1);
 }
 
 export function SetSteamAPIKey(arg1) {

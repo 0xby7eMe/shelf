@@ -36,6 +36,9 @@ func otherLaunchers() []foundGame {
 		{"Heroic", filepath.Join(home, ".var", "app", "com.heroicgameslauncher.hgl", "config", "heroic", "legendaryConfig", "legendary", "installed.json")},
 		{"Heroic", filepath.Join(home, "Library", "Application Support", "heroic", "legendaryConfig", "legendary", "installed.json")}, // macOS
 	}
+	if appData := os.Getenv("APPDATA"); onWindows && appData != "" {
+		sources = append(sources, struct{ name, path string }{"Heroic", filepath.Join(appData, "heroic", "legendaryConfig", "legendary", "installed.json")})
+	}
 
 	var out []foundGame
 	for _, src := range sources {
@@ -54,6 +57,31 @@ func otherLaunchers() []foundGame {
 		}
 	}
 	return out
+}
+
+// parseEGSItem reads the app name and folder from one of the Epic Games
+// Launcher's manifests (<ProgramData>\Epic\EpicGamesLauncher\Data\Manifests\*.item).
+// DLC and the launcher's own parts are left out.
+func parseEGSItem(data []byte) (appName, installDir string) {
+	var doc struct {
+		AppName              string   `json:"AppName"`
+		MainGameAppName      string   `json:"MainGameAppName"`
+		InstallLocation      string   `json:"InstallLocation"`
+		AppCategories        []string `json:"AppCategories"`
+		BIsIncompleteInstall bool     `json:"bIsIncompleteInstall"`
+	}
+	if json.Unmarshal(data, &doc) != nil || doc.BIsIncompleteInstall {
+		return "", ""
+	}
+	if doc.MainGameAppName != "" && doc.MainGameAppName != doc.AppName {
+		return "", "" // DLC
+	}
+	for _, c := range doc.AppCategories {
+		if c == "addons" || c == "plugins" {
+			return "", ""
+		}
+	}
+	return doc.AppName, doc.InstallLocation
 }
 
 // mancpnApp reads the app name from an Epic Games Launcher .mancpn file.
@@ -79,6 +107,14 @@ func scanRoots(installDir string) []string {
 		roots = append(roots, prefixes...)
 		lutris, _ := filepath.Glob(filepath.Join(games, "*", "drive_c", "Program Files", "Epic Games"))
 		roots = append(roots, lutris...)
+	}
+	if onWindows {
+		// Where the Epic Games Launcher installs by default.
+		for _, env := range []string{"ProgramFiles", "ProgramFiles(x86)"} {
+			if dir := os.Getenv(env); dir != "" {
+				roots = append(roots, filepath.Join(dir, "Epic Games"))
+			}
+		}
 	}
 	return roots
 }
@@ -130,7 +166,8 @@ func (m *Manager) FindImportable() ([]Importable, error) {
 	}
 
 	have := m.readInstalled()
-	found := append(otherLaunchers(), scanEgstore(scanRoots(m.settings.get().InstallDir))...)
+	found := append(otherLaunchers(), egsManifests()...)
+	found = append(found, scanEgstore(scanRoots(m.settings.get().InstallDir))...)
 
 	seen := map[string]bool{}
 	out := []Importable{}

@@ -126,6 +126,9 @@ type regCache struct {
 // installs and downloads still going. The registry file is only read again
 // when it has changed.
 func (m *Manager) ubisoftRegistry() (complete, partial map[string]string) {
+	if onWindows {
+		return winUbisoftRegistry()
+	}
 	pfx := filepath.Join(ubisoftPrefix(), "pfx")
 	path := filepath.Join(pfx, "system.reg")
 	st, err := os.Stat(path)

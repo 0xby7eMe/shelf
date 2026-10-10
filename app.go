@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -21,6 +19,7 @@ import (
 	"shelf/internal/epic"
 	"shelf/internal/friends"
 	"shelf/internal/library"
+	"shelf/internal/nearby"
 	"shelf/internal/steamapi"
 	"shelf/internal/sysmon"
 	"shelf/internal/update"
@@ -41,6 +40,7 @@ type App struct {
 	steam   *steamapi.Client
 	ach     *achievements.Hub
 	updater *update.Updater
+	nearby  *nearby.Service
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -78,7 +78,7 @@ func NewApp() *App {
 			friends.NewSteam(steam),
 			friends.NewUnsupported("epic", "Epic Games", "Epic only shares who is online over a private channel that other apps can't use, and legendary has no friends feature."),
 			friends.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no way for other apps to read your friends."),
-			friends.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG friends yet."),
+			friends.NewGOG(ep),
 		),
 
 		desk:  desktop.NewStore(),
@@ -90,8 +90,9 @@ func NewApp() *App {
 		achievements.NewSteam(steam),
 		achievements.NewUnsupported("epic", "Epic Games", "Epic only serves achievements to a game's own developer, with credentials issued per game, so other apps can't read them."),
 		achievements.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no public way for other apps to read your achievements."),
-		achievements.NewUnsupported("gog", "GOG", "Shelf doesn't read your GOG achievements yet."),
+		achievements.NewGOG(ep),
 	)
+	a.nearby = nearby.New(nearby.NewStore(nearby.DefaultPath()), a.emitEvent)
 	return a
 }
 
@@ -112,6 +113,8 @@ func (a *App) startup(ctx context.Context) {
 	})
 
 	a.epic.Start(ctx)
+	a.nearby.Start(ctx)
+	a.updater.RemoveReplaced()
 	a.startDesktop()
 	go a.watchUpdates(ctx)
 
@@ -344,7 +347,8 @@ func (a *App) ScanAchievements(force bool) achievements.Overview {
 	a.mu.RLock()
 	refs := make([]achievements.GameRef, 0, len(a.known))
 	for _, g := range a.known {
-		if g.PlaytimeMinutes > 0 {
+		// GOG keeps achievements of games played anywhere, so installed GOG games count too.
+		if g.PlaytimeMinutes > 0 || (g.Source == library.SourceGog && g.Installed) {
 			refs = append(refs, achievements.GameRef{Source: string(g.Source), GameID: g.ExternalID, Name: g.Name})
 		}
 	}
@@ -359,6 +363,24 @@ func (a *App) GetGameAchievements(id string) (achievements.Detail, error) {
 	ctx, cancel := context.WithTimeout(a.ctx, 30*time.Second)
 	defer cancel()
 	return a.ach.Detail(ctx, string(store), ext)
+}
+
+// GetNearby is the other Shelfs on your network and the games you have in common.
+func (a *App) GetNearby() nearby.Snapshot { return a.nearby.Snapshot() }
+
+// SetNearbySettings switches finding other Shelfs on or off, and sets the name they see.
+func (a *App) SetNearbySettings(s nearby.Settings) (nearby.Snapshot, error) {
+	return a.nearby.SetSettings(s)
+}
+
+// nearbyGames is what other Shelfs learn about your library: store, id, name
+// and whether it is installed.
+func nearbyGames(games []library.Game) []nearby.Game {
+	out := make([]nearby.Game, 0, len(games))
+	for _, g := range games {
+		out = append(out, nearby.Game{Source: string(g.Source), ID: g.ExternalID, Name: g.Name, Installed: g.Installed})
+	}
+	return out
 }
 
 // Version is the release this copy was built from, or "dev".
@@ -401,14 +423,9 @@ func (a *App) RestartApp() error {
 	if err != nil {
 		return err
 	}
-	// The new copy has to wait for this one to let go of the single-instance lock.
-	cmd := exec.Command("sh", "-c", `sleep 2; exec "$0"`, path)
-	cmd.Env = library.ChildEnv()
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := cmd.Start(); err != nil {
+	if err := relaunch(path); err != nil {
 		return err
 	}
-	go cmd.Wait()
 	a.quit()
 	return nil
 }
@@ -476,6 +493,7 @@ func (a *App) GetGames() []library.Game {
 	a.mu.Unlock()
 
 	go a.syncDesktop(games)
+	a.nearby.SetLibrary(nearbyGames(games))
 
 	return games
 }
@@ -526,6 +544,7 @@ func (a *App) OpenStorePage(id string) error {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.nearby.Stop()
 	if a.tray != nil {
 		a.tray.Stop()
 	}
@@ -597,6 +616,15 @@ func (a *App) GogSync() error { return a.epic.GogSync() }
 func (a *App) GogInstall(key string) error { return a.epic.GogInstall(key) }
 
 func (a *App) GogUninstall(key string) error { return a.epic.GogUninstall(key) }
+
+// GogUpdate queues a GOG game's newer installer, run over the installed game.
+func (a *App) GogUpdate(key string) error { return a.epic.GogUpdate(key) }
+
+// GogUpdates lists installed GOG games with a newer version, as last checked.
+func (a *App) GogUpdates() []epic.UpdateInfo { return a.epic.GogUpdates() }
+
+// GogCheckUpdates asks GOG for the current versions and returns the games that are behind.
+func (a *App) GogCheckUpdates() ([]epic.UpdateInfo, error) { return a.epic.GogCheckUpdates() }
 
 func (a *App) GetEpicAccount() epic.Account { return a.epic.Account() }
 

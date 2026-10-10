@@ -10,7 +10,7 @@ endif
 VERSION ?= dev
 LDFLAGS := -X main.version=$(VERSION)
 
-.PHONY: dev build icon install
+.PHONY: dev build icon install windows
 
 dev:
 	wails dev $(if $(TAGS),-tags $(TAGS))
@@ -20,6 +20,10 @@ icon:
 
 build: icon
 	wails build $(if $(TAGS),-tags $(TAGS)) $(if $(PLATFORM),-platform $(PLATFORM)) -ldflags "$(LDFLAGS)"
+
+# shelf.exe for Windows, cross-built from Linux or macOS; Wails needs no C compiler for it.
+windows: icon
+	wails build -platform windows/amd64 -ldflags "$(LDFLAGS)"
 
 install: build
 ifeq ($(shell uname -s),Darwin)

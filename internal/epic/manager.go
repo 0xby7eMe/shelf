@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -67,6 +68,14 @@ type Manager struct {
 	gogTok   *gogToken
 	gogOwned []gogProduct // nil until loaded
 	gogHTTP  *http.Client
+	// gogRefreshMu lets one request at a time renew the login, so workers
+	// running at once don't each spend the refresh token.
+	gogRefreshMu sync.Mutex
+
+	// GOG Galaxy services of single games (achievements): each game's own
+	// client, and a token for it.
+	gogClients  map[string]gogGameClient // by key; loaded from disk on first use
+	gogGameToks map[string]gogGameToken  // by key, in memory only
 }
 
 // New creates a Manager. emit publishes frontend events and may be nil.
@@ -85,6 +94,7 @@ func New(hist *library.History, emit func(string, any)) *Manager {
 
 		announcedUpdates: map[string]string{},
 		gogHTTP:          &http.Client{Timeout: 60 * time.Second},
+		gogGameToks:      map[string]gogGameToken{},
 	}
 	if dir := configDir(); dir != "" {
 		m.cfgDir = filepath.Join(dir, "legendary")
@@ -138,7 +148,7 @@ func findLegendary() (string, error) {
 	if home, err := os.UserHomeDir(); err == nil {
 		for _, p := range []string{
 			filepath.Join(home, ".local", "bin", "legendary"),
-			filepath.Join(configDir(), "bin", "legendary"),
+			filepath.Join(configDir(), "bin", legendaryBinName(runtime.GOOS)),
 		} {
 			if st, err := os.Stat(p); err == nil && !st.IsDir() {
 				return p, nil
@@ -162,6 +172,7 @@ func (m *Manager) command(ctx context.Context, args ...string) (*exec.Cmd, error
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Env = append(library.ChildEnv(), "LEGENDARY_CONFIG_PATH="+m.cfgDir)
+	hideConsole(cmd)
 	return cmd, nil
 }
 

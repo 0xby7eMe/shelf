@@ -139,7 +139,7 @@ export function FilterMenu({
 			}
 		>
 			<Heading>Store</Heading>
-			{SOURCES.filter((s) => s.id !== "ubisoft" || platformNow().proton).map((s) => (
+			{SOURCES.filter((s) => s.id !== "ubisoft" || platformNow().windowsGames).map((s) => (
 				<Row key={s.id} checked={source === s.id} onClick={() => onSource(s.id)}>
 					{s.label}
 				</Row>

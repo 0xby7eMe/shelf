@@ -2,19 +2,8 @@ package library
 
 import (
 	"fmt"
-	"os/exec"
 	"strings"
 )
-
-func openExternal(target string) error {
-	cmd := exec.Command(openCommand, target)
-	cmd.Env = ChildEnv()
-	if err := cmd.Start(); err != nil {
-		return err
-	}
-	go cmd.Wait()
-	return nil
-}
 
 // InstallSteam asks Steam to install a game, which opens its own install dialog.
 func InstallSteam(appID string) error {

@@ -4,6 +4,7 @@ import { ExternalLink, RefreshCw, Settings } from "lucide-react"
 import { GetUbisoftStatus, UbisoftOpenConnect, UbisoftSync } from "../../wailsjs/go/main/App"
 import { epic } from "../../wailsjs/go/models"
 import { EventsOn } from "../../wailsjs/runtime/runtime"
+import { platformNow } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 
 // Shown in place of the library when Ubisoft has no games to list, saying why
@@ -42,7 +43,9 @@ export function UbisoftHint({ onSettings }: { onSettings: () => void }) {
 
 	if (!status.connectInstalled) {
 		title = "Ubisoft Connect isn't set up"
-		body = "Your Ubisoft games come from Ubisoft Connect, which Shelf runs in its own Proton prefix. Set it up first."
+		body = platformNow().proton
+			? "Your Ubisoft games come from Ubisoft Connect, which Shelf runs in its own Proton prefix. Set it up first."
+			: "Your Ubisoft games come from Ubisoft Connect, which Shelf can install for you. Set it up first."
 		actions = (
 			<button className={solid} onClick={onSettings}>
 				<Settings className="size-3.5" />

@@ -69,6 +69,7 @@ func (r *recorder) waitFinal(t *testing.T, kind string) Progress {
 }
 
 func TestJobsAndSaves(t *testing.T) {
+	linuxOnly(t) // saves are found in the game's Proton prefix
 	root := t.TempDir()
 	games := filepath.Join(root, "games")
 	bin := filepath.Join(root, "bin")
@@ -77,8 +78,11 @@ func TestJobsAndSaves(t *testing.T) {
 	os.WriteFile(filepath.Join(bin, "legendary"), []byte(fakeLegendary2), 0o755)
 
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home")) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(root, "data")) // where Windows looks
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	t.Setenv("GAMES", games)
 
@@ -198,6 +202,7 @@ func TestJobsAndSaves(t *testing.T) {
 }
 
 func TestImportFlow(t *testing.T) {
+	unixOnly(t)
 	root := t.TempDir()
 	games := filepath.Join(root, "games")
 	bin := filepath.Join(root, "bin")
@@ -206,8 +211,11 @@ func TestImportFlow(t *testing.T) {
 
 	home := filepath.Join(root, "home")
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(root, "data")) // where Windows looks
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	t.Setenv("GAMES", games)
 	os.MkdirAll(games, 0o755)

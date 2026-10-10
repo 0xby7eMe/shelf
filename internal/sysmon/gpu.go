@@ -110,6 +110,7 @@ const smiQuery = "--query-gpu=pci.bus_id,name,utilization.gpu,memory.used,memory
 
 func runSMI(ctx context.Context, args ...string) ([]byte, error) {
 	cmd := exec.CommandContext(ctx, "nvidia-smi", args...)
+	hideConsole(cmd)
 	var out bytes.Buffer
 	cmd.Stdout = &out
 	err := cmd.Run()

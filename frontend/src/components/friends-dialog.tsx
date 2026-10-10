@@ -24,7 +24,7 @@ interface Props {
 }
 
 // Launchers whose friends need something set up on a settings tab.
-const SETUP_TABS = new Set(["steam"])
+const SETUP_TABS = new Set(["steam", "gog"])
 
 const DOT: Record<string, string> = {
 	playing: "bg-emerald-400",

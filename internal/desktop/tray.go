@@ -11,8 +11,9 @@ import (
 const recentSlots = 5
 
 // Tray is the tray icon: click to show or hide the window, and a menu with the
-// games played last. It talks to the desktop over D-Bus (StatusNotifierItem),
-// so it needs a desktop that shows those; on one that doesn't it does nothing.
+// games played last. On Linux it talks to the desktop over D-Bus
+// (StatusNotifierItem), so it needs a desktop that shows those; on one that
+// doesn't it does nothing. On Windows the icon has to be an .ico.
 type Tray struct {
 	Icon     []byte
 	OnToggle func() // the icon was clicked
@@ -39,11 +40,10 @@ func (t *Tray) Start() {
 	t.started = true
 	t.mu.Unlock()
 
-	start, end := systray.RunWithExternalLoop(t.onReady, func() {})
+	end := runTray(t.onReady)
 	t.mu.Lock()
 	t.end = end
 	t.mu.Unlock()
-	go start()
 }
 
 // Stop removes the icon.

@@ -33,7 +33,7 @@ export function StorageSection({ games, onSelect }: Props) {
 	const [storage, setStorage] = useState<main.Storage | null>(null)
 	const [loading, setLoading] = useState(false)
 	const [store, setStore] = useState<Store>("all")
-	const { proton } = usePlatform()
+	const { proton, windowsGames } = usePlatform()
 
 	const load = useCallback(() => {
 		setLoading(true)
@@ -111,7 +111,10 @@ export function StorageSection({ games, onSelect }: Props) {
 
 	return (
 		<div className="space-y-6">
-			<SectionHeading title="Storage" hint="What your installed games and their Proton prefixes take up." />
+			<SectionHeading
+				title="Storage"
+				hint={proton ? "What your installed games and their Proton prefixes take up." : "What your installed games take up."}
+			/>
 
 			<div className={cn("grid grid-cols-2 gap-3", STAT_COLUMNS[stats.length + (proton ? 1 : 0)])}>
 				{stats.map((st) => (
@@ -145,7 +148,7 @@ export function StorageSection({ games, onSelect }: Props) {
 
 			<div className="flex items-center justify-between">
 				<div className="flex rounded-full bg-white/5 p-1 ring-1 ring-white/5">
-					{(["all", "steam", "epic", "gog", "ubisoft"] as const).filter((s) => s !== "ubisoft" || proton).map((s) => (
+					{(["all", "steam", "epic", "gog", "ubisoft"] as const).filter((s) => s !== "ubisoft" || windowsGames).map((s) => (
 						<button
 							key={s}
 							onClick={() => setStore(s)}

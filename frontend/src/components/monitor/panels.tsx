@@ -229,7 +229,10 @@ export function CpuPanel({ info, samples, ticks }: Hardware) {
 					<Stat label="Up time" value={now ? formatUptime(now.cpu.uptime) : "—"} />
 					<Stat label="Processes" value={now?.cpu.processes ?? "—"} />
 					<Stat label="Threads" value={now?.cpu.threads ?? "—"} />
-					<Stat label="Load average" value={now ? now.cpu.load.map((l) => l.toFixed(2)).join("  ") : "—"} wide />
+					{/* Windows keeps no load average. */}
+					{!info?.host.os.startsWith("Windows") && (
+						<Stat label="Load average" value={now ? now.cpu.load.map((l) => l.toFixed(2)).join("  ") : "—"} wide />
+					)}
 				</div>
 			</Card>
 			<Card>
@@ -240,7 +243,7 @@ export function CpuPanel({ info, samples, ticks }: Hardware) {
 						["Logical processors", info?.cpu.threads],
 						["Maximum speed", info?.cpu.maxMHz ? formatGHz(info.cpu.maxMHz) : ""],
 						["Architecture", info?.cpu.arch],
-						["Kernel", info?.host.kernel],
+						[info?.host.os.startsWith("Windows") ? "Version" : "Kernel", info?.host.kernel],
 					]}
 				/>
 			</Card>

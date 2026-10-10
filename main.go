@@ -11,6 +11,7 @@ import (
 	"github.com/wailsapp/wails/v2/pkg/options/assetserver"
 	"github.com/wailsapp/wails/v2/pkg/options/linux"
 	"github.com/wailsapp/wails/v2/pkg/options/mac"
+	"github.com/wailsapp/wails/v2/pkg/options/windows"
 
 	"shelf/internal/library"
 )
@@ -31,6 +32,7 @@ var icon []byte
 func main() {
 	library.EnterAppImage()
 	library.UsualPath()
+	waitForPrevious(osArgs())
 
 	app := NewApp()
 
@@ -59,6 +61,9 @@ func main() {
 		Linux: &linux.Options{
 			Icon:             icon,
 			WebviewGpuPolicy: linux.WebviewGpuPolicyAlways,
+		},
+		Windows: &windows.Options{
+			Theme: windows.Dark,
 		},
 		Mac: &mac.Options{
 			About: &mac.AboutInfo{

@@ -18,6 +18,10 @@ type Settings struct {
 	AutoCheckUpdates bool `json:"autoCheckUpdates"`
 	// AutoUpdate installs found updates by itself, unless a game opts out.
 	AutoUpdate bool `json:"autoUpdate"`
+	// GogAutoCheckUpdates and GogAutoUpdate are the same for GOG games, which
+	// are checked against the installer GOG currently offers.
+	GogAutoCheckUpdates bool `json:"gogAutoCheckUpdates"`
+	GogAutoUpdate       bool `json:"gogAutoUpdate"`
 	// CloudSaves syncs saves before a game starts and after it closes, unless a game opts out.
 	CloudSaves bool `json:"cloudSaves"`
 	// UbisoftSoftwareRendering draws Ubisoft Connect's own window in software.
@@ -43,6 +47,12 @@ func dataDir() string {
 	if macOS {
 		return configDir() // ~/Library/Application Support/shelf
 	}
+	if onWindows {
+		if d := os.Getenv("LOCALAPPDATA"); d != "" {
+			return filepath.Join(d, "shelf")
+		}
+		return configDir() // %APPDATA%\shelf
+	}
 	if d := os.Getenv("XDG_DATA_HOME"); d != "" {
 		return filepath.Join(d, "shelf")
 	}
@@ -62,7 +72,7 @@ func defaultInstallDir() string {
 }
 
 func newSettingsStore() *settingsStore {
-	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir(), AutoCheckUpdates: true, UbisoftSoftwareRendering: true}}
+	s := &settingsStore{cur: Settings{InstallDir: defaultInstallDir(), AutoCheckUpdates: true, GogAutoCheckUpdates: true, UbisoftSoftwareRendering: true}}
 	if dir := configDir(); dir != "" {
 		s.path = filepath.Join(dir, "epic.json")
 	}

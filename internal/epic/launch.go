@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"shelf/internal/library"
@@ -71,6 +70,9 @@ func (m *Manager) LaunchInfo(appName string) (LaunchInfo, error) {
 	if macOS {
 		return LaunchInfo{Proton: "macOS"}, nil
 	}
+	if onWindows {
+		return LaunchInfo{}, nil // the game runs as it is
+	}
 	build, ok := m.protonFor(m.games.get(appName))
 	if !ok {
 		return LaunchInfo{}, fmt.Errorf("no Proton found")
@@ -121,7 +123,7 @@ func (m *Manager) Launch(appName string) error {
 	gs := m.games.get(appName)
 
 	var build ProtonBuild
-	if !macOS {
+	if useProton {
 		var ok bool
 		if build, ok = m.protonFor(gs); !ok {
 			return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
@@ -154,7 +156,7 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	prefix := prefixDir(appName)
-	if !macOS {
+	if useProton {
 		if err := os.MkdirAll(prefix, 0o755); err != nil {
 			return err
 		}
@@ -167,9 +169,10 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	// --no-wine stops legendary from using Wine itself; the wrapper becomes
-	// the command prefix, giving `proton run <game.exe> …`. A Mac build runs as it is.
+	// the command prefix, giving `proton run <game.exe> …`. A Mac build, or
+	// any game on Windows, runs as it is.
 	args := []string{"launch", appName}
-	if !macOS {
+	if useProton {
 		wrapper, err := wrapperFor(gs, build)
 		if err != nil {
 			return err
@@ -187,12 +190,12 @@ func (m *Manager) Launch(appName string) error {
 	if err != nil {
 		return err
 	}
-	if !macOS {
+	if useProton {
 		cmd.Env = append(cmd.Env, protonEnv(build, appName, game.InstallPath)...)
 	}
 	cmd.Env = append(cmd.Env, beEnv...)
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ownGroup(cmd)
 
 	// The game keeps writing to this pipe long after legendary itself has
 	// exited, until the game closes. It ends up in the log file and the log window.
@@ -206,7 +209,7 @@ func (m *Manager) Launch(appName string) error {
 	}
 
 	m.logf("launch", appName, "$ %s", commandLine(args))
-	if !macOS {
+	if useProton {
 		m.logf("launch", appName, "proton: %s, prefix: %s", build.Name, prefix)
 	}
 	if err := cmd.Start(); err != nil {

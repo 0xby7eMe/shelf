@@ -155,9 +155,58 @@ jobs:
           path: dist/*
           if-no-files-found: error
 
+  # One program for 64-bit Windows 10 and 11. Wails needs no C compiler there,
+  # and WebView2 ships with Windows. It isn't signed, so SmartScreen asks
+  # before the first start; the readme says what to do.
+  windows:
+    runs-on: windows-latest
+    defaults:
+      run:
+        shell: bash
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version: stable
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Test
+        run: go test ./internal/...
+
+      - name: Install Wails CLI
+        run: go install github.com/wailsapp/wails/v2/cmd/wails@latest
+
+      - name: Set the app version
+        if: startsWith(github.ref, 'refs/tags/v')
+        run: |
+          jq --arg v "${VERSION#v}" '.info.productVersion = $v' wails.json > wails.tmp && mv wails.tmp wails.json
+
+      # The icon is the committed build/windows/icon.ico, rendered by scripts/icon.sh.
+      - name: Build
+        run: wails build -platform windows/amd64 -ldflags "-X main.version=$VERSION"
+
+      - name: Package
+        run: |
+          mkdir -p dist
+          cp build/bin/shelf.exe dist/shelf-windows-x86_64.exe
+          cd dist && sha256sum shelf-windows-x86_64.exe > shelf-windows-x86_64.exe.sha256
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: shelf-windows
+          path: dist/*
+          if-no-files-found: error
+
   release:
     if: startsWith(github.ref, 'refs/tags/v')
-    needs: [arch, appimage, macos]
+    needs: [arch, appimage, macos, windows]
     runs-on: ubuntu-latest
     permissions:
       contents: write

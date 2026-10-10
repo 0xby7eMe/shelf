@@ -2,10 +2,14 @@ package library
 
 import (
 	"reflect"
+	"runtime"
 	"testing"
 )
 
 func TestCleanEnv(t *testing.T) {
+	if runtime.GOOS != "linux" {
+		t.Skip("AppImages are Linux only")
+	}
 	env := []string{
 		"HOME=/home/u",
 		"APPDIR=/tmp/.mount_x",

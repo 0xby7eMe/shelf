@@ -147,8 +147,8 @@ function Body({
 	const isUbisoft = game.source === "ubisoft"
 	const isGog = game.source === "gog"
 	const platform = usePlatform()
-	// GOG's installers are Windows programs, run through Proton, which macOS doesn't have.
-	const noGogInstall = isGog && !platform.proton
+	// GOG's installers are Windows programs: Linux runs them through Proton, which macOS doesn't have.
+	const noGogInstall = isGog && !platform.windowsGames
 	const battleye = useBattlEyeRuntime()
 	const needsInstall = (isEpic || isGog || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")
@@ -285,7 +285,7 @@ function Body({
 									</>
 								)}
 							</button>
-							{isEpic && game.installed && game.updateAvailable && (
+							{(isEpic || isGog) && game.installed && game.updateAvailable && (
 								<button
 									onClick={() => epicActions.update(game)}
 									disabled={running}
@@ -373,7 +373,7 @@ function Body({
 					)}
 				</Reveal>
 
-				{game.source === "steam" && (
+				{(game.source === "steam" || isGog) && (
 					<Reveal i={6}>
 						<GameAchievements game={game} />
 					</Reveal>
@@ -403,7 +403,7 @@ function Body({
 					</Reveal>
 				)}
 
-				{isEpic && game.installed && (proton || game.version) && (
+				{(isEpic || isGog) && game.installed && (proton || game.version) && (
 					<Reveal i={6}>
 						<p className="text-[11px] text-white/30">
 							{[game.version && `Version ${game.version}`, proton && `Runs with ${proton}`]

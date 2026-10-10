@@ -28,7 +28,8 @@ export const SECTIONS: { id: SettingsSection; label: string; icon: React.Compone
 	{ id: "about", label: "About", icon: Info },
 ]
 
-// The sections this system has: the Desktop page needs freedesktop menus, so it is Linux only.
+// The sections this system has: the Desktop page needs freedesktop menus or
+// Windows' Start menu, so macOS goes without.
 export function sectionsFor(p: main.Platform) {
 	return SECTIONS.filter((s) => s.id !== "desktop" || p.desktop)
 }

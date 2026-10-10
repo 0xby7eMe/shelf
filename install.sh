@@ -5,7 +5,7 @@
 #
 # Installs the latest release for your user (no root needed): the plain binary
 # on Arch and its relatives, the AppImage on other Linux systems, and Shelf.app
-# in ~/Applications on macOS.
+# in ~/Applications on macOS. Windows has install.ps1.
 #
 # Options (pass them after `bash -s --`):
 #   --version vX.Y.Z   install that release instead of the latest
@@ -297,9 +297,15 @@ install_shelf() {
 		return
 	fi
 
+	case $(uname -s) in
+	MINGW* | MSYS* | CYGWIN*)
+		die "on Windows, install from PowerShell: irm https://raw.githubusercontent.com/$REPO/main/install.ps1 | iex"
+		;;
+	esac
+
 	need tar
 	need sha256sum
-	[ "$(uname -s)" = Linux ] || die "Shelf runs on Linux and macOS"
+	[ "$(uname -s)" = Linux ] || die "Shelf runs on Linux, macOS and Windows"
 	case $(uname -m) in
 	x86_64 | amd64) ;;
 	*) die "only x86_64 builds are published (this is $(uname -m))" ;;

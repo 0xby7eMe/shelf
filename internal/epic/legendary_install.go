@@ -38,8 +38,19 @@ func legendaryAsset(goos, goarch string) (string, bool) {
 		return "legendary_linux_" + arch, true
 	case "darwin":
 		return "legendary_macOS_" + arch, true
+	case "windows":
+		return "legendary_windows_" + arch + ".exe", true
 	}
 	return "", false
+}
+
+// legendaryBinName is what the downloaded legendary is called: Windows only
+// runs programs that end in .exe.
+func legendaryBinName(goos string) string {
+	if goos == "windows" {
+		return "legendary.exe"
+	}
+	return "legendary"
 }
 
 // legendaryBinDir is where Shelf keeps the legendary it downloaded.
@@ -138,7 +149,8 @@ func (m *Manager) installLegendary(ctx context.Context, goos, goarch string, rep
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		return "", err
 	}
-	tmp, err := os.CreateTemp(dir, ".legendary-*")
+	ext := filepath.Ext(legendaryBinName(goos))
+	tmp, err := os.CreateTemp(dir, ".legendary-*"+ext)
 	if err != nil {
 		return "", err
 	}
@@ -201,7 +213,7 @@ func (m *Manager) installLegendary(ctx context.Context, goos, goarch string, rep
 		return "", err
 	}
 
-	if err := os.Rename(tmp.Name(), filepath.Join(dir, "legendary")); err != nil {
+	if err := os.Rename(tmp.Name(), filepath.Join(dir, legendaryBinName(goos))); err != nil {
 		return "", err
 	}
 	return rel.Tag, nil
@@ -211,7 +223,9 @@ func (m *Manager) installLegendary(ctx context.Context, goos, goarch string, rep
 func runsLegendary(ctx context.Context, path string) error {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	out, err := exec.CommandContext(ctx, path, "--version").CombinedOutput()
+	cmd := exec.CommandContext(ctx, path, "--version")
+	hideConsole(cmd)
+	out, err := cmd.CombinedOutput()
 	if err != nil || !bytes.Contains(bytes.ToLower(out), []byte("legendary")) {
 		return fmt.Errorf("the downloaded legendary doesn't start: %s", tail(strings.TrimSpace(string(out))+" "+fmt.Sprint(err), 200))
 	}

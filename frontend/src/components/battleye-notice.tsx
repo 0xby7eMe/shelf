@@ -2,12 +2,14 @@ import { Download, ShieldAlert } from "lucide-react"
 
 import { library } from "../../wailsjs/go/models"
 import type { useBattlEyeRuntime } from "@/lib/use-battleye"
+import { platformNow } from "@/lib/platform"
 
 type BattlEye = ReturnType<typeof useBattlEyeRuntime>
 
 /** Whether a game's page should warn about the missing BattlEye runtime. */
 export function needsBattlEyeNotice(game: library.Game, be: BattlEye): boolean {
-	return game.antiCheat === "BattlEye" && game.installed && !!be.runtime && !be.runtime.installed
+	// Only Proton needs the runtime; Windows runs BattlEye itself.
+	return platformNow().proton && game.antiCheat === "BattlEye" && game.installed && !!be.runtime && !be.runtime.installed
 }
 
 // On the page of a game that uses BattlEye, when the runtime it needs isn't

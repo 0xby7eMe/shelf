@@ -6,6 +6,7 @@ import {
 	EpicQueueMove,
 	EpicSetQueuePaused,
 	EpicUpdate,
+	GogUpdate,
 } from "../../../wailsjs/go/main/App"
 import { epic, library } from "../../../wailsjs/go/models"
 import { Bar, IconButton, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
@@ -23,7 +24,11 @@ export function DownloadsSection({ queue, games }: Props) {
 		[games]
 	)
 	const outdated = games.filter(
-		(g) => g.source === "epic" && g.installed && g.updateAvailable && !queue.jobs.some((j) => j.appName === g.externalId)
+		(g) =>
+			(g.source === "epic" || g.source === "gog") &&
+			g.installed &&
+			g.updateAvailable &&
+			!queue.jobs.some((j) => j.appName === g.externalId)
 	)
 	const queuedCount = queue.jobs.filter((j) => j.state === "queued").length
 
@@ -32,7 +37,8 @@ export function DownloadsSection({ queue, games }: Props) {
 	}
 
 	function updateAll() {
-		for (const g of outdated) EpicUpdate(g.externalId).catch((e) => fail(`update ${g.name}`, e))
+		for (const g of outdated)
+			(g.source === "gog" ? GogUpdate(g.externalId) : EpicUpdate(g.externalId)).catch((e) => fail(`update ${g.name}`, e))
 	}
 
 	return (

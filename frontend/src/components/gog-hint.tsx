@@ -3,6 +3,7 @@ import { Settings } from "lucide-react"
 
 import { GetGogAccount } from "../../wailsjs/go/main/App"
 import { epic } from "../../wailsjs/go/models"
+import { platformNow } from "@/lib/platform"
 
 // Shown in place of the library when the GOG filter has nothing to list.
 export function GogHint({ onSettings }: { onSettings: () => void }) {
@@ -20,7 +21,9 @@ export function GogHint({ onSettings }: { onSettings: () => void }) {
 			<p className="text-sm text-muted-foreground">
 				{account.loggedIn
 					? "Your GOG library is still loading, or the account has no games. Refresh it from the GOG tab."
-					: "Sign in to GOG once and your whole GOG library appears here, ready to install and play through Proton."}
+					: platformNow().proton
+						? "Sign in to GOG once and your whole GOG library appears here, ready to install and play through Proton."
+						: "Sign in to GOG once and your whole GOG library appears here, ready to install and play."}
 			</p>
 			<div className="flex justify-center pt-1">
 				<button

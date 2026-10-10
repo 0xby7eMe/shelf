@@ -17,7 +17,6 @@ import (
 	"regexp"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"shelf/internal/library"
@@ -137,6 +136,17 @@ func gogFolderName(title, key string) string {
 	return name
 }
 
+// gogSetupArgs are the Inno Setup switches that install a game without a
+// window into dir, logging to log. Both are paths as the installer's Windows
+// sees them.
+func gogSetupArgs(dir, log string) []string {
+	return []string{
+		"/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/NOICONS",
+		"/DIR=" + dir,
+		"/LOG=" + log,
+	}
+}
+
 // winPath is how Wine sees a Linux path: through drive Z:.
 func winPath(p string) string { return `Z:` + strings.ReplaceAll(p, "/", `\`) }
 
@@ -145,7 +155,7 @@ func gogInfoFile(dir, key string) string {
 	return filepath.Join(dir, "goggame-"+strings.TrimPrefix(key, "gog-")+".info")
 }
 
-// GogInstall downloads a game's Windows installer and runs it through Proton.
+// GogInstall downloads a game's Windows installer and runs it, through Proton on Linux.
 // It waits its turn in the downloads queue like any other install.
 func (m *Manager) GogInstall(key string) error {
 	if macOS {
@@ -164,7 +174,7 @@ func (m *Manager) GogInstall(key string) error {
 	if !ok {
 		return fmt.Errorf("this game isn't in your GOG library")
 	}
-	if _, ok := resolveProton(m.settings.get().ProtonPath); !ok {
+	if _, ok := resolveProton(m.settings.get().ProtonPath); useProton && !ok {
 		return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
 	}
 	base := m.settings.get().InstallDir
@@ -193,18 +203,30 @@ func (m *Manager) GogInstall(key string) error {
 	return m.enqueue(job, true)
 }
 
-// runGogInstall does the work of an install: download, check, run the installer, record.
+// runGogInstall does the work of an install: pick a folder, then download and
+// run the installer into it.
 func (m *Manager) runGogInstall(ctx context.Context, job *installJob, game gogProduct, base string) error {
 	key := game.key()
-	var details gogProductDetails
-	if err := m.gogGet(ctx, fmt.Sprintf("%s/products/%d?expand=downloads", gogAPIBase, game.ID), false, &details); err != nil {
+	dir := filepath.Join(base, gogFolderName(game.Title, key))
+	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
+		if _, err := os.Stat(gogInfoFile(dir, key)); err != nil {
+			// Something else lives there already; don't install over it.
+			dir = filepath.Join(base, gogFolderName(game.Title, key)+" ("+key+")")
+		}
+	}
+	return m.runGogInstaller(ctx, job, KindInstall, game, base, dir, time.Now().Unix())
+}
+
+// runGogInstaller downloads the current installer, checks it, runs it into
+// dir and records the game. An update is the same thing over the old folder:
+// GOG's installers replace what an older version left there.
+func (m *Manager) runGogInstaller(ctx context.Context, job *installJob, kind string, game gogProduct, base, dir string, installedAt int64) error {
+	key := game.key()
+	inst, err := m.gogCurrentInstaller(ctx, game.ID)
+	if err != nil {
 		return err
 	}
-	inst, ok := pickGogInstaller(details.Downloads.Installers)
-	if !ok {
-		return fmt.Errorf("GOG has no Windows installer for this game")
-	}
-	m.logf(KindInstall, key, "installer %s (%s, version %s, %d files)", inst.ID, inst.Language, inst.Version, len(inst.Files))
+	m.logf(kind, key, "installer %s (%s, version %s, %d files)", inst.ID, inst.Language, inst.Version, len(inst.Files))
 
 	// The download sits beside the games, so it is on the same disk.
 	dlDir := filepath.Join(base, ".shelf-downloads", key)
@@ -231,19 +253,11 @@ func (m *Manager) runGogInstall(ctx context.Context, job *installJob, game gogPr
 		return fmt.Errorf("the download has no installer program in it")
 	}
 
-	dir := filepath.Join(base, gogFolderName(game.Title, key))
-	if entries, err := os.ReadDir(dir); err == nil && len(entries) > 0 {
-		if _, err := os.Stat(gogInfoFile(dir, key)); err != nil {
-			// Something else lives there already; don't install over it.
-			dir = filepath.Join(base, gogFolderName(game.Title, key)+" ("+key+")")
-		}
-	}
-
 	job.mu.Lock()
 	job.p.Percent, job.p.ETA, job.p.Indeterminate, job.p.Speed = 100, "", true, "Running the installer"
 	job.mu.Unlock()
 	m.send("epic:install", job.snapshot())
-	if err := m.runGogSetup(ctx, key, setup, dir); err != nil {
+	if err := m.runGogSetup(ctx, kind, key, setup, dir); err != nil {
 		return err
 	}
 	if _, err := os.Stat(gogInfoFile(dir, key)); err != nil {
@@ -256,16 +270,30 @@ func (m *Manager) runGogInstall(ctx context.Context, job *installJob, game gogPr
 		InstallPath: dir,
 		Version:     inst.Version,
 		InstallSize: size,
-		InstalledAt: time.Now().Unix(),
+		InstalledAt: installedAt,
 	}); err != nil {
 		return err
 	}
+	setGogLatest(key, inst.Version)
 	// The installer files aren't needed any more.
 	if err := os.RemoveAll(dlDir); err != nil {
-		m.logf(KindInstall, key, "couldn't remove the downloaded installer: %v", err)
+		m.logf(kind, key, "couldn't remove the downloaded installer: %v", err)
 	}
-	m.logf(KindInstall, key, "installed to %s", dir)
+	m.logf(kind, key, "installed version %s to %s", inst.Version, dir)
 	return nil
+}
+
+// gogCurrentInstaller asks GOG's product API for the installer Shelf uses.
+func (m *Manager) gogCurrentInstaller(ctx context.Context, id int64) (gogInstaller, error) {
+	var details gogProductDetails
+	if err := m.gogGet(ctx, fmt.Sprintf("%s/products/%d?expand=downloads", gogAPIBase, id), false, &details); err != nil {
+		return gogInstaller{}, err
+	}
+	inst, ok := pickGogInstaller(details.Downloads.Installers)
+	if !ok {
+		return gogInstaller{}, fmt.Errorf("GOG has no Windows installer for this game")
+	}
+	return inst, nil
 }
 
 // gogProgress turns bytes downloaded into the queue's progress, speed and ETA.
@@ -494,7 +522,11 @@ func fileMD5(p string) (string, error) {
 
 // runGogSetup runs a GOG installer without any windows, into dir, inside the
 // game's own Proton prefix. GOG's installers are Inno Setup programs.
-func (m *Manager) runGogSetup(ctx context.Context, key, setup, dir string) error {
+func (m *Manager) runGogSetup(ctx context.Context, kind, key, setup, dir string) error {
+	if onWindows {
+		log := filepath.Join(filepath.Dir(setup), "setup.log")
+		return m.runInstaller(ctx, kind, key, setup, gogSetupArgs(dir, log), filepath.Dir(setup))
+	}
 	build, ok := resolveProton(m.settings.get().ProtonPath)
 	if !ok {
 		return fmt.Errorf("no Proton installation found")
@@ -503,16 +535,13 @@ func (m *Manager) runGogSetup(ctx context.Context, key, setup, dir string) error
 	if err := os.MkdirAll(prefix, 0o755); err != nil {
 		return err
 	}
-	args := []string{"run", setup,
-		"/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART", "/SP-", "/NOICONS",
-		"/DIR=" + winPath(dir),
-		"/LOG=" + winPath(filepath.Join(filepath.Dir(setup), "setup.log")),
-	}
+	log := winPath(filepath.Join(filepath.Dir(setup), "setup.log"))
+	args := append([]string{"run", setup}, gogSetupArgs(winPath(dir), log)...)
 	cmd := exec.Command(filepath.Join(build.Path, "proton"), args...)
 	cmd.Env = append(library.ChildEnv(), protonEnv(build, key, dir)...)
 	cmd.Env = append(cmd.Env, "PROTON_USE_XALIA=0")
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
-	m.logf(KindInstall, key, "proton: %s, prefix: %s", build.Name, prefix)
+	ownGroup(cmd)
+	m.logf(kind, key, "proton: %s, prefix: %s", build.Name, prefix)
 
 	// Cancelling stops the installer and everything it started in the prefix.
 	done := make(chan struct{})
@@ -521,14 +550,12 @@ func (m *Manager) runGogSetup(ctx context.Context, key, setup, dir string) error
 		select {
 		case <-ctx.Done():
 			stopPrefixProcesses(prefix)
-			if cmd.Process != nil {
-				_ = syscall.Kill(-cmd.Process.Pid, syscall.SIGKILL)
-			}
+			killGroup(cmd)
 		case <-done:
 		}
 	}()
 
-	if err := m.runLogged(cmd, KindInstall, key); err != nil {
+	if err := m.runLogged(cmd, kind, key); err != nil {
 		if ctx.Err() != nil {
 			return ctx.Err()
 		}
@@ -562,11 +589,24 @@ func (m *Manager) GogUninstall(key string) error {
 	// Only ever delete a folder that is plainly this game's.
 	dir := filepath.Clean(g.InstallPath)
 	home, _ := os.UserHomeDir()
-	if !filepath.IsAbs(dir) || dir == "/" || dir == home || dir == filepath.Clean(m.settings.get().InstallDir) {
+	volumeRoot := filepath.VolumeName(dir) + string(filepath.Separator)
+	if !filepath.IsAbs(dir) || dir == "/" || dir == volumeRoot || dir == home || dir == filepath.Clean(m.settings.get().InstallDir) {
 		return fmt.Errorf("refusing to delete %s", dir)
 	}
 	if _, err := os.Stat(gogInfoFile(dir, key)); err != nil {
 		return fmt.Errorf("%s doesn't look like this game's folder, so Shelf left it alone", dir)
+	}
+	if onWindows {
+		// The installer registered the game with Windows; its uninstaller
+		// takes that back. What it leaves behind goes with the folder.
+		if unins := filepath.Join(dir, "unins000.exe"); fileExists(unins) {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+			err := m.runInstaller(ctx, "uninstall", key, unins, []string{"/VERYSILENT", "/SUPPRESSMSGBOXES", "/NORESTART"}, dir)
+			cancel()
+			if err != nil {
+				m.logf("uninstall", key, "the game's uninstaller failed: %v", err)
+			}
+		}
 	}
 	if err := os.RemoveAll(dir); err != nil {
 		return err

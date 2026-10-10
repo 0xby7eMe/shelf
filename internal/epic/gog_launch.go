@@ -7,7 +7,6 @@ import (
 	"os/exec"
 	"path/filepath"
 	"strings"
-	"syscall"
 	"time"
 
 	"shelf/internal/library"
@@ -42,7 +41,8 @@ func relPath(dir, p string) (string, error) {
 	if p == "" {
 		return dir, nil
 	}
-	if filepath.IsAbs(p) || strings.Contains(p, ":") {
+	// A leading slash is rooted even where it isn't absolute, as on Windows.
+	if filepath.IsAbs(p) || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
 		return "", fmt.Errorf("unexpected path %q in the game's info file", p)
 	}
 	out := filepath.Join(dir, filepath.Clean(p))
@@ -96,7 +96,8 @@ func gogTarget(dir, key string) (gogLaunchTarget, error) {
 	return gogLaunchTarget{Exe: exe, Dir: work, Args: args}, nil
 }
 
-// GogLaunch starts an installed GOG game through Proton, in its own prefix.
+// GogLaunch starts an installed GOG game: on Linux through Proton, in its own
+// prefix, and on Windows as it is.
 func (m *Manager) GogLaunch(key string) error {
 	if macOS {
 		return errNeedsProton("Playing GOG games")
@@ -123,13 +124,15 @@ func (m *Manager) GogLaunch(key string) error {
 		return err
 	}
 	gs := m.games.get(key)
-	build, ok := m.protonFor(gs)
-	if !ok {
-		return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
-	}
-	wrapper, err := wrapperParts(gs, build)
-	if err != nil {
-		return err
+	var build ProtonBuild
+	var wrapper []string
+	if useProton {
+		if build, ok = m.protonFor(gs); !ok {
+			return fmt.Errorf("no Proton installation found. Install Proton through Steam or ProtonUp-Qt")
+		}
+		if wrapper, err = wrapperParts(gs, build); err != nil {
+			return err
+		}
 	}
 	env, err := parseEnv(gs.Env)
 	if err != nil {
@@ -144,17 +147,22 @@ func (m *Manager) GogLaunch(key string) error {
 		return err
 	}
 	prefix := prefixDir(key)
-	if err := os.MkdirAll(prefix, 0o755); err != nil {
-		return err
+	var cmd *exec.Cmd
+	if useProton {
+		if err := os.MkdirAll(prefix, 0o755); err != nil {
+			return err
+		}
+		args := append(append(append(wrapper[1:], target.Exe), target.Args...), extra...)
+		cmd = exec.Command(wrapper[0], args...)
+		cmd.Env = append(library.ChildEnv(), protonEnv(build, key, g.InstallPath)...)
+	} else {
+		cmd = exec.Command(target.Exe, append(target.Args, extra...)...)
+		cmd.Env = library.ChildEnv()
 	}
-
-	args := append(append(append(wrapper[1:], target.Exe), target.Args...), extra...)
-	cmd := exec.Command(wrapper[0], args...)
 	cmd.Dir = target.Dir
-	cmd.Env = append(library.ChildEnv(), protonEnv(build, key, g.InstallPath)...)
 	cmd.Env = append(cmd.Env, beEnv...)
 	cmd.Env = append(cmd.Env, env...) // the user's variables win
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ownGroup(cmd)
 
 	logf, _ := openLog(key)
 	out := &gameOutput{done: make(chan struct{})}
@@ -166,7 +174,9 @@ func (m *Manager) GogLaunch(key string) error {
 	}
 
 	m.logf("launch", key, "$ %s", strings.Join(cmd.Args, " "))
-	m.logf("launch", key, "proton: %s, prefix: %s", build.Name, prefix)
+	if useProton {
+		m.logf("launch", key, "proton: %s, prefix: %s", build.Name, prefix)
+	}
 	if err := cmd.Start(); err != nil {
 		if perr == nil {
 			pr.Close()
@@ -217,6 +227,9 @@ func (m *Manager) runningGog() []string {
 	if len(installed) == 0 {
 		return nil
 	}
+	if onWindows {
+		return m.runningGogWindows(installed)
+	}
 	prefixes := compatDataPaths()
 	m.mu.Lock()
 	defer m.mu.Unlock()
@@ -228,6 +241,24 @@ func (m *Manager) runningGog() []string {
 		if prefixes[prefixDir(key)] {
 			out = append(out, key)
 		}
+	}
+	return out
+}
+
+// runningGogWindows finds GOG games by their programs: anything running from
+// inside a game's folder is the game.
+func (m *Manager) runningGogWindows(installed map[string]gogInstall) []string {
+	folders := map[string]string{}
+	m.mu.Lock()
+	for key, g := range installed {
+		if _, busy := m.installs[key]; !busy && g.InstallPath != "" {
+			folders[g.InstallPath] = key
+		}
+	}
+	m.mu.Unlock()
+	var out []string
+	for key := range runningUnder(folders) {
+		out = append(out, key)
 	}
 	return out
 }

@@ -7,6 +7,7 @@ import {main} from '../models';
 import {epic} from '../models';
 import {achievements} from '../models';
 import {applog} from '../models';
+import {nearby} from '../models';
 import {sysmon} from '../models';
 import {desktop} from '../models';
 
@@ -102,6 +103,8 @@ export function GetLegendaryInstall():Promise<epic.ProtonInstallState>;
 
 export function GetLogs():Promise<Array<applog.Line>>;
 
+export function GetNearby():Promise<nearby.Snapshot>;
+
 export function GetNowPlaying():Promise<Array<library.Session>>;
 
 export function GetOrganization():Promise<library.Organization>;
@@ -189,6 +192,8 @@ export function SetFriendsConfig(arg1:string,arg2:Record<string, string>):Promis
 export function SetGameCollections(arg1:string,arg2:Array<string>):Promise<library.Organization>;
 
 export function SetGameTags(arg1:string,arg2:Array<string>):Promise<library.Organization>;
+
+export function SetNearbySettings(arg1:nearby.Settings):Promise<nearby.Snapshot>;
 
 export function SetSteamAPIKey(arg1:string):Promise<main.SteamAPIStatus>;
 

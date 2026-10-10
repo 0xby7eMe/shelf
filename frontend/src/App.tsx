@@ -18,7 +18,7 @@ import {
 	UbisoftUninstall,
 } from "../wailsjs/go/main/App"
 import { WindowControls } from "@/components/window-controls"
-import { library } from "../wailsjs/go/models"
+import { library, nearby } from "../wailsjs/go/models"
 import { GameCard } from "@/components/game-card"
 import { GameSheet, type EpicActions } from "@/components/game-sheet"
 import { Hero } from "@/components/hero"
@@ -28,12 +28,14 @@ import { cn } from "@/lib/utils"
 import { EventsOn, WindowToggleMaximise } from "../wailsjs/runtime/runtime"
 import { NowPlaying } from "@/components/now-playing"
 import { Shelf } from "@/components/shelf"
-import { Activity, Download, Gauge, RefreshCw, Search, Settings, Share2, Shuffle, Terminal, Trophy, Users } from "lucide-react"
+import { Activity, Download, Gauge, RefreshCw, Search, Settings, Share2, Shuffle, Terminal, Trophy, Users, Wifi } from "lucide-react"
 import { AchievementsDialog } from "@/components/achievements-dialog"
 import { ActivityDialog } from "@/components/activity-dialog"
 import { FriendsDialog } from "@/components/friends-dialog"
+import { NearbyDialog } from "@/components/nearby-dialog"
 import { ShareCardDialog } from "@/components/share-card-dialog"
 import { useStats } from "@/lib/use-stats"
+import { useNearby } from "@/lib/use-nearby"
 import { setIntegrationTab, type Integration } from "@/lib/integrations"
 import { useEpic } from "@/lib/use-epic"
 import { toast } from "@/lib/toast"
@@ -80,6 +82,9 @@ function App() {
 	const [activityOpen, setActivityOpen] = useState(false)
 	const [shareOpen, setShareOpen] = useState(false)
 	const [friendsOpen, setFriendsOpen] = useState(false)
+	const [nearbyOpen, setNearbyOpen] = useState(false)
+	const nearbyState = useNearby()
+	const nearbyCount = nearbyState.snapshot?.peers.length ?? 0
 	const [achievementsOpen, setAchievementsOpen] = useState(false)
 	const [settings, setSettings] = useState<SettingsSection | null>(null)
 	const settingsRef = useRef(settings)
@@ -130,6 +135,19 @@ function App() {
 		refresh()
 		})
 	}, [refresh])
+
+	// Someone opened Shelf on the same network.
+	useEffect(
+		() =>
+			EventsOn("nearby:found", (p: nearby.PeerInfo) => {
+				const n = p.common?.length ?? 0
+				toast.info(`${p.name} is on your network`, {
+					description: n === 0 ? "No games in common yet." : `${n} ${n === 1 ? "game" : "games"} in common.`,
+					action: { label: "Show", onClick: () => setNearbyOpen(true) },
+				})
+			}),
+		[]
+	)
 
 	useEffect(() => {
 		if (!games) return
@@ -393,6 +411,12 @@ function App() {
 		},
 		{ id: "activity", label: "Activity", icon: <Activity className="size-3.5" />, onSelect: () => setActivityOpen(true) },
 		{ id: "friends", label: "Friends", icon: <Users className="size-3.5" />, onSelect: () => setFriendsOpen(true) },
+		{
+			id: "nearby",
+			label: nearbyCount > 0 ? `Nearby · ${nearbyCount}` : "Nearby",
+			icon: <Wifi className="size-3.5" />,
+			onSelect: () => setNearbyOpen(true),
+		},
 		{ id: "achievements", label: "Achievements", icon: <Trophy className="size-3.5" />, onSelect: () => setAchievementsOpen(true) },
 		{ id: "share", label: "Share card", icon: <Share2 className="size-3.5" />, onSelect: () => setShareOpen(true) },
 		...(monitorOn
@@ -640,6 +664,16 @@ function App() {
 				games={games ?? NO_GAMES}
 				onSelect={setSelected}
 				onSetup={(source) => openIntegration(source as Integration)}
+			/>
+
+			<NearbyDialog
+				open={nearbyOpen}
+				onOpenChange={setNearbyOpen}
+				games={games ?? NO_GAMES}
+				snapshot={nearbyState.snapshot}
+				error={nearbyState.error}
+				onSave={nearbyState.save}
+				onSelect={setSelected}
 			/>
 
 			<AchievementsDialog

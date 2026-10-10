@@ -141,6 +141,7 @@ make install
 - **Activity:** a play-time heatmap and weekly stats, recorded while Shelf is running
 - **Share card:** an image of your library to post anywhere, with your hours, counts per store and most played games (see [Share card](#share-card))
 - **Friends:** who is online and what they are playing, for the launchers that allow it (see [Friends](#friends))
+- **Nearby:** the games you have in common with anyone running Shelf on the same network (see [Nearby](#nearby))
 - **Achievements:** your progress per game and across the library, for the launchers that allow it (see [Achievements](#achievements))
 - **Appearance:** choose the poster size and the interface size, which home sections show, and reduce motion (see [Appearance](#appearance))
 - **Update notifier:** Shelf tells you when a new release is out and can install it for you (see [Updates](#updates))
@@ -332,6 +333,12 @@ Epic and Ubisoft are listed in the window with the reason, so you know why they 
 
 New launchers plug in by implementing one small `Provider` interface in `internal/friends`; the window draws their setup form from the fields they declare.
 
+## Nearby
+
+When someone else opens Shelf on the same network, Shelf says so and **More, Nearby** shows the games you both have, with the ones installed on both sides first. With more than one other Shelf around, an **Everyone** tab lists the games all of you share. A game counts once even if you have it in two stores, so your Steam copy of a game matches someone's Epic copy. Pick a game to open its sheet.
+
+Each Shelf announces itself over mDNS and shares only its list of games: names, stores and what is installed. It answers only addresses on the local network. Switch it off, or change the name the others see (your account's name by default), at the bottom of the Nearby window. With a firewall on, allow UDP port 5353 (mDNS) and TCP port 47630.
+
 ## Achievements
 
 **More, Achievements** shows how far you are across your library: achievements unlocked and available, games you completed, and the games closest to 100%. Open a Steam or GOG game and its sheet lists that game's achievements: the newest unlocks first, then what is still locked, easiest first, each with how many players have it. Shelf scans your played games in the background, a few at a time, and keeps the results for half a day so the window opens instantly.
@@ -438,11 +445,14 @@ go test ./internal/...
 
 Finished sessions of every store feed the activity heatmap.
 
+**Nearby.** Every Shelf registers a `_shelf._tcp` DNS-SD service over mDNS, with a stable random id in its TXT record, and serves its game list as JSON on TCP port 47630 (or any free port) at `/shelf/nearby/v1/library`. The others browse for the service, fetch that list, and check it again every 20 seconds with an ETag, so a peer that closes Shelf drops off after two missed checks. Shelf announces itself again when the computer's network addresses change. Games match by store and id, or by their name reduced to letters and digits.
+
 | Data | Location |
 | --- | --- |
 | Favorites | `~/.config/shelf/favorites.json` |
 | Play sessions | `~/.config/shelf/sessions.json` |
 | Steam Web API key | `~/.config/shelf/steam.json` |
+| Nearby settings and this Shelf's id | `~/.config/shelf/nearby.json` |
 | Update settings and the last release seen | `~/.config/shelf/updates.json` |
 | Achievement progress cache | `~/.cache/shelf/achievements.json` |
 | Epic settings | `~/.config/shelf/epic.json` and `epic-games.json` (per game) |

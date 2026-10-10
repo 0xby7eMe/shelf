@@ -186,6 +186,10 @@ export function GetLogs() {
   return window['go']['main']['App']['GetLogs']();
 }
 
+export function GetNearby() {
+  return window['go']['main']['App']['GetNearby']();
+}
+
 export function GetNowPlaying() {
   return window['go']['main']['App']['GetNowPlaying']();
 }
@@ -360,6 +364,10 @@ export function SetGameCollections(arg1, arg2) {
 
 export function SetGameTags(arg1, arg2) {
   return window['go']['main']['App']['SetGameTags'](arg1, arg2);
+}
+
+export function SetNearbySettings(arg1) {
+  return window['go']['main']['App']['SetNearbySettings'](arg1);
 }
 
 export function SetSteamAPIKey(arg1) {

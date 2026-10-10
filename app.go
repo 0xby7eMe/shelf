@@ -21,6 +21,7 @@ import (
 	"shelf/internal/epic"
 	"shelf/internal/friends"
 	"shelf/internal/library"
+	"shelf/internal/nearby"
 	"shelf/internal/steamapi"
 	"shelf/internal/sysmon"
 	"shelf/internal/update"
@@ -41,6 +42,7 @@ type App struct {
 	steam   *steamapi.Client
 	ach     *achievements.Hub
 	updater *update.Updater
+	nearby  *nearby.Service
 
 	desk *desktop.Store
 	tray *desktop.Tray
@@ -92,6 +94,7 @@ func NewApp() *App {
 		achievements.NewUnsupported("ubisoft", "Ubisoft", "Ubisoft Connect has no public way for other apps to read your achievements."),
 		achievements.NewGOG(ep),
 	)
+	a.nearby = nearby.New(nearby.NewStore(nearby.DefaultPath()), a.emitEvent)
 	return a
 }
 
@@ -112,6 +115,7 @@ func (a *App) startup(ctx context.Context) {
 	})
 
 	a.epic.Start(ctx)
+	a.nearby.Start(ctx)
 	a.startDesktop()
 	go a.watchUpdates(ctx)
 
@@ -362,6 +366,24 @@ func (a *App) GetGameAchievements(id string) (achievements.Detail, error) {
 	return a.ach.Detail(ctx, string(store), ext)
 }
 
+// GetNearby is the other Shelfs on your network and the games you have in common.
+func (a *App) GetNearby() nearby.Snapshot { return a.nearby.Snapshot() }
+
+// SetNearbySettings switches finding other Shelfs on or off, and sets the name they see.
+func (a *App) SetNearbySettings(s nearby.Settings) (nearby.Snapshot, error) {
+	return a.nearby.SetSettings(s)
+}
+
+// nearbyGames is what other Shelfs learn about your library: store, id, name
+// and whether it is installed.
+func nearbyGames(games []library.Game) []nearby.Game {
+	out := make([]nearby.Game, 0, len(games))
+	for _, g := range games {
+		out = append(out, nearby.Game{Source: string(g.Source), ID: g.ExternalID, Name: g.Name, Installed: g.Installed})
+	}
+	return out
+}
+
 // Version is the release this copy was built from, or "dev".
 func (a *App) Version() string { return version }
 
@@ -477,6 +499,7 @@ func (a *App) GetGames() []library.Game {
 	a.mu.Unlock()
 
 	go a.syncDesktop(games)
+	a.nearby.SetLibrary(nearbyGames(games))
 
 	return games
 }
@@ -527,6 +550,7 @@ func (a *App) OpenStorePage(id string) error {
 }
 
 func (a *App) shutdown(ctx context.Context) {
+	a.nearby.Stop()
 	if a.tray != nil {
 		a.tray.Stop()
 	}

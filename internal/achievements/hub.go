@@ -266,10 +266,12 @@ func (h *Hub) run(ctx context.Context, todo []GameRef) {
 	close(jobs)
 	wg.Wait()
 
+	// Saved before the scan counts as over, so whoever waits for it finds
+	// the results on disk too.
+	h.save()
 	h.mu.Lock()
 	h.scanning = false
 	h.mu.Unlock()
-	h.save()
 	tick(true)
 }
 

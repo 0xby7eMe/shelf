@@ -11,6 +11,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -306,7 +307,7 @@ func TestGogLoginAndLibrary(t *testing.T) {
 		t.Fatalf("account = %+v", acc)
 	}
 	st, err := os.Stat(gogTokenPath())
-	if err != nil || st.Mode().Perm() != 0o600 {
+	if err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o600) {
 		t.Fatalf("the login must be private: %v %v", st.Mode(), err)
 	}
 

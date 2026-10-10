@@ -269,6 +269,9 @@ func linuxOnly(t *testing.T) {
 }
 
 func TestWindowsInstallStepsAsideForTheNewProgram(t *testing.T) {
+	if runtime.GOARCH != "amd64" {
+		t.Skip("releases are only built for x86_64")
+	}
 	newExe := append([]byte("MZ"), []byte("new shelf program")...)
 	srv := newServer(t, "v0.5.0", map[string][]byte{
 		windowsAsset:             newExe,

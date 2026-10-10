@@ -69,7 +69,7 @@ func (r *recorder) waitFinal(t *testing.T, kind string) Progress {
 }
 
 func TestJobsAndSaves(t *testing.T) {
-	unixOnly(t)
+	linuxOnly(t) // saves are found in the game's Proton prefix
 	root := t.TempDir()
 	games := filepath.Join(root, "games")
 	bin := filepath.Join(root, "bin")

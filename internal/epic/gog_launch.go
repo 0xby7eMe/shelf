@@ -41,7 +41,8 @@ func relPath(dir, p string) (string, error) {
 	if p == "" {
 		return dir, nil
 	}
-	if filepath.IsAbs(p) || strings.Contains(p, ":") {
+	// A leading slash is rooted even where it isn't absolute, as on Windows.
+	if filepath.IsAbs(p) || strings.HasPrefix(p, "/") || strings.Contains(p, ":") {
 		return "", fmt.Errorf("unexpected path %q in the game's info file", p)
 	}
 	out := filepath.Join(dir, filepath.Clean(p))

@@ -8,6 +8,7 @@ import (
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync/atomic"
 	"testing"
@@ -44,7 +45,8 @@ func TestKeyIsSavedPrivately(t *testing.T) {
 	if c.Key() != "SECRET" || loadKey(c.path) != "SECRET" {
 		t.Errorf("key = %q, saved = %q", c.Key(), loadKey(c.path))
 	}
-	if st, _ := os.Stat(c.path); st.Mode().Perm() != 0o600 {
+	// Windows has no Unix file modes; the file sits in the user's own AppData.
+	if st, _ := os.Stat(c.path); runtime.GOOS != "windows" && st.Mode().Perm() != 0o600 {
 		t.Errorf("mode = %v", st.Mode().Perm())
 	}
 	if err := c.SetKey(""); err != nil {

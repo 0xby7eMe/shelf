@@ -497,6 +497,7 @@ func waitFor(t *testing.T, games, want string) string {
 
 // Older Connect versions kept their records next to the program.
 func TestConnectDataDirLegacy(t *testing.T) {
+	linuxOnly(t)
 	ubisoftEnv(t)
 	legacy := filepath.Join(connectDir(), "cache", "configuration")
 	os.MkdirAll(legacy, 0o755)
@@ -763,6 +764,7 @@ func TestUbisoftInstallSizeIsMeasuredInTheBackground(t *testing.T) {
 }
 
 func TestPrefixesCountUbisoftGamesOnTheirOwn(t *testing.T) {
+	linuxOnly(t)
 	m, _, _, gameDir := installedEnv(t, true)
 	os.WriteFile(filepath.Join(gameDir, "DataPC.forge"), make([]byte, 8<<20), 0o644)
 	// Something of Connect's own, outside the game.

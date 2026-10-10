@@ -3,6 +3,7 @@ package epic
 import (
 	"os"
 	"path/filepath"
+	"runtime"
 	"strings"
 	"sync"
 	"testing"
@@ -124,7 +125,7 @@ func TestGogGameServices(t *testing.T) {
 		t.Fatalf("achievements = %+v, client %q, %v", out, asked, err)
 	}
 	st, err := os.Stat(gogClientsPath())
-	if err != nil || st.Mode().Perm() != 0o600 {
+	if err != nil || (runtime.GOOS != "windows" && st.Mode().Perm() != 0o600) {
 		t.Fatalf("game clients are kept privately: %v", err)
 	}
 

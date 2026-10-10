@@ -266,7 +266,7 @@ function App() {
 
 	const prefs = usePrefs()
 	const platform = usePlatform()
-	// The monitor reads /proc and /sys, so it is Linux only, whatever was saved.
+	// The monitor needs /proc and /sys or Windows' counters, so not macOS, whatever was saved.
 	const monitorOn = prefs.hardwareMonitor && platform.hardwareMonitor
 	monitorEnabledRef.current = monitorOn
 	// Switching the monitor off closes it.
@@ -379,8 +379,12 @@ function App() {
 				description: ubisoft
 					? "Ubisoft Connect removes the game files and asks you to confirm in its own window. Your saves and your Ubisoft library are kept."
 					: g.source === "gog"
-						? "The game's folder is deleted from this PC, including any saves the game keeps there. Saves in its Proton prefix are kept, and you can install it again any time."
-						: "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time.",
+						? platform.proton
+							? "The game's folder is deleted from this PC, including any saves the game keeps there. Saves in its Proton prefix are kept, and you can install it again any time."
+							: "The game's folder is deleted from this PC, including any saves the game keeps there. You can install it again any time."
+						: platform.proton
+							? "The game files are removed from this PC. Your saves and Proton prefix are kept, and you can install it again any time."
+							: "The game files are removed from this PC. Your saves are kept, and you can install it again any time.",
 				confirmLabel: "Uninstall",
 				destructive: true,
 				game: { name: g.name, cover: g.cover },

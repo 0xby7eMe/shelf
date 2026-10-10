@@ -941,6 +941,7 @@ export namespace main {
 	}
 	export class Platform {
 	    os: string;
+	    windowsGames: boolean;
 	    proton: boolean;
 	    hardwareMonitor: boolean;
 	    desktop: boolean;
@@ -953,6 +954,7 @@ export namespace main {
 	    constructor(source: any = {}) {
 	        if ('string' === typeof source) source = JSON.parse(source);
 	        this.os = source["os"];
+	        this.windowsGames = source["windowsGames"];
 	        this.proton = source["proton"];
 	        this.hardwareMonitor = source["hardwareMonitor"];
 	        this.desktop = source["desktop"];

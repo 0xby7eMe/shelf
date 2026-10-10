@@ -11,6 +11,7 @@ import (
 func TestSounds(t *testing.T) {
 	home := t.TempDir()
 	t.Setenv("HOME", home)
+	t.Setenv("USERPROFILE", home) // where Windows looks
 	steam := steamRootCandidates(home)[0]
 	os.MkdirAll(filepath.Join(steam, "steamapps"), 0o755)
 	os.MkdirAll(filepath.Join(steam, "steamui", "sounds"), 0o755)

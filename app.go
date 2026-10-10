@@ -6,11 +6,9 @@ import (
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
@@ -116,6 +114,7 @@ func (a *App) startup(ctx context.Context) {
 
 	a.epic.Start(ctx)
 	a.nearby.Start(ctx)
+	a.updater.RemoveReplaced()
 	a.startDesktop()
 	go a.watchUpdates(ctx)
 
@@ -424,14 +423,9 @@ func (a *App) RestartApp() error {
 	if err != nil {
 		return err
 	}
-	// The new copy has to wait for this one to let go of the single-instance lock.
-	cmd := exec.Command("sh", "-c", `sleep 2; exec "$0"`, path)
-	cmd.Env = library.ChildEnv()
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setsid: true}
-	if err := cmd.Start(); err != nil {
+	if err := relaunch(path); err != nil {
 		return err
 	}
-	go cmd.Wait()
 	a.quit()
 	return nil
 }

@@ -82,7 +82,9 @@ export function GogSection({ account, onAccountChange }: Props) {
 				hint={
 					platform.proton
 						? "Your GOG library, installed from GOG's own installers and run with Proton. Friends and achievements come from GOG Galaxy."
-						: "Your GOG library, with friends and achievements from GOG Galaxy."
+						: platform.windowsGames
+							? "Your GOG library, installed from GOG's own installers. Friends and achievements come from GOG Galaxy."
+							: "Your GOG library, with friends and achievements from GOG Galaxy."
 				}
 			/>
 
@@ -141,10 +143,10 @@ export function GogSection({ account, onAccountChange }: Props) {
 
 					{settings && <InstallSettings settings={settings} builds={builds} onChange={save} />}
 					<p className="px-1 text-xs text-white/40">
-						Shared with Epic games. Each game gets a Proton prefix of its own.
+						{platform.proton ? "Shared with Epic games. Each game gets a Proton prefix of its own." : "Shared with Epic games."}
 					</p>
 
-					{settings && platform.proton && (
+					{settings && platform.windowsGames && (
 						<Panel>
 							<ToggleRow
 								label="Check for updates automatically"

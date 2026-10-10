@@ -12,6 +12,7 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"strings"
 	"sync"
 	"time"
@@ -147,7 +148,7 @@ func findLegendary() (string, error) {
 	if home, err := os.UserHomeDir(); err == nil {
 		for _, p := range []string{
 			filepath.Join(home, ".local", "bin", "legendary"),
-			filepath.Join(configDir(), "bin", "legendary"),
+			filepath.Join(configDir(), "bin", legendaryBinName(runtime.GOOS)),
 		} {
 			if st, err := os.Stat(p); err == nil && !st.IsDir() {
 				return p, nil
@@ -171,6 +172,7 @@ func (m *Manager) command(ctx context.Context, args ...string) (*exec.Cmd, error
 	}
 	cmd := exec.CommandContext(ctx, bin, args...)
 	cmd.Env = append(library.ChildEnv(), "LEGENDARY_CONFIG_PATH="+m.cfgDir)
+	hideConsole(cmd)
 	return cmd, nil
 }
 

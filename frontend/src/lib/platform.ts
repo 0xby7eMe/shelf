@@ -5,7 +5,14 @@ import { main } from "../../wailsjs/go/models"
 
 // Which parts of Shelf work on this system. Until the backend has answered,
 // everything counts as available, as it is on Linux.
-const everything = new main.Platform({ os: "linux", proton: true, hardwareMonitor: true, desktop: true, cloudSaves: true })
+const everything = new main.Platform({
+	os: "linux",
+	windowsGames: true,
+	proton: true,
+	hardwareMonitor: true,
+	desktop: true,
+	cloudSaves: true,
+})
 
 let current = everything
 const listeners = new Set<() => void>()

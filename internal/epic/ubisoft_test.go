@@ -157,6 +157,7 @@ func TestStopPrefixProcesses(t *testing.T) {
 func TestUbisoftRenderingDefault(t *testing.T) {
 	cfg := t.TempDir()
 	t.Setenv("XDG_CONFIG_HOME", cfg)
+	t.Setenv("APPDATA", cfg) // where Windows looks
 	os.MkdirAll(filepath.Join(cfg, "shelf"), 0o755)
 	os.WriteFile(filepath.Join(cfg, "shelf", "epic.json"), []byte(`{"installDir":"/g"}`), 0o644)
 	if !newSettingsStore().get().UbisoftSoftwareRendering {
@@ -276,8 +277,11 @@ func ubiTestManager(t *testing.T) *Manager {
 	t.Helper()
 	root := t.TempDir()
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home")) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(root, "data")) // where Windows looks
 	t.Setenv("XDG_CACHE_HOME", filepath.Join(root, "cache"))
 	return New(library.NewHistory(), nil)
 }

@@ -7,6 +7,15 @@ import (
 	"shelf/internal/library"
 )
 
+// maxEntryName is the longest game name a menu entry or shortcut carries.
+const maxEntryName = 120
+
+// Entry is a game that gets an application menu entry.
+type Entry struct {
+	ID   string // "steam:620"
+	Name string
+}
+
 // LaunchURL is the link that starts a game: shelf://launch/steam:620.
 func LaunchURL(gameID string) string { return "shelf://launch/" + gameID }
 

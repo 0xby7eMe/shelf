@@ -28,6 +28,7 @@ import (
 const (
 	appImageAsset = "shelf-linux-x86_64.AppImage"
 	binaryAsset   = "shelf-arch-x86_64.tar.gz"
+	windowsAsset  = "shelf-windows-x86_64.exe"
 	maxDownload   = 400 << 20
 )
 
@@ -152,6 +153,7 @@ type Updater struct {
 
 	getenv func(string) string
 	exe    func() (string, error)
+	goos   string
 }
 
 // New makes an updater for the running version, such as "v0.4.1". A version
@@ -166,12 +168,13 @@ func New(current, repo string, store *Store) *Updater {
 		store:   store,
 		getenv:  os.Getenv,
 		exe:     os.Executable,
+		goos:    runtime.GOOS,
 	}
 }
 
 func (u *Updater) supported() bool {
 	_, ok := parseVersion(u.current)
-	return ok && (runtime.GOOS == "linux" || runtime.GOOS == "darwin")
+	return ok && (u.goos == "linux" || u.goos == "darwin" || u.goos == "windows")
 }
 
 // Status describes the current state without asking the network.
@@ -280,7 +283,7 @@ type installTarget struct {
 // target finds what to replace. If this copy can't update itself, the second
 // result says why, in words for the user.
 func (u *Updater) target() (installTarget, string) {
-	if runtime.GOOS == "darwin" {
+	if u.goos == "darwin" {
 		// An app bundle is swapped by hand: macOS checks it when it is first opened.
 		return installTarget{}, "Download the new Shelf.app from the release page and replace the old one."
 	}
@@ -288,7 +291,10 @@ func (u *Updater) target() (installTarget, string) {
 		return installTarget{}, "Releases are only built for x86_64."
 	}
 	t := installTarget{asset: binaryAsset}
-	if img := u.getenv("APPIMAGE"); img != "" {
+	if u.goos == "windows" {
+		t.asset = windowsAsset
+	}
+	if img := u.getenv("APPIMAGE"); img != "" && u.goos == "linux" {
 		t = installTarget{path: img, asset: appImageAsset}
 	} else {
 		exe, err := u.exe()
@@ -301,6 +307,9 @@ func (u *Updater) target() (installTarget, string) {
 		t.path = exe
 		if strings.HasPrefix(exe, "/usr/") || strings.HasPrefix(exe, "/opt/") {
 			return installTarget{}, "Shelf was installed by your package manager, so update it there."
+		}
+		if u.goos == "windows" && underProgramFiles(exe, u.getenv) {
+			return installTarget{}, "Shelf is installed for all users, so update it the way you installed it."
 		}
 	}
 	f, err := os.CreateTemp(filepath.Dir(t.path), ".shelf-write-test-*")
@@ -374,6 +383,15 @@ func (u *Updater) Install(ctx context.Context, progress func(done, total int64))
 			return "", err
 		}
 		defer os.Remove(newFile)
+	}
+	if u.goos == "windows" {
+		if err := checkPE(newFile); err != nil {
+			return "", err
+		}
+		if err := replaceRunning(newFile, t.path); err != nil {
+			return "", err
+		}
+		return r.Tag, nil
 	}
 	if err := checkELF(newFile); err != nil {
 		return "", err
@@ -510,6 +528,60 @@ func checkELF(file string) error {
 		return errors.New("the update isn't a program, so it was not installed")
 	}
 	return nil
+}
+
+// checkPE makes sure what is about to replace Shelf is a Windows program.
+func checkPE(file string) error {
+	f, err := os.Open(file)
+	if err != nil {
+		return err
+	}
+	defer f.Close()
+	magic := make([]byte, 2)
+	if _, err := io.ReadFull(f, magic); err != nil || string(magic) != "MZ" {
+		return errors.New("the update isn't a program, so it was not installed")
+	}
+	return nil
+}
+
+// replaceRunning puts newFile where the running program is. Windows won't
+// write over a program that runs, but it lets it be renamed, so the old one
+// steps aside and is deleted the next time Shelf starts.
+func replaceRunning(newFile, path string) error {
+	old := path + ".old"
+	os.Remove(old)
+	if err := os.Rename(path, old); err != nil {
+		return err
+	}
+	if err := os.Rename(newFile, path); err != nil {
+		os.Rename(old, path)
+		return err
+	}
+	return nil
+}
+
+// RemoveReplaced deletes the copy an update on Windows put aside, once the
+// new one runs.
+func (u *Updater) RemoveReplaced() {
+	if u.goos != "windows" {
+		return
+	}
+	if exe, err := u.exe(); err == nil {
+		os.Remove(exe + ".old")
+	}
+}
+
+// underProgramFiles reports whether a path is in a folder Windows keeps for
+// programs installed for every user, which needs administrator rights to change.
+func underProgramFiles(path string, getenv func(string) string) bool {
+	p := strings.ToLower(filepath.Clean(path))
+	for _, env := range []string{"ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"} {
+		dir := getenv(env)
+		if dir != "" && strings.HasPrefix(p, strings.ToLower(filepath.Clean(dir))+string(filepath.Separator)) {
+			return true
+		}
+	}
+	return false
 }
 
 // RelaunchPath is what to start again after an update.

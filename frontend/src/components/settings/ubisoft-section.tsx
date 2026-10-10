@@ -20,10 +20,13 @@ import { ToggleRow } from "@/components/toggle-row"
 import { BattlEyePanel } from "@/components/settings/battleye-panel"
 import { IconButton, Label, Panel, PillButton, SectionHeading } from "@/components/settings/ui"
 import { confirm } from "@/lib/confirm"
+import { usePlatform } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
 export function UbisoftSection() {
+	// On Linux Connect runs through Proton in a prefix of its own; on Windows it is an ordinary program.
+	const onProton = usePlatform().proton
 	const [status, setStatus] = useState<epic.UbisoftStatus | null>(null)
 	const [setup, setSetup] = useState<epic.UbisoftSetupState | null>(null)
 	const [proton, setProton] = useState<epic.ProtonInstallState | null>(null)
@@ -112,14 +115,22 @@ export function UbisoftSection() {
 		<div className="space-y-6">
 			<SectionHeading
 				title="Ubisoft"
-				hint="Your Ubisoft library, read from Ubisoft Connect. Games are installed and run through it with Proton."
+				hint={
+					onProton
+						? "Your Ubisoft library, read from Ubisoft Connect. Games are installed and run through it with Proton."
+						: "Your Ubisoft library, read from Ubisoft Connect. Games are installed and run through it."
+				}
 			/>
 
 			<Panel>
 				<Step done={ready} title="Set up Ubisoft Connect">
-					{status?.proton
-						? `Shelf downloads Ubisoft's installer and runs it quietly with ${status.proton}.`
-						: "No Proton found. Install GE-Proton (ProtonUp-Qt) or Proton through Steam."}
+					{!onProton
+						? ready
+							? "Ubisoft Connect is installed."
+							: "Shelf downloads Ubisoft's installer and installs Connect for you. Windows asks for permission while it does."
+						: status?.proton
+							? `Shelf downloads Ubisoft's installer and runs it quietly with ${status.proton}.`
+							: "No Proton found. Install GE-Proton (ProtonUp-Qt) or Proton through Steam."}
 				</Step>
 				{installing && (
 					<div className="space-y-1.5">
@@ -136,13 +147,13 @@ export function UbisoftSection() {
 				<div className="flex flex-wrap gap-2">
 					<PillButton
 						variant={ready ? "soft" : "solid"}
-						disabled={installing || !status?.proton}
+						disabled={installing || (onProton && !status?.proton)}
 						onClick={() => act(UbisoftSetup, "set up Ubisoft Connect")}
 					>
 						<RefreshCw className={cn("size-3.5", installing && "animate-spin")} />
 						{ready ? "Reinstall" : "Set up Ubisoft Connect"}
 					</PillButton>
-					{status && !status.protonIsGE && (
+					{onProton && status && !status.protonIsGE && (
 						<PillButton
 							variant={status.proton ? "soft" : "solid"}
 							disabled={fetchingProton}
@@ -153,7 +164,7 @@ export function UbisoftSection() {
 						</PillButton>
 					)}
 				</div>
-				{status && !status.protonIsGE && !fetchingProton && (
+				{onProton && status && !status.protonIsGE && !fetchingProton && (
 					<p className="text-xs text-white/40">
 						Ubisoft Connect behaves best with GE-Proton: black or frozen windows and slow game starts are the usual
 						symptoms of other builds. It is downloaded from GitHub and checked before it is installed.
@@ -202,34 +213,38 @@ export function UbisoftSection() {
 					<IconButton label="Read the library from Connect again" disabled={busy || !ready} onClick={() => run(UbisoftSync)}>
 						<RefreshCw className={cn("size-3.5", busy && "animate-spin")} />
 					</IconButton>
-					<PillButton variant="danger" disabled={installing || !status} onClick={reset}>
-						<Trash2 className="size-3.5" />
-						Reset
-					</PillButton>
+					{onProton && (
+						<PillButton variant="danger" disabled={installing || !status} onClick={reset}>
+							<Trash2 className="size-3.5" />
+							Reset
+						</PillButton>
+					)}
 				</div>
 			</Panel>
 
-			<BattlEyePanel />
+			{onProton && <BattlEyePanel />}
 
-			<Panel>
-				<ToggleRow
-					label="Fix a black Ubisoft Connect window"
-					hint="Draws Connect's own window with software rendering while you sign in and install games. Many setups show it black otherwise. Games never use this: Play restarts Connect normally."
-					checked={settings?.ubisoftSoftwareRendering ?? true}
-					disabled={!settings}
-					onChange={setSoftware}
-				/>
-				<p className="text-xs text-white/40">
-					Takes effect the next time Connect is opened. Close it first if it is already open.
-				</p>
-			</Panel>
+			{onProton && (
+				<Panel>
+					<ToggleRow
+						label="Fix a black Ubisoft Connect window"
+						hint="Draws Connect's own window with software rendering while you sign in and install games. Many setups show it black otherwise. Games never use this: Play restarts Connect normally."
+						checked={settings?.ubisoftSoftwareRendering ?? true}
+						disabled={!settings}
+						onChange={setSoftware}
+					/>
+					<p className="text-xs text-white/40">
+						Takes effect the next time Connect is opened. Close it first if it is already open.
+					</p>
+				</Panel>
+			)}
 
 			<Panel>
 				<Label>Playing</Label>
 				<p className="text-sm text-white/55">
 					Press Install on a game in Shelf and Ubisoft Connect downloads it. When it's done, Play starts it
-					through Connect. Connect stays open in the background after a game closes; that's normal, and the
-					newest GE-Proton works best with it.
+					through Connect. Connect stays open in the background after a game closes; that's normal
+					{onProton ? ", and the newest GE-Proton works best with it." : "."}
 				</p>
 			</Panel>
 

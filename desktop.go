@@ -69,7 +69,7 @@ func (a *App) startDesktop() {
 
 	if s.Tray && platform.Desktop {
 		a.tray = &desktop.Tray{
-			Icon:     icon,
+			Icon:     trayIcon(),
 			OnToggle: a.toggleWindow,
 			OnShow:   a.showWindow,
 			OnQuit:   a.quit,

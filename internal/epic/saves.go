@@ -43,7 +43,8 @@ func (m *Manager) supportsCloudSaves(appName string) bool {
 }
 
 func (m *Manager) cloudSavesEnabled(appName string) bool {
-	// Saves are looked for inside the game's Proton prefix, which Mac games don't have.
+	// On Linux saves are looked for inside the game's Proton prefix, which Mac
+	// games don't have. On Windows legendary finds them where the game keeps them.
 	return !macOS && choose(m.games.get(appName).CloudSaves, m.settings.get().CloudSaves) && m.supportsCloudSaves(appName)
 }
 
@@ -122,11 +123,13 @@ func (m *Manager) syncSaves(appName, direction string) (state string, err error)
 	if !m.Account().LoggedIn {
 		return "", fmt.Errorf("not logged in to Epic Games")
 	}
-	if !prefixReady(appName) {
-		return "unchanged", nil
-	}
-	if err := m.pointLegendaryAtPrefix(appName); err != nil {
-		return "", err
+	if useProton {
+		if !prefixReady(appName) {
+			return "unchanged", nil
+		}
+		if err := m.pointLegendaryAtPrefix(appName); err != nil {
+			return "", err
+		}
 	}
 
 	args := []string{"-y", "sync-saves", appName, "--accept-path"}
@@ -177,7 +180,7 @@ func (m *Manager) SyncSaves(appName string) error {
 	if !m.supportsCloudSaves(appName) {
 		return fmt.Errorf("this game doesn't support cloud saves")
 	}
-	if !prefixReady(appName) {
+	if useProton && !prefixReady(appName) {
 		return fmt.Errorf("start the game once first so its saves exist")
 	}
 	// The outcome, failures included, reaches the UI as an event.

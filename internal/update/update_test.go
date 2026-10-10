@@ -263,8 +263,62 @@ func TestPackageManagerAndReadOnlyInstallsAreExplained(t *testing.T) {
 // linuxOnly skips tests of replacing the running copy, which only Linux does.
 func linuxOnly(t *testing.T) {
 	t.Helper()
-	if runtime.GOOS == "darwin" {
-		t.Skip("macOS updates are downloaded from the release page")
+	if runtime.GOOS != "linux" {
+		t.Skip("Linux builds only replace themselves on Linux")
+	}
+}
+
+func TestWindowsInstallStepsAsideForTheNewProgram(t *testing.T) {
+	newExe := append([]byte("MZ"), []byte("new shelf program")...)
+	srv := newServer(t, "v0.5.0", map[string][]byte{
+		windowsAsset:             newExe,
+		windowsAsset + ".sha256": []byte(sum(newExe) + " *" + windowsAsset),
+		binaryAsset:              tarball(t, "./shelf", fakeELF),
+	})
+	dir := t.TempDir()
+	exe := filepath.Join(dir, "shelf.exe")
+	os.WriteFile(exe, []byte("old"), 0o755)
+	u := testUpdater(t, srv, "v0.4.1", exe)
+	u.goos = "windows"
+	u.Check(context.Background())
+	if _, err := u.Install(context.Background(), nil); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := os.ReadFile(exe); !bytes.Equal(got, newExe) {
+		t.Errorf("program = %q", got)
+	}
+	if got, _ := os.ReadFile(exe + ".old"); string(got) != "old" {
+		t.Errorf("the old program wasn't kept aside: %q", got)
+	}
+	u.RemoveReplaced()
+	if _, err := os.Stat(exe + ".old"); !os.IsNotExist(err) {
+		t.Error("the old program is still there after the next start")
+	}
+
+	// Something that isn't a Windows program is refused.
+	os.WriteFile(exe, []byte("old"), 0o755)
+	srv.assets[windowsAsset] = fakeELF
+	srv.assets[windowsAsset+".sha256"] = []byte(sum(fakeELF))
+	srv.tag = "v0.6.0"
+	u.Check(context.Background())
+	if _, err := u.Install(context.Background(), nil); err == nil {
+		t.Error("installed something that isn't a Windows program")
+	}
+	if got, _ := os.ReadFile(exe); string(got) != "old" {
+		t.Errorf("the program was replaced: %q", got)
+	}
+
+	// An install for all users is left to whatever installed it.
+	u = testUpdater(t, srv, "v0.4.1", `C:\Program Files\Shelf\shelf.exe`)
+	u.goos = "windows"
+	u.getenv = func(k string) string {
+		if k == "ProgramFiles" {
+			return `C:\Program Files`
+		}
+		return ""
+	}
+	if !underProgramFiles(`C:\Program Files\Shelf\shelf.exe`, u.getenv) && runtime.GOOS == "windows" {
+		t.Error("Program Files not recognised")
 	}
 }
 

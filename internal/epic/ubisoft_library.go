@@ -45,6 +45,9 @@ var ubiKeyRe = regexp.MustCompile(`^uplay-(\d{1,10})$`)
 
 // connectDir is where Connect itself is installed.
 func connectDir() string {
+	if onWindows {
+		return winConnectDir()
+	}
 	return filepath.Join(ubisoftPrefix(), "pfx", "drive_c", "Program Files (x86)",
 		"Ubisoft", "Ubisoft Game Launcher")
 }
@@ -53,9 +56,14 @@ func connectDir() string {
 // Current versions write to the Windows user's AppData; older ones wrote
 // next to the program. The folder with the records wins.
 func connectDataDir() string {
-	users := filepath.Join(ubisoftPrefix(), "pfx", "drive_c", "users")
-	matches, _ := filepath.Glob(filepath.Join(users, "*", "AppData", "Local", "Ubisoft Game Launcher"))
-	candidates := append(matches, connectDir())
+	var candidates []string
+	if onWindows {
+		candidates = winConnectDataDirs()
+	} else {
+		users := filepath.Join(ubisoftPrefix(), "pfx", "drive_c", "users")
+		candidates, _ = filepath.Glob(filepath.Join(users, "*", "AppData", "Local", "Ubisoft Game Launcher"))
+	}
+	candidates = append(candidates, connectDir())
 	for _, dir := range candidates {
 		if _, err := os.Stat(filepath.Join(dir, "cache", "configuration", "configurations")); err == nil {
 			return dir

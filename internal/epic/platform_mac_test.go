@@ -14,9 +14,9 @@ import (
 // asMac runs the rest of a test as if on macOS: Epic's Mac builds, no Proton.
 func asMac(t *testing.T) {
 	t.Helper()
-	was := macOS
-	macOS = true
-	t.Cleanup(func() { macOS = was })
+	was, proton := macOS, useProton
+	macOS, useProton = true, false
+	t.Cleanup(func() { macOS, useProton = was, proton })
 }
 
 const fakeMacLegendary = `#!/bin/sh
@@ -35,6 +35,7 @@ esac
 `
 
 func TestMacEpicInstallsAndRunsMacBuilds(t *testing.T) {
+	unixOnly(t)
 	asMac(t)
 	root := t.TempDir()
 	games := filepath.Join(root, "games")
@@ -43,8 +44,11 @@ func TestMacEpicInstallsAndRunsMacBuilds(t *testing.T) {
 	os.MkdirAll(filepath.Join(games, "Sugar"), 0o755)
 	os.WriteFile(filepath.Join(bin, "legendary"), []byte(fakeMacLegendary), 0o755)
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home")) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(root, "data")) // where Windows looks
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	t.Setenv("GAMES", games)
 

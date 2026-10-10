@@ -11,7 +11,6 @@ import (
 	"path/filepath"
 	"strconv"
 	"strings"
-	"syscall"
 	"time"
 
 	"shelf/internal/library"
@@ -51,12 +50,12 @@ type UbisoftStatus struct {
 
 func (m *Manager) UbisoftStatus() UbisoftStatus {
 	st := UbisoftStatus{ConnectInstalled: connectInstalled()}
-	st.Running = st.ConnectInstalled && len(prefixProcesses(ubisoftPrefix())) > 0
+	st.Running = st.ConnectInstalled && connectRunning()
 	if st.ConnectInstalled {
 		local := m.readConnect()
 		st.SignedIn, st.Account, st.Games = local.account != "", local.account, len(local.games)
 	}
-	if b, ok := resolveProton(m.settings.get().ProtonPath); ok {
+	if b, ok := resolveProton(m.settings.get().ProtonPath); useProton && ok {
 		st.Proton, st.ProtonIsGE = b.Name, strings.HasPrefix(b.Name, "GE-Proton")
 	}
 	return st
@@ -83,8 +82,9 @@ func (m *Manager) setSetup(s UbisoftSetupState) {
 	m.send("ubisoft:setup", s)
 }
 
-// UbisoftSetup downloads Ubisoft's installer and runs it silently in the
-// shared prefix. It can be run again to repair a broken install.
+// UbisoftSetup downloads Ubisoft's installer and runs it silently: in the
+// shared prefix on Linux, and into Windows itself on Windows. It can be run
+// again to repair a broken install.
 func (m *Manager) UbisoftSetup() error {
 	if macOS {
 		return errNeedsProton("Ubisoft Connect")
@@ -117,7 +117,7 @@ func (m *Manager) UbisoftSetup() error {
 
 func (m *Manager) setupConnect(ctx context.Context, report func(float64, string)) error {
 	build, ok := resolveProton(m.settings.get().ProtonPath)
-	if !ok {
+	if useProton && !ok {
 		return fmt.Errorf("no Proton found. Install GE-Proton through ProtonUp-Qt, or Proton through Steam")
 	}
 
@@ -125,6 +125,18 @@ func (m *Manager) setupConnect(ctx context.Context, report func(float64, string)
 	report(0, "Downloading")
 	if err := m.downloadInstaller(ctx, installer, func(frac float64) { report(frac*60, "Downloading") }); err != nil {
 		return err
+	}
+
+	if onWindows {
+		report(62, "Installing. Windows may ask for permission")
+		if err := m.runInstaller(ctx, ubisoftSource, "", installer, []string{"/S"}, filepath.Dir(installer)); err != nil {
+			return fmt.Errorf("the installer failed: %w", err)
+		}
+		if !connectInstalled() {
+			return fmt.Errorf("the installer finished but Ubisoft Connect isn't installed. See the log for details")
+		}
+		m.logf(ubisoftSource, "", "Ubisoft Connect is installed")
+		return nil
 	}
 
 	if err := os.MkdirAll(ubisoftPrefix(), 0o755); err != nil {
@@ -147,9 +159,14 @@ func (m *Manager) setupConnect(ctx context.Context, report func(float64, string)
 
 func ubisoftPrefix() string { return filepath.Join(prefixRoot(), ubisoftPrefixName) }
 
-func connectExe() string {
-	return filepath.Join(ubisoftPrefix(), "pfx", "drive_c", "Program Files (x86)",
-		"Ubisoft", "Ubisoft Game Launcher", "UbisoftConnect.exe")
+func connectExe() string { return filepath.Join(connectDir(), "UbisoftConnect.exe") }
+
+// connectRunning reports whether Ubisoft Connect, or anything it started, is open.
+func connectRunning() bool {
+	if onWindows {
+		return processRunning(connectPrograms...)
+	}
+	return len(prefixProcesses(ubisoftPrefix())) > 0
 }
 
 func connectInstalled() bool {
@@ -284,6 +301,9 @@ func (m *Manager) runLogged(cmd *exec.Cmd, source, app string) error {
 // UbisoftReset deletes the Ubisoft Connect prefix: the login, and every game
 // installed inside it. Epic and cloud data are untouched.
 func (m *Manager) UbisoftReset() error {
+	if onWindows {
+		return fmt.Errorf("Ubisoft Connect is installed in Windows itself. Remove it in Windows' Settings, under Apps")
+	}
 	if len(m.runningUbisoft()) > 0 {
 		return fmt.Errorf("a Ubisoft game is running; close it first")
 	}
@@ -309,6 +329,9 @@ func (m *Manager) ubisoftBuild() (ProtonBuild, error) {
 	if !connectInstalled() {
 		return ProtonBuild{}, fmt.Errorf("set up Ubisoft Connect first (Settings, Integrations, Ubisoft)")
 	}
+	if !useProton {
+		return ProtonBuild{}, nil
+	}
 	build, ok := resolveProton(m.settings.get().ProtonPath)
 	if !ok {
 		return ProtonBuild{}, fmt.Errorf("no Proton installation found")
@@ -332,6 +355,20 @@ func (m *Manager) UbisoftOpenConnect() error {
 		return nil // already open
 	}
 	m.mu.Unlock()
+	if onWindows {
+		cmd := exec.Command(connectExe())
+		cmd.Dir = connectDir()
+		cmd.Env = library.ChildEnv()
+		ownGroup(cmd)
+		if err := cmd.Start(); err != nil {
+			return err
+		}
+		m.mu.Lock()
+		m.connect = cmd
+		m.mu.Unlock()
+		go m.watchConnect(cmd)
+		return nil
+	}
 	if len(m.runningUbisoft()) > 0 {
 		return fmt.Errorf("a Ubisoft game is running; close it first")
 	}
@@ -340,7 +377,7 @@ func (m *Manager) UbisoftOpenConnect() error {
 
 	cmd := exec.Command(filepath.Join(build.Path, "proton"), "run", connectExe())
 	cmd.Env = append(library.ChildEnv(), connectEnv(build, "", m.settings.get().UbisoftSoftwareRendering)...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ownGroup(cmd)
 	if err := m.startPumped(cmd, "ubisoft", ""); err != nil {
 		return err
 	}
@@ -476,13 +513,13 @@ func stopPrefixProcesses(prefix string) int {
 		return 0
 	}
 	for _, p := range pids {
-		_ = syscall.Kill(p, syscall.SIGTERM)
+		terminate(p)
 	}
 	for i := 0; i < 20 && len(prefixProcesses(prefix)) > 0; i++ {
 		time.Sleep(200 * time.Millisecond)
 	}
 	for _, p := range prefixProcesses(prefix) {
-		_ = syscall.Kill(p, syscall.SIGKILL)
+		kill(p)
 	}
 	for i := 0; i < 10 && len(prefixProcesses(prefix)) > 0; i++ {
 		time.Sleep(100 * time.Millisecond)
@@ -495,7 +532,11 @@ func (m *Manager) UbisoftCloseConnect() error {
 	if len(m.runningUbisoft()) > 0 {
 		return fmt.Errorf("a Ubisoft game is running; close the game first")
 	}
-	stopPrefixProcesses(ubisoftPrefix())
+	if onWindows {
+		closePrograms(connectPrograms...)
+	} else {
+		stopPrefixProcesses(ubisoftPrefix())
+	}
 	m.mu.Lock()
 	m.connect = nil
 	m.mu.Unlock()
@@ -533,7 +574,7 @@ func (m *Manager) hand(build ProtonBuild, uri, installDir string, extra []string
 	cmd.Env = append(library.ChildEnv(), connectEnv(build, installDir, false)...)
 	cmd.Env = append(cmd.Env, extra...)
 	cmd.Env = append(cmd.Env, env...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ownGroup(cmd)
 	m.logf("launch", app, "proton: %s, prefix: %s", build.Name, ubisoftPrefix())
 	if err := m.startPumped(cmd, "launch", app); err != nil {
 		return nil, err
@@ -637,6 +678,18 @@ func (m *Manager) UbisoftLaunch(key string) error {
 		return err
 	}
 
+	if onWindows {
+		// Windows passes the link to Connect, which starts the game.
+		m.logf("launch", key, "opening %s", uri)
+		if err := openURI(uri); err != nil {
+			return err
+		}
+		exited := make(chan error, 1)
+		exited <- nil
+		go m.watchLaunch(key, g.Name, exited, time.Now())
+		return nil
+	}
+
 	// Connect may be downloading, and it was started with software rendering,
 	// which a game would inherit. Restarting it would end the download.
 	if len(m.ubisoftInstalling()) > 0 && (m.settings.get().UbisoftSoftwareRendering || len(beEnv) > 0) {
@@ -672,6 +725,13 @@ func (m *Manager) sendLink(uri string) error {
 	if err != nil {
 		return err
 	}
+	if onWindows {
+		if err := openURI(uri); err != nil {
+			return err
+		}
+		m.startUbiWatch()
+		return nil
+	}
 	if len(m.runningUbisoft()) == 0 && len(m.ubisoftInstalling()) == 0 {
 		stopPrefixProcesses(ubisoftPrefix())
 	}
@@ -681,7 +741,7 @@ func (m *Manager) sendLink(uri string) error {
 	}
 	cmd := exec.Command(wrapper[0], append(wrapper[1:], "start", uri)...)
 	cmd.Env = append(library.ChildEnv(), connectEnv(build, "", m.settings.get().UbisoftSoftwareRendering)...)
-	cmd.SysProcAttr = &syscall.SysProcAttr{Setpgid: true}
+	ownGroup(cmd)
 	if err := m.startPumped(cmd, ubisoftSource, ""); err != nil {
 		return err
 	}
@@ -756,7 +816,7 @@ const pendingGrace = 3 * time.Minute
 // has started and not finished while it is open, plus the ones just requested.
 func (m *Manager) ubisoftInstalling() []UbisoftInstalling {
 	complete, partial := m.ubisoftRegistry()
-	running := len(prefixProcesses(ubisoftPrefix())) > 0
+	running := connectRunning()
 
 	var out []UbisoftInstalling
 	for _, g := range m.readConnect().games {
@@ -833,7 +893,7 @@ func (m *Manager) startUbiWatch() {
 				had = len(list) > 0
 			}
 			// Connect opens a moment after it is asked to; give it time.
-			if len(list) == 0 && len(prefixProcesses(ubisoftPrefix())) == 0 {
+			if len(list) == 0 && !connectRunning() {
 				if idle++; idle >= 3 {
 					break
 				}
@@ -884,6 +944,19 @@ func (m *Manager) runningUbisoft() []string {
 	}
 	if len(folders) == 0 {
 		return nil
+	}
+	if onWindows {
+		dirs := map[string]string{}
+		for _, o := range m.readConnect().games {
+			if dir, ok := installs[strconv.Itoa(o.InstallID)]; ok {
+				dirs[dir] = o.key()
+			}
+		}
+		var out []string
+		for key := range runningUnder(dirs) {
+			out = append(out, key)
+		}
+		return out
 	}
 
 	want := []byte("STEAM_COMPAT_DATA_PATH=" + ubisoftPrefix())

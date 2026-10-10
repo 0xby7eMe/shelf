@@ -140,6 +140,7 @@ func TestSettingsKeepDefaultsForOldFiles(t *testing.T) {
 	root := t.TempDir()
 	t.Setenv("HOME", root) // macOS keeps settings under ~/Library and ignores XDG
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	os.MkdirAll(configDir(), 0o755)
 	// A file written before the update settings existed.
 	os.WriteFile(filepath.Join(configDir(), "epic.json"), []byte(`{"installDir":"/games","protonPath":""}`), 0o644)
@@ -169,9 +170,12 @@ func TestGameSettingsValidate(t *testing.T) {
 }
 
 func TestPrefixesAndDelete(t *testing.T) {
+	linuxOnly(t)
 	root := t.TempDir()
 	t.Setenv("XDG_DATA_HOME", root)
+	t.Setenv("LOCALAPPDATA", root) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 
 	big := filepath.Join(prefixRoot(), "Big", "pfx")
 	small := filepath.Join(prefixRoot(), "Small")

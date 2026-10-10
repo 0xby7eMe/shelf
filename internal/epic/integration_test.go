@@ -45,8 +45,11 @@ func TestFakeLegendaryFlow(t *testing.T) {
 	os.WriteFile(filepath.Join(proton, "proton"), []byte("#!/bin/sh\n"), 0o755)
 
 	t.Setenv("HOME", filepath.Join(root, "home"))
+	t.Setenv("USERPROFILE", filepath.Join(root, "home")) // where Windows looks
 	t.Setenv("XDG_CONFIG_HOME", filepath.Join(root, "cfg"))
+	t.Setenv("APPDATA", filepath.Join(root, "cfg")) // where Windows looks
 	t.Setenv("XDG_DATA_HOME", filepath.Join(root, "data"))
+	t.Setenv("LOCALAPPDATA", filepath.Join(root, "data")) // where Windows looks
 	t.Setenv("PATH", bin+":"+os.Getenv("PATH"))
 	t.Setenv("GAMES", games)
 

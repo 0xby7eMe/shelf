@@ -138,8 +138,8 @@ func libraryDirs(root string) []string {
 		if r, err := filepath.EvalSymlinks(d); err == nil {
 			d = r
 		}
-		if !seen[d] {
-			seen[d] = true
+		if k := pathKey(d); !seen[k] {
+			seen[k] = true
 			out = append(out, d)
 		}
 	}

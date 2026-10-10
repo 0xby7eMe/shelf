@@ -22,6 +22,7 @@ import {
 	SelectValue,
 } from "@/components/ui/select"
 import { ToggleRow } from "@/components/toggle-row"
+import { usePlatform } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
@@ -91,6 +92,7 @@ function ChoiceSelect({
 }
 
 function Form({ game, onClose }: { game: library.Game; onClose: () => void }) {
+	const { proton } = usePlatform()
 	const [s, setS] = useState<epic.GameSettings | null>(null)
 	const [builds, setBuilds] = useState<epic.ProtonBuild[]>([])
 	const [tools, setTools] = useState<epic.Tools | null>(null)
@@ -138,24 +140,26 @@ function Form({ game, onClose }: { game: library.Game; onClose: () => void }) {
 				<DialogDescription className="sr-only">Launch settings for {game.name}</DialogDescription>
 			</div>
 
-			<Field label="Proton version">
-				<Select
-					value={s.protonPath || GLOBAL}
-					onValueChange={(v) => patch({ protonPath: !v || v === GLOBAL ? "" : v })}
-				>
-					<SelectTrigger className={triggerClass}>
-						<SelectValue />
-					</SelectTrigger>
-					<SelectContent className={selectContentClass}>
-						<SelectItem value={GLOBAL}>Follow global setting</SelectItem>
-						{builds.map((b) => (
-							<SelectItem key={b.path} value={b.path}>
-								{b.name}
-							</SelectItem>
-						))}
-					</SelectContent>
-				</Select>
-			</Field>
+			{proton && (
+				<Field label="Proton version">
+					<Select
+						value={s.protonPath || GLOBAL}
+						onValueChange={(v) => patch({ protonPath: !v || v === GLOBAL ? "" : v })}
+					>
+						<SelectTrigger className={triggerClass}>
+							<SelectValue />
+						</SelectTrigger>
+						<SelectContent className={selectContentClass}>
+							<SelectItem value={GLOBAL}>Follow global setting</SelectItem>
+							{builds.map((b) => (
+								<SelectItem key={b.path} value={b.path}>
+									{b.name}
+								</SelectItem>
+							))}
+						</SelectContent>
+					</Select>
+				</Field>
+			)}
 
 			<Field label="Launch arguments" hint="Passed to the game, e.g. -windowed -nologo">
 				<Input
@@ -172,26 +176,30 @@ function Form({ game, onClose }: { game: library.Game; onClose: () => void }) {
 					onChange={(e) => patch({ env: e.target.value })}
 					rows={3}
 					spellCheck={false}
-					placeholder={"DXVK_HUD=fps\nPROTON_ENABLE_NVAPI=1"}
+					placeholder={proton ? "DXVK_HUD=fps\nPROTON_ENABLE_NVAPI=1" : "KEY=value"}
 					className="w-full resize-y rounded-2xl border-0 bg-white/5 px-4 py-3 font-mono text-xs ring-1 ring-white/5 outline-none placeholder:text-white/25 focus-visible:ring-white/20"
 				/>
 			</Field>
 
 			<div className="space-y-4">
-				<ToggleRow
-					label="MangoHud overlay"
-					hint={tools && !tools.mangoHud ? "mangohud isn't installed" : undefined}
-					checked={s.mangoHud}
-					disabled={tools ? !tools.mangoHud : false}
-					onChange={(v) => patch({ mangoHud: v })}
-				/>
-				<ToggleRow
-					label="GameMode"
-					hint={tools && !tools.gameMode ? "gamemode isn't installed" : undefined}
-					checked={s.gameMode}
-					disabled={tools ? !tools.gameMode : false}
-					onChange={(v) => patch({ gameMode: v })}
-				/>
+				{proton && (
+					<>
+						<ToggleRow
+							label="MangoHud overlay"
+							hint={tools && !tools.mangoHud ? "mangohud isn't installed" : undefined}
+							checked={s.mangoHud}
+							disabled={tools ? !tools.mangoHud : false}
+							onChange={(v) => patch({ mangoHud: v })}
+						/>
+						<ToggleRow
+							label="GameMode"
+							hint={tools && !tools.gameMode ? "gamemode isn't installed" : undefined}
+							checked={s.gameMode}
+							disabled={tools ? !tools.gameMode : false}
+							onChange={(v) => patch({ gameMode: v })}
+						/>
+					</>
+				)}
 				<ToggleRow
 					label="Offline mode"
 					hint="Start without contacting Epic. Online features won't work."
@@ -227,7 +235,11 @@ function Form({ game, onClose }: { game: library.Game; onClose: () => void }) {
 					</Field>
 					<Field
 						label="Save folder"
-						hint="Leave empty to let Shelf find it inside the game's Proton prefix."
+						hint={
+							proton
+								? "Leave empty to let Shelf find it inside the game's Proton prefix."
+								: "Leave empty to let Shelf find it where the game keeps its saves."
+						}
 					>
 						<Input
 							value={s.savePath}

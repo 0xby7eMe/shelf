@@ -147,8 +147,8 @@ function Body({
 	const isUbisoft = game.source === "ubisoft"
 	const isGog = game.source === "gog"
 	const platform = usePlatform()
-	// GOG's installers are Windows programs, run through Proton, which macOS doesn't have.
-	const noGogInstall = isGog && !platform.proton
+	// GOG's installers are Windows programs: Linux runs them through Proton, which macOS doesn't have.
+	const noGogInstall = isGog && !platform.windowsGames
 	const battleye = useBattlEyeRuntime()
 	const needsInstall = (isEpic || isGog || isUbisoft) && !game.installed
 	const [proton, setProton] = useState("")

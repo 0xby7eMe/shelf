@@ -121,7 +121,14 @@ export function EpicSection({ account, onAccountChange }: Props) {
 
 	return (
 		<div className="space-y-6">
-			<SectionHeading title="Epic Games" hint="Your Epic library, installed through legendary and run with Proton." />
+			<SectionHeading
+				title="Epic Games"
+				hint={
+					platform.proton
+						? "Your Epic library, installed through legendary and run with Proton."
+						: "Your Epic library, installed and started through legendary."
+				}
+			/>
 
 			{account && !account.legendaryFound && <LegendarySetup onInstalled={onAccountChange} />}
 

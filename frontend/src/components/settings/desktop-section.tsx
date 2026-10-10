@@ -4,6 +4,7 @@ import { GetDesktopStatus, SetDesktopSettings } from "../../../wailsjs/go/main/A
 import { desktop, main } from "../../../wailsjs/go/models"
 import { ToggleRow } from "@/components/toggle-row"
 import { Panel, SectionHeading } from "@/components/settings/ui"
+import { usePlatform } from "@/lib/platform"
 import { toast } from "@/lib/toast"
 import { cn } from "@/lib/utils"
 
@@ -18,6 +19,7 @@ function Dot({ on, label }: { on: boolean; label: string }) {
 
 // How Shelf fits into the rest of the desktop. Everything here is off until switched on.
 export function DesktopSection() {
+	const onWindows = usePlatform().os === "windows"
 	const [status, setStatus] = useState<main.DesktopStatus | null>(null)
 
 	const load = useCallback(() => GetDesktopStatus().then(setStatus).catch(() => {}), [])
@@ -40,12 +42,23 @@ export function DesktopSection() {
 
 	return (
 		<div className="space-y-6">
-			<SectionHeading title="Desktop" hint="Let Shelf show up where you already look: your application menu, links and the tray." />
+			<SectionHeading
+				title="Desktop"
+				hint={
+					onWindows
+						? "Let Shelf show up where you already look: the Start menu, links and the tray."
+						: "Let Shelf show up where you already look: your application menu, links and the tray."
+				}
+			/>
 
 			<Panel>
 				<ToggleRow
-					label="Application menu entries"
-					hint="Add every installed game to your application menu and launcher, so you can start it without opening Shelf. They are kept up to date as games come and go."
+					label={onWindows ? "Start menu shortcuts" : "Application menu entries"}
+					hint={
+						onWindows
+							? "Add every installed game to the Start menu, in a Shelf Games folder, so you can start it without opening Shelf. They are kept up to date as games come and go."
+							: "Add every installed game to your application menu and launcher, so you can start it without opening Shelf. They are kept up to date as games come and go."
+					}
 					checked={s.menuEntries}
 					onChange={(v) => save({ menuEntries: v })}
 				/>
@@ -60,7 +73,11 @@ export function DesktopSection() {
 			<Panel>
 				<ToggleRow
 					label="Tray icon"
-					hint="A tray icon with your recently played games. Needs a desktop that shows tray icons (on GNOME that takes an extension). Applies the next time Shelf starts."
+					hint={
+						onWindows
+							? "A tray icon with your recently played games, in the corner of the taskbar. Applies the next time Shelf starts."
+							: "A tray icon with your recently played games. Needs a desktop that shows tray icons (on GNOME that takes an extension). Applies the next time Shelf starts."
+					}
 					checked={s.tray}
 					onChange={(v) => save({ tray: v })}
 				/>

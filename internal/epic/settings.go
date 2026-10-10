@@ -47,6 +47,12 @@ func dataDir() string {
 	if macOS {
 		return configDir() // ~/Library/Application Support/shelf
 	}
+	if onWindows {
+		if d := os.Getenv("LOCALAPPDATA"); d != "" {
+			return filepath.Join(d, "shelf")
+		}
+		return configDir() // %APPDATA%\shelf
+	}
 	if d := os.Getenv("XDG_DATA_HOME"); d != "" {
 		return filepath.Join(d, "shelf")
 	}

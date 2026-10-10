@@ -58,6 +58,7 @@ func installLegendaryNow(t *testing.T, m *Manager) (string, error) {
 }
 
 func TestInstallLegendary(t *testing.T) {
+	unixOnly(t)
 	m := ubiTestManager(t)
 	t.Setenv("PATH", t.TempDir()) // no legendary anywhere else
 	fakeLegendaryRelease(t, func(sum string) string { return "sha256:" + sum })
@@ -87,6 +88,7 @@ func TestInstallLegendary(t *testing.T) {
 }
 
 func TestInstallLegendaryChecksTheDownload(t *testing.T) {
+	unixOnly(t)
 	for name, digest := range map[string]func(string) string{
 		"wrong checksum": func(string) string { return "sha256:" + strings.Repeat("0", 64) },
 		"no checksum":    func(string) string { return "" },
@@ -105,6 +107,7 @@ func TestInstallLegendaryChecksTheDownload(t *testing.T) {
 }
 
 func TestInstallLegendaryOnlyFromItsReleases(t *testing.T) {
+	unixOnly(t)
 	m := ubiTestManager(t)
 	fakeLegendaryRelease(t, func(sum string) string { return "sha256:" + sum })
 	legendaryDownloadPrefix = "https://github.com/legendary-gl/legendary/releases/download/"

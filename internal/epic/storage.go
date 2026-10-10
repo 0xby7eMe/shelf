@@ -9,7 +9,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"syscall"
 	"time"
 )
 
@@ -40,11 +39,7 @@ func diskUsage(ctx context.Context, root string) int64 {
 		if err != nil {
 			return nil
 		}
-		if st, ok := info.Sys().(*syscall.Stat_t); ok {
-			total += st.Blocks * 512
-		} else {
-			total += info.Size()
-		}
+		total += allocated(info)
 		return nil
 	})
 	return total
@@ -145,6 +140,9 @@ func (m *Manager) withoutUbisoftGames(ctx context.Context, prefix string, total 
 
 // InstallRoots lists folders that hold Epic data, for free space reporting.
 func (m *Manager) InstallRoots() []string {
+	if !useProton {
+		return []string{m.settings.get().InstallDir}
+	}
 	return []string{m.settings.get().InstallDir, prefixRoot()}
 }
 
@@ -164,4 +162,9 @@ func (m *Manager) DeletePrefix(appName string) error {
 		return fmt.Errorf("game is busy")
 	}
 	return os.RemoveAll(filepath.Join(prefixRoot(), appName))
+}
+
+func fileExists(p string) bool {
+	st, err := os.Stat(p)
+	return err == nil && !st.IsDir()
 }
